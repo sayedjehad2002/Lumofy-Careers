@@ -65,7 +65,7 @@ const DepartmentHeatmap = ({ employees, getRating, orgMean }: DepartmentHeatmapP
     if (count === 0) return "transparent";
     if (avg >= 4.0) return "hsl(142 76% 36% / 0.7)";
     if (avg >= 3.5) return "hsl(142 76% 36% / 0.45)";
-    if (avg >= 3.0) return "hsl(217 91% 60% / 0.4)";
+    if (avg >= 3.0) return "hsl(223 83% 60% / 0.4)";
     if (avg >= 2.5) return "hsl(38 92% 50% / 0.45)";
     return "hsl(0 84% 60% / 0.55)";
   };
@@ -195,7 +195,7 @@ const DepartmentHeatmap = ({ employees, getRating, orgMean }: DepartmentHeatmapP
           <div className="flex items-center gap-4 mt-4 pt-3 border-t border-border/30 text-[10px] text-muted-foreground flex-wrap">
             <span className="flex items-center gap-1.5"><div className="w-4 h-3 rounded" style={{ backgroundColor: "hsl(0 84% 60% / 0.55)" }} /> &lt;2.5 Critical</span>
             <span className="flex items-center gap-1.5"><div className="w-4 h-3 rounded" style={{ backgroundColor: "hsl(38 92% 50% / 0.45)" }} /> 2.5–3.0</span>
-            <span className="flex items-center gap-1.5"><div className="w-4 h-3 rounded" style={{ backgroundColor: "hsl(217 91% 60% / 0.4)" }} /> 3.0–3.5</span>
+            <span className="flex items-center gap-1.5"><div className="w-4 h-3 rounded" style={{ backgroundColor: "hsl(223 83% 60% / 0.4)" }} /> 3.0–3.5</span>
             <span className="flex items-center gap-1.5"><div className="w-4 h-3 rounded" style={{ backgroundColor: "hsl(142 76% 36% / 0.45)" }} /> 3.5–4.0</span>
             <span className="flex items-center gap-1.5"><div className="w-4 h-3 rounded" style={{ backgroundColor: "hsl(142 76% 36% / 0.7)" }} /> 4.0+ Top</span>
             <span className="ml-auto flex items-center gap-3">

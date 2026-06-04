@@ -1,10 +1,9 @@
-import { useMemo, useCallback, useState, useEffect, forwardRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useMemo, useCallback, useState, forwardRef } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Briefcase, RotateCcw, Search, SlidersHorizontal, X, MapPin,
-  Building2, Clock, Banknote, ChevronDown, Share2, Check, Filter,
-  LayoutGrid, LayoutList
+  Building2, Clock, ChevronDown, Share2, Filter, Compass, ArrowRight,
 } from "lucide-react";
 import Navbar from "@/components/careers/Navbar";
 import Footer from "@/components/careers/Footer";
@@ -30,6 +29,9 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { toast } from "sonner";
+
+const ease = [0.22, 1, 0.36, 1] as [number, number, number, number];
+const fadeUp = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0, transition: { duration: 0.6, ease } } };
 
 // ─── URL param helpers ─────────────────────────────────────
 function getParamArray(params: URLSearchParams, key: string): string[] {
@@ -67,49 +69,49 @@ const FilterSection = forwardRef<HTMLDivElement, FilterSectionProps>(({ title, i
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger className="flex items-center justify-between w-full py-2.5 group">
+      <CollapsibleTrigger className="group flex w-full items-center justify-between py-2.5">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           {icon}
           {title}
           {selected.length > 0 && (
-            <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-primary/10 text-primary border-0">
+            <Badge variant="secondary" className="h-5 border-0 bg-primary/10 px-1.5 text-[10px] text-primary">
               {selected.length}
             </Badge>
           )}
         </div>
-        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
       </CollapsibleTrigger>
       <CollapsibleContent className="pb-3">
         {options.length > 5 && (
           <div className="relative mb-2">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder={`Search ${title.toLowerCase()}…`}
               value={sectionSearch}
               onChange={e => setSectionSearch(e.target.value)}
-              className="h-8 pl-8 text-xs bg-muted/50 border-border/50"
+              className="h-8 bg-muted/30 pl-8 text-xs"
             />
           </div>
         )}
-        <div className="space-y-0.5 max-h-48 overflow-y-auto">
+        <div className="max-h-48 space-y-0.5 overflow-y-auto">
           {filteredOptions.map(option => (
             <label
               key={option}
-              className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors group/item"
+              className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/50"
             >
               <Checkbox
                 checked={selected.includes(option)}
                 onCheckedChange={() => onToggle(option)}
                 className="h-4 w-4"
               />
-              <span className="text-sm text-foreground flex-1 truncate">{option}</span>
-              <span className="text-[11px] text-muted-foreground tabular-nums">
+              <span className="flex-1 truncate text-sm text-foreground">{option}</span>
+              <span className="text-[11px] tabular-nums text-muted-foreground">
                 {counts[option] || 0}
               </span>
             </label>
           ))}
           {filteredOptions.length === 0 && (
-            <p className="text-xs text-muted-foreground px-2 py-2">No matches</p>
+            <p className="px-2 py-2 text-xs text-muted-foreground">No matches</p>
           )}
         </div>
       </CollapsibleContent>
@@ -129,11 +131,15 @@ const ActiveChip = ({ label, onRemove }: ActiveChipProps) => (
     initial={{ opacity: 0, scale: 0.9 }}
     animate={{ opacity: 1, scale: 1 }}
     exit={{ opacity: 0, scale: 0.9 }}
-    className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20"
+    className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 py-1 pl-2.5 pr-1.5 text-xs font-medium text-primary"
   >
     {label}
-    <button onClick={onRemove} className="p-0.5 rounded-full hover:bg-primary/20 transition-colors">
-      <X className="w-3 h-3" />
+    <button
+      onClick={onRemove}
+      aria-label="Remove filter"
+      className="rounded-full p-0.5 transition-colors hover:bg-primary/20"
+    >
+      <X className="h-3 w-3" />
     </button>
   </motion.div>
 );
@@ -164,19 +170,19 @@ const FilterSidebarContent = forwardRef<HTMLDivElement, FilterSidebarContentProp
   totalActiveFilters, onReset,
 }, ref) => (
   <div ref={ref} className="space-y-1">
-    <div className="flex items-center justify-between mb-3">
-      <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-        <Filter className="w-4 h-4 text-primary" />
+    <div className="mb-3 flex items-center justify-between">
+      <h2 className="flex items-center gap-2 text-sm font-bold text-foreground">
+        <Filter className="h-4 w-4 text-primary" />
         Filters
         {totalActiveFilters > 0 && (
-          <Badge className="h-5 px-2 text-[10px] bg-primary text-primary-foreground border-0">
+          <Badge className="h-5 border-0 bg-primary px-2 text-[10px] text-primary-foreground">
             {totalActiveFilters}
           </Badge>
         )}
-      </h3>
+      </h2>
       {totalActiveFilters > 0 && (
         <Button variant="ghost" size="sm" onClick={onReset} className="h-7 text-xs text-muted-foreground hover:text-foreground">
-          <RotateCcw className="w-3 h-3 mr-1" />
+          <RotateCcw className="mr-1 h-3 w-3" />
           Clear all
         </Button>
       )}
@@ -184,7 +190,7 @@ const FilterSidebarContent = forwardRef<HTMLDivElement, FilterSidebarContentProp
 
     <FilterSection
       title="Department"
-      icon={<Building2 className="w-4 h-4 text-primary" />}
+      icon={<Building2 className="h-4 w-4 text-primary" />}
       options={departments}
       selected={selectedDepartments}
       onToggle={onToggleDepartment}
@@ -193,7 +199,7 @@ const FilterSidebarContent = forwardRef<HTMLDivElement, FilterSidebarContentProp
     <Separator className="my-1" />
     <FilterSection
       title="Location"
-      icon={<MapPin className="w-4 h-4 text-primary" />}
+      icon={<MapPin className="h-4 w-4 text-primary" />}
       options={locations}
       selected={selectedLocations}
       onToggle={onToggleLocation}
@@ -202,7 +208,7 @@ const FilterSidebarContent = forwardRef<HTMLDivElement, FilterSidebarContentProp
     <Separator className="my-1" />
     <FilterSection
       title="Job Type"
-      icon={<Clock className="w-4 h-4 text-primary" />}
+      icon={<Clock className="h-4 w-4 text-primary" />}
       options={jobTypes}
       selected={selectedTypes}
       onToggle={onToggleType}
@@ -313,39 +319,45 @@ const JobsPage = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="pt-28 pb-16 px-4">
+      <main className="px-4 pb-16 pt-28 sm:pt-32">
         {/* Header */}
-        <section className="max-w-7xl mx-auto mb-8">
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="text-center">
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4">Open Positions</h1>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-base sm:text-lg leading-relaxed">
+        <section className="mx-auto mb-8 max-w-6xl">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease }}
+            className="text-center"
+          >
+            <span className="text-xs font-semibold uppercase tracking-wider text-primary">Open Roles</span>
+            <h1 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl">Open Positions</h1>
+            <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
               Explore opportunities at Lumofy and find the role that matches your skills and ambitions.
             </p>
           </motion.div>
         </section>
 
         {/* Search Bar — full width */}
-        <section className="max-w-7xl mx-auto mb-6">
-          <div className="rounded-2xl bg-card/95 backdrop-blur border border-border p-3 shadow-sm">
+        <section className="mx-auto mb-6 max-w-6xl">
+          <div className="rounded-2xl border border-border bg-card p-3 light-glow">
             <div className="flex items-center gap-3">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Search by title, keyword, or skill…"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="pl-9 bg-background h-11 text-sm"
+                  className="h-11 bg-background pl-9 text-sm"
                 />
               </div>
 
               {/* Mobile filter trigger */}
               <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="lg:hidden h-11 px-4 relative">
-                    <SlidersHorizontal className="w-4 h-4 mr-1.5" />
+                  <Button variant="outline" size="sm" className="relative h-11 px-4 lg:hidden">
+                    <SlidersHorizontal className="mr-1.5 h-4 w-4" />
                     Filters
                     {totalActiveFilters > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold">
+                      <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
                         {totalActiveFilters}
                       </span>
                     )}
@@ -363,8 +375,14 @@ const JobsPage = () => {
 
               {/* Share button */}
               {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={copyShareLink} className="h-11 px-3 text-muted-foreground hover:text-foreground">
-                  <Share2 className="w-4 h-4" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={copyShareLink}
+                  aria-label="Copy filter link"
+                  className="h-11 px-3 text-muted-foreground hover:text-foreground"
+                >
+                  <Share2 className="h-4 w-4" />
                 </Button>
               )}
             </div>
@@ -378,8 +396,8 @@ const JobsPage = () => {
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-border/50">
-                    <span className="text-xs text-muted-foreground font-medium">Active:</span>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                    <span className="text-xs font-medium text-muted-foreground">Active:</span>
                     {allActiveChips.map(chip => (
                       <ActiveChip
                         key={`${chip.key}-${chip.value}`}
@@ -387,7 +405,7 @@ const JobsPage = () => {
                         onRemove={() => toggleFilter(chip.key, chip.value)}
                       />
                     ))}
-                    <button onClick={resetFilters} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 ml-1 transition-colors">
+                    <button onClick={resetFilters} className="ml-1 text-xs text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground">
                       Clear all
                     </button>
                   </div>
@@ -398,12 +416,12 @@ const JobsPage = () => {
         </section>
 
         {/* Main Layout: Sidebar + Grid */}
-        <section className="max-w-7xl mx-auto">
+        <section className="mx-auto max-w-6xl">
           <div className="flex gap-6">
             {/* Desktop Sidebar */}
-            <aside className="hidden lg:block w-64 shrink-0">
+            <aside className="hidden w-64 shrink-0 lg:block">
               <div className="sticky top-24">
-                <div className="rounded-2xl bg-card border border-border p-4 shadow-sm">
+                <div className="rounded-2xl border border-border bg-card p-4 light-glow">
                   <ScrollArea className="max-h-[calc(100vh-10rem)]">
                     <FilterSidebarContent {...sidebarProps} />
                   </ScrollArea>
@@ -412,12 +430,12 @@ const JobsPage = () => {
             </aside>
 
             {/* Job Listings */}
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0 flex-1">
               {/* Results header */}
-              <div className="flex items-center justify-between mb-4">
+              <div className="mb-4 flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
                   <span className="font-semibold text-foreground">{filteredJobs.length}</span>{" "}
-                  position{filteredJobs.length !== 1 ? "s" : ""} found
+                  {filteredJobs.length === 1 ? "role" : "roles"}
                   {hasActiveFilters && (
                     <span className="text-muted-foreground"> · filtered from {openJobs.length}</span>
                   )}
@@ -428,28 +446,52 @@ const JobsPage = () => {
               {loading ? (
                 <div className="space-y-4">
                   {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="rounded-xl border border-border bg-card p-6">
-                      <Skeleton className="h-4 w-28 mb-3" />
-                      <Skeleton className="h-6 w-1/2 mb-3" />
-                      <Skeleton className="h-4 w-3/4 mb-2" />
+                    <div key={i} className="rounded-2xl border border-border bg-card p-6 light-glow">
+                      <Skeleton className="mb-3 h-4 w-28" />
+                      <Skeleton className="mb-3 h-6 w-1/2" />
+                      <Skeleton className="mb-2 h-4 w-3/4" />
                       <Skeleton className="h-4 w-2/3" />
                     </div>
                   ))}
                 </div>
               ) : filteredJobs.length === 0 ? (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="text-center py-20 rounded-2xl border border-border bg-card"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, ease }}
+                  className="rounded-2xl border border-border bg-card px-6 py-16 text-center light-glow"
                 >
-                  <Briefcase className="w-12 h-12 mx-auto mb-3 text-muted-foreground/40" />
-                  <p className="font-medium text-foreground">No positions match your filters.</p>
-                  <p className="text-sm text-muted-foreground mt-1 mb-4">Try adjusting your search or clearing filters.</p>
-                  {hasActiveFilters && (
-                    <Button variant="outline" size="sm" onClick={resetFilters}>
-                      <RotateCcw className="w-4 h-4 mr-1.5" />
-                      Reset All Filters
-                    </Button>
+                  {hasActiveFilters ? (
+                    <>
+                      <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+                        <Search className="h-7 w-7 text-primary" />
+                      </div>
+                      <h2 className="text-lg font-bold tracking-tight text-foreground">No roles match your filters</h2>
+                      <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+                        Try adjusting your search or clearing a filter or two to see more openings.
+                      </p>
+                      <Button variant="outline" size="sm" onClick={resetFilters} className="mt-5 rounded-xl">
+                        <RotateCcw className="mr-1.5 h-4 w-4" />
+                        Reset all filters
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+                        <Briefcase className="h-7 w-7 text-primary" />
+                      </div>
+                      <h2 className="text-lg font-bold tracking-tight text-foreground">No open roles right now</h2>
+                      <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+                        We're not actively hiring at the moment — but new roles open often. Explore our teams and check back soon.
+                      </p>
+                      <Button size="sm" asChild className="mt-5 h-11 rounded-xl px-6">
+                        <Link to="/">
+                          <Compass className="mr-2 h-4 w-4" />
+                          Browse by team
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </>
                   )}
                 </motion.div>
               ) : (

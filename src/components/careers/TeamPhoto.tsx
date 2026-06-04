@@ -11,8 +11,8 @@ const TeamPhoto = () => {
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
         >
-          <h2 className="text-3xl sm:text-4xl font-bold mb-3">
-            Our <span className="text-gradient dark:neon-text">Team</span>
+          <h2 className="mb-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
+            Our <span className="text-primary">Team</span>
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
             The people behind the platform — united by a shared mission.

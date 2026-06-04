@@ -25,6 +25,7 @@ import {
   ReferenceLine
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
+import { useCareers } from "@/contexts/CareersContext";
 import { exportBellCurvePDF } from "@/utils/bellCurveReportPdf";
 import { exportBellCurveExcel } from "@/utils/bellCurveReportExcel";
 import GapAnalysis from "@/components/careers/bellcurve/GapAnalysis";
@@ -148,6 +149,7 @@ const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transi
 
 // ─── Component ─────────────────────────────────────────
 const BellCurveCalibration = ({ employees, onBack }: BellCurveCalibrationProps) => {
+  const { sessionToken } = useCareers();
   const [ratingSource, setRatingSource] = useState<RatingSource>("final");
   const [filterDept, setFilterDept] = useState("all");
   const [filterManager, setFilterManager] = useState("all");
@@ -277,7 +279,7 @@ const BellCurveCalibration = ({ employees, onBack }: BellCurveCalibrationProps) 
         kpis,
       };
       const { data, error } = await supabase.functions.invoke("analyze-performance", {
-        body: { employees: filtered, bellCurveContext: payload },
+        body: { employees: filtered, bellCurveContext: payload, sessionToken },
       });
       if (error) throw new Error(error.message);
       if (data?.analysis?.executiveSummary) {

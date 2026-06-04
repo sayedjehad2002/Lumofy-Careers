@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useCareers } from "@/contexts/CareersContext";
 
 interface AIRecommendationsProps {
   employees: any[];
@@ -34,6 +35,7 @@ const AIRecommendations = ({
 }: AIRecommendationsProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [recommendations, setRecommendations] = useState<string | null>(null);
+  const { sessionToken } = useCareers();
 
   // Rules-based action items (always available)
   const actionItems: ActionItem[] = [];
@@ -125,7 +127,7 @@ const AIRecommendations = ({
         requestType: "calibration_recommendations",
       };
       const { data, error } = await supabase.functions.invoke("analyze-performance", {
-        body: { employees, bellCurveContext: payload },
+        body: { employees, bellCurveContext: payload, sessionToken },
       });
       if (error) throw new Error(error.message);
       if (data?.analysis?.executiveSummary) {

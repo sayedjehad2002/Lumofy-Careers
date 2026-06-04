@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Brain, AlertTriangle, ShieldAlert, Loader2, TrendingUp, Clock, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useCareers } from "@/contexts/CareersContext";
 
 interface EmployeeRecord {
   employeeName: string;
@@ -37,6 +38,7 @@ interface BiasResult {
 const BiasDetection = ({ employees, managerAnalysis, deptAnalysis }: BiasDetectionProps) => {
   const [aiResults, setAiResults] = useState<BiasResult[] | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { sessionToken } = useCareers();
 
   // Local heuristic bias detection
   const localBiases = useMemo(() => {
@@ -129,6 +131,7 @@ const BiasDetection = ({ employees, managerAnalysis, deptAnalysis }: BiasDetecti
     try {
       const { data, error } = await supabase.functions.invoke("analyze-performance", {
         body: {
+          sessionToken,
           employees: employees.slice(0, 150).map(e => ({
             name: e.employeeName, department: e.department, manager: e.lineManager,
             selfRating: e.selfRating, managerRating: e.managerRating, jobTitle: e.jobTitle,

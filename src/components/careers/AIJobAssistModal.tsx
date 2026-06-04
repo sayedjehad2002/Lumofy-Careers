@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { ScreeningQuestion } from "@/types/careers";
-import lumofyLogo from "@/assets/lumofy-logo.jpg";
+import lumofyLogo from "@/assets/lumofy-mark.png";
 
 interface AIJobAssistModalProps {
   open: boolean;

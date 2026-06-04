@@ -4,7 +4,7 @@ import { useState, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
-import lumofyLogo from "@/assets/lumofy-logo.jpg";
+import lumofyLogo from "@/assets/lumofy-mark.png";
 
 const Navbar = forwardRef<HTMLElement>((_, ref) => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -28,15 +28,16 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2 group">
-            <motion.img
+            <img
               src={lumofyLogo}
-              alt="Lumofy logo"
-              className="w-8 h-8 object-contain rounded-md bg-white/90 p-0.5"
-              whileHover={{ rotate: [0, -5, 5, 0], scale: 1.05 }}
-              transition={{ duration: 0.4 }}
+              alt="Lumofy"
+              className="w-8 h-8 object-contain transition-transform duration-300 group-hover:scale-105"
             />
-            <span className="text-lg font-bold text-foreground">
-              Lumofy <span className="text-muted-foreground font-normal">Careers</span>
+            <span className="font-['Urbanist'] text-xl font-extrabold tracking-tight text-foreground">
+              Lumofy
+            </span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+              Careers
             </span>
           </Link>
 

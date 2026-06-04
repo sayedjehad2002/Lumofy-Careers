@@ -8,6 +8,10 @@ const ALLOWED_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
+// jobId becomes part of the storage key (`<jobId>/jd.<ext>`). Pin it to a UUID
+// shape so a malicious value can't escape its prefix or inject a path.
+const UUID_RE = /^[0-9a-f-]{36}$/i;
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -21,6 +25,13 @@ Deno.serve(async (req) => {
 
     if (!file || !jobId || !contentType) {
       return new Response(JSON.stringify({ error: "Missing file, jobId, or contentType" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Validate jobId as a UUID before it is used in the storage key / job update.
+    if (!UUID_RE.test(jobId)) {
+      return new Response(JSON.stringify({ error: "Invalid jobId" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

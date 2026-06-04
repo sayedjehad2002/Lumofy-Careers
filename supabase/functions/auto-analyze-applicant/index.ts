@@ -1,23 +1,64 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { validateSession } from "../_shared/validate-session.ts";
 import { chatCompletion } from "../_shared/ai.ts";
+
+// How recently the applicant must have been created for the UNAUTHENTICATED
+// (public apply-flow) path to be allowed to trigger analysis. This bounds the
+// window in which a public caller can request a (costly) AI analysis to just
+// after a genuine submission.
+const RECENT_APPLICANT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
 /**
  * Auto-analyze a newly submitted applicant's CV against the job.
- * Called fire-and-forget after application submission — no admin session required.
- * Uses an internal secret key for authentication instead.
+ *
+ * AUTH MODEL (see fix #2):
+ *   - Trusted callers (admin dashboard, or a server-side job runner) authenticate
+ *     with EITHER a valid admin session (`sessionToken`) OR the shared secret
+ *     header `x-internal-secret` === env INTERNAL_FUNCTION_SECRET. Trusted callers
+ *     bypass the recency check below.
+ *   - The PUBLIC apply flow (src/pages/ApplyPage.tsx) calls this fire-and-forget
+ *     and CANNOT hold a secret. So an unauthenticated caller is allowed, but only
+ *     under strict guards to prevent AI-cost abuse / re-analysis loops:
+ *       (a) IP rate limiting,
+ *       (b) the "already analyzed" short-circuit runs FIRST,
+ *       (c) the applicant must exist AND have been created very recently.
+ *
+ * We chose to keep the function publicly callable (rather than session-only)
+ * precisely because the public client can't carry a secret; the guards above are
+ * what make that safe.
  */
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { applicantId } = await req.json();
-    if (!applicantId) {
+    // IP rate limit regardless of auth path: 5 analyses / 5 min / IP. AI analysis
+    // is expensive, so this is deliberately tight.
+    const ip = getClientIp(req);
+    const rl = isRateLimited(`auto-analyze:${ip}`, { maxRequests: 5, windowMs: 5 * 60_000 });
+    if (rl.limited) return rateLimitResponse(corsHeaders, rl.retryAfterMs);
+
+    const { applicantId, sessionToken } = await req.json();
+    if (!applicantId || typeof applicantId !== "string") {
       return new Response(JSON.stringify({ error: "Missing applicantId" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Determine whether this is a trusted caller.
+    const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET");
+    const providedSecret = req.headers.get("x-internal-secret");
+    const hasValidSecret = !!internalSecret && providedSecret === internalSecret;
+
+    let isTrusted = hasValidSecret;
+    if (!isTrusted && sessionToken) {
+      const auth = await validateSession(sessionToken, corsHeaders);
+      // A provided-but-invalid session is rejected outright; a valid one is trusted.
+      if (!auth.valid) return auth.response;
+      isTrusted = true;
     }
 
     const supabase = createClient(
@@ -25,7 +66,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Fetch applicant
+    // Fetch applicant (include created_at for the recency guard).
     const { data: applicant, error: appError } = await supabase
       .from("applicants")
       .select("*")
@@ -39,11 +80,26 @@ serve(async (req) => {
       });
     }
 
-    // Skip if already analyzed
+    // Skip if already analyzed — runs FIRST (before any recency check or AI work)
+    // to prevent re-analysis loops and wasted spend.
     if (applicant.ai_analysis) {
       return new Response(JSON.stringify({ skipped: true, reason: "Already analyzed" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // For untrusted (public) callers, require the applicant to be freshly created.
+    // This blocks a public client from re-triggering AI analysis on arbitrary/old
+    // applicant IDs.
+    if (!isTrusted) {
+      const createdAt = applicant.created_at ? Date.parse(applicant.created_at) : NaN;
+      const age = Number.isNaN(createdAt) ? Infinity : Date.now() - createdAt;
+      if (age > RECENT_APPLICANT_WINDOW_MS) {
+        return new Response(
+          JSON.stringify({ skipped: true, reason: "Not eligible for automatic analysis" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Fetch job

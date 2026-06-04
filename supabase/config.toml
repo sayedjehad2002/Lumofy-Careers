@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.verify-password]
 verify_jwt = false
 
+[functions.logout]
+verify_jwt = false
+
 [functions.get-cv-url]
 verify_jwt = false
 

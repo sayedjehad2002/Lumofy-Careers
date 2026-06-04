@@ -38,10 +38,10 @@ const OfficeGallery = () => {
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
         >
-          <h2 className="text-3xl sm:text-4xl font-bold mb-3">
-            Office <span className="text-gradient dark:neon-text">Vibes</span>
+          <h2 className="mb-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
+            Office <span className="text-primary">Vibes</span>
           </h2>
-          <p className="text-muted-foreground max-w-xl mx-auto">
+          <p className="mx-auto max-w-xl text-muted-foreground">
             A glimpse into everyday life, team moments, and the energy that drives us.
           </p>
         </motion.div>

@@ -1,11 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { chatCompletion } from "../_shared/ai.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { validateSession } from "../_shared/validate-session.ts";
 
 interface EmployeeData {
   employeeName: string;
@@ -59,6 +56,8 @@ function classifyPotential(potentialScore: string | null): "Low" | "Medium" | "H
 }
 
 serve(async (req) => {
+  // Use the shared CORS allowlist (no wildcard "*").
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -69,7 +68,12 @@ serve(async (req) => {
     const rl = isRateLimited(`analyze-perf:${ip}`, { maxRequests: 10, windowMs: 3_600_000 });
     if (rl.limited) return rateLimitResponse(corsHeaders, rl.retryAfterMs);
 
-    const { employees } = await req.json() as { employees: EmployeeData[] };
+    const { employees, sessionToken } = await req.json() as { employees: EmployeeData[]; sessionToken?: string };
+
+    // SECURITY: this function processes employee PII. Require a valid admin
+    // dashboard session, like the other dashboard AI functions.
+    const auth = await validateSession(sessionToken, corsHeaders);
+    if (!auth.valid) return auth.response;
 
     if (!employees || employees.length === 0) {
       return new Response(JSON.stringify({ error: "No employee data provided" }), {

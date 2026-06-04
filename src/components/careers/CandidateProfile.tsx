@@ -67,8 +67,10 @@ const CandidateProfile = ({
     }
     setCvLoading(true);
     try {
+      // Pass the applicantId so the edge function resolves the CV path
+      // server-side (prevents IDOR via arbitrary storagePath).
       const { data, error } = await supabase.functions.invoke("get-cv-url", {
-        body: { storagePath: applicant.cvStoragePath, sessionToken }
+        body: { applicantId: applicant.id, sessionToken }
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);

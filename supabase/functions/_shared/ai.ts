@@ -22,12 +22,15 @@ export function getOpenRouterKey(): string {
 // `google/gemini-3-flash-preview` and `openai/gpt-5.2` that may not exist on
 // OpenRouter. VERIFY these against https://openrouter.ai/models and adjust here —
 // this map is the single source of truth for model selection across all functions.
+// All tiers use a free OpenRouter model (zero cost). Gemma 4 is multimodal, so it
+// covers both text and vision (CV/PDF) use cases. Swap to paid tiers here later if
+// rate limits or quality become an issue — this map is the single source of truth.
 export const MODELS = {
-  visionStrong: "google/gemini-2.5-pro",        // strong multimodal (copilot vision)
-  vision: "google/gemini-2.5-flash",            // fast multimodal (CV / PDF parsing, audio)
-  textFast: "google/gemini-2.5-flash",          // fast text default
-  textLite: "google/gemini-2.5-flash-lite",     // cheapest (survey-ai-improve)
-  textStrong: "openai/gpt-4o",                  // strong text (copilot text fallback)
+  visionStrong: "google/gemma-4-31b-it:free",   // multimodal (copilot vision)
+  vision: "google/gemma-4-31b-it:free",         // multimodal (CV / PDF parsing, audio)
+  textFast: "google/gemma-4-31b-it:free",       // text default
+  textLite: "google/gemma-4-31b-it:free",       // lightweight text (survey-ai-improve)
+  textStrong: "google/gemma-4-31b-it:free",     // strong text (copilot text fallback)
 } as const;
 
 // Translate a legacy gateway model name to a real OpenRouter model ID.

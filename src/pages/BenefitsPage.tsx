@@ -7,6 +7,10 @@ import {
   TrendingUp, Lightbulb, Users, Rocket, Shield, Sparkles, ArrowRight,
 } from "lucide-react";
 
+const ease = [0.22, 1, 0.36, 1] as [number, number, number, number];
+const fadeUp = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0, transition: { duration: 0.6, ease } } };
+const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.07 } } };
+
 const benefits = [
   {
     icon: TrendingUp,
@@ -40,94 +44,82 @@ const benefits = [
   },
 ];
 
-const containerVariants = {
-  hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.1 },
-  },
-};
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, ease: "easeOut" as const },
-  },
-};
-
 const BenefitsPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      {/* Hero */}
-      <section className="pt-28 pb-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
+      {/* ── HERO ───────────────────────────────────────── */}
+      <section className="relative px-4 pt-28 pb-14 sm:pb-16">
+        {/* subtle brand wash, no animation */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[300px] bg-gradient-to-b from-primary/[0.05] to-transparent" />
+
+        <motion.div
+          className="relative mx-auto max-w-3xl text-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease }}
+        >
+          <span className="text-xs font-semibold uppercase tracking-wider text-primary">Benefits</span>
+          <h1 className="mt-3 text-4xl font-extrabold tracking-tight sm:text-5xl">
+            Benefits at <span className="text-primary">Lumofy</span>
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+            Tangible advantages that support your career, wellbeing, and professional development — not just promises.
+          </p>
+        </motion.div>
+      </section>
+
+      {/* ── BENEFIT CARDS ──────────────────────────────── */}
+      <section className="px-4 py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3"
+            variants={stagger}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-60px" }}
           >
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
-              Benefits at <span className="text-primary">Lumofy</span>
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Tangible advantages that support your career, wellbeing, and professional development — not just promises.
-            </p>
+            {benefits.map((benefit) => (
+              <motion.div
+                key={benefit.title}
+                variants={fadeUp}
+                className="rounded-2xl border border-border bg-card p-6 light-glow transition-transform duration-300 hover:-translate-y-1"
+              >
+                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
+                  <benefit.icon className="h-5 w-5 text-primary" />
+                </div>
+                <h3 className="mb-1.5 text-lg font-bold">{benefit.title}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {benefit.description}
+                </p>
+              </motion.div>
+            ))}
           </motion.div>
         </div>
       </section>
 
-      {/* Benefit Cards */}
-      <section className="max-w-5xl mx-auto px-4 pb-20">
+      {/* ── CTA ────────────────────────────────────────── */}
+      <section className="border-t border-border bg-muted/30 px-4 py-16 sm:py-20">
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }}
-        >
-          {benefits.map((benefit) => {
-            const Icon = benefit.icon;
-            return (
-              <motion.div
-                key={benefit.title}
-                variants={cardVariants}
-                className="group relative rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1"
-              >
-                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/15 transition-colors">
-                  <Icon className="w-5 h-5 text-primary" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">{benefit.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {benefit.description}
-                </p>
-                <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none border border-primary/20" />
-              </motion.div>
-            );
-          })}
-        </motion.div>
-      </section>
-
-      {/* CTA */}
-      <section className="pb-24 px-4">
-        <motion.div
-          className="max-w-2xl mx-auto text-center"
-          initial={{ opacity: 0, y: 20 }}
+          className="mx-auto max-w-2xl text-center"
+          initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.6, ease }}
         >
-          <h2 className="text-2xl font-bold mb-3">Ready to make an impact?</h2>
-          <p className="text-muted-foreground mb-6">
+          <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Ready to make an impact?</h2>
+          <p className="mt-3 text-base text-muted-foreground sm:text-lg">
             Explore our open positions and find where you can grow with us.
           </p>
-          <Link to="/jobs">
-            <Button size="lg" className="gap-2">
-              Explore Open Roles <ArrowRight className="w-4 h-4" />
+          <div className="mt-8">
+            <Button size="lg" className="group h-12 rounded-xl px-8 text-base" asChild>
+              <Link to="/jobs">
+                Explore Open Roles
+                <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </Link>
             </Button>
-          </Link>
+          </div>
         </motion.div>
       </section>
 

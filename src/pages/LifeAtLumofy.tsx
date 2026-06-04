@@ -8,13 +8,18 @@ import {
 "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import TeamMarquee from "@/components/careers/TeamMarquee";
 import CulturePerkCard from "@/components/careers/CulturePerkCard";
-import TeamPhoto from "@/components/careers/TeamPhoto";
+
+const ease = [0.22, 1, 0.36, 1] as [number, number, number, number];
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease } },
+};
 
 const stagger = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.1, delayChildren: 0.1 } }
+  show: { transition: { staggerChildren: 0.07 } }
 };
 
 const cultureHighlights = [
@@ -76,66 +81,91 @@ const LifeAtLumofy = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      {/* Hero */}
-      <section className="relative pt-36 pb-20 px-4 overflow-hidden dark:particles-bg">
-        <motion.div
-          className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-full blur-[160px] pointer-events-none"
-          style={{ background: "radial-gradient(circle, hsl(217 91% 60% / 0.1), transparent 70%)" }}
-          animate={{ scale: [1, 1.08, 1], opacity: [0.5, 0.8, 0.5] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }} />
-        
-        <div className="max-w-4xl mx-auto text-center relative z-10">
+      {/* ── HERO ───────────────────────────────────────── */}
+      <section className="relative px-4 pt-36 pb-16 sm:pb-20">
+        {/* subtle brand wash, no animation */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[340px] bg-gradient-to-b from-primary/[0.05] to-transparent" />
+
+        <div className="relative mx-auto max-w-4xl text-center">
+          <motion.span
+            className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.06] px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease }}
+          >
+            <Heart className="h-3.5 w-3.5" />
+            Life at Lumofy
+          </motion.span>
+
           <motion.h1
-            className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4 leading-[1.1]"
-            initial={{ opacity: 0, y: 20 }}
+            className="mt-7 text-4xl font-extrabold leading-[1.1] tracking-tight text-foreground sm:text-5xl lg:text-6xl"
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}>
-            
-            Life at <span className="text-gradient dark:neon-text">Lumofy</span>
+            transition={{ duration: 0.6, delay: 0.05, ease }}
+          >
+            Life at <span className="text-primary">Lumofy</span>
           </motion.h1>
-          <motion.div
-            className="w-16 h-[2px] mx-auto mb-6 rounded-full"
-            style={{ background: "linear-gradient(90deg, transparent, hsl(217 91% 60% / 0.5), transparent)" }}
-            initial={{ opacity: 0, scaleX: 0 }}
-            animate={{ opacity: 1, scaleX: 1 }}
-            transition={{ duration: 0.6, delay: 0.2 }} />
-          
+
           <motion.p
-            className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed"
-            initial={{ opacity: 0, y: 15 }}
+            className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl"
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}>
-            
+            transition={{ duration: 0.6, delay: 0.1, ease }}
+          >
             We're a team of builders, dreamers, and operators united by one goal — transforming how the MENA region grows its talent.
           </motion.p>
         </div>
       </section>
 
-      {/* Culture Perks */}
-      <section className="py-16 px-4 border-y border-border/50">
-        <div className="max-w-6xl mx-auto">
+      {/* ── STATS ──────────────────────────────────────── */}
+      <section className="px-4 pb-4">
+        <div className="mx-auto max-w-5xl">
           <motion.div
-            className="text-center mb-12"
+            className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4"
+            variants={stagger}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-60px" }}
+          >
+            {stats.map((s) => (
+              <motion.div key={s.label} variants={fadeUp}>
+                <div className="rounded-2xl border border-border bg-card p-5 text-center light-glow sm:p-6">
+                  <s.icon className="mx-auto mb-2.5 h-6 w-6 text-primary" />
+                  <div className="text-3xl font-extrabold tabular-nums text-foreground sm:text-4xl">{s.value}</div>
+                  <p className="mt-2 text-xs text-muted-foreground sm:text-sm">{s.label}</p>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── CULTURE & PERKS ────────────────────────────── */}
+      <section className="border-y border-border bg-muted/30 px-4 py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl">
+          <motion.div
+            className="mx-auto mb-10 max-w-2xl text-center"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5 }}>
-            
-            <h2 className="text-3xl sm:text-4xl font-bold mb-3">
-              Our <span className="text-gradient dark:neon-text">Culture & Perks</span>
+            transition={{ duration: 0.6 }}
+          >
+            <span className="text-xs font-semibold uppercase tracking-wider text-primary">Culture & Perks</span>
+            <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
+              What makes Lumofy <span className="text-primary">special</span>
             </h2>
-            <p className="text-muted-foreground max-w-xl mx-auto">
-              What makes working at Lumofy truly special.
+            <p className="mt-3 text-base text-muted-foreground sm:text-lg">
+              The everyday things that make working here genuinely different.
             </p>
           </motion.div>
 
           <motion.div
-            className="grid grid-cols-2 md:grid-cols-4 gap-4"
+            className="grid grid-cols-2 gap-4 md:grid-cols-4"
             variants={stagger}
             initial="hidden"
             whileInView="show"
-            viewport={{ once: true, margin: "-60px" }}>
-            
+            viewport={{ once: true, margin: "-60px" }}
+          >
             {cultureHighlights.map((item) =>
             <CulturePerkCard key={item.title} icon={item.icon} title={item.title} desc={item.desc} />
             )}
@@ -143,148 +173,123 @@ const LifeAtLumofy = () => {
         </div>
       </section>
 
-      {/* Team Photo */}
-      <TeamPhoto />
-
-      {/* Meet the Team — Marquee (no duplicate heading) */}
-      <section className="pb-20 overflow-hidden">
-        <div className="max-w-6xl mx-auto px-4 mb-6">
-          <p className="text-center text-sm text-muted-foreground">
-            Hover to pause · Scroll to explore
-          </p>
-        </div>
-        <TeamMarquee members={teamMembers} />
-      </section>
-
-      {/* Testimonials */}
-      <section className="py-20 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-foreground/[0.03] via-foreground/[0.05] to-foreground/[0.03]" />
-        <motion.div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[400px] rounded-full blur-[180px] pointer-events-none"
-          style={{ background: "hsl(217 91% 60% / 0.06)" }}
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }} />
-        
-
-        <div className="max-w-3xl mx-auto relative z-10">
+      {/* ── MEET THE TEAM (calm static grid) ───────────── */}
+      <section className="px-4 py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl">
           <motion.div
-            className="text-center mb-12"
+            className="mx-auto mb-10 max-w-2xl text-center"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5 }}>
-            
-            <h2 className="text-3xl sm:text-4xl font-bold mb-3">
-              Hear From Our <span className="text-gradient dark:neon-text">Team</span>
+            transition={{ duration: 0.6 }}
+          >
+            <span className="text-xs font-semibold uppercase tracking-wider text-primary">Our Team</span>
+            <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
+              Meet the <span className="text-primary">people</span>
             </h2>
-            <p className="text-muted-foreground max-w-md mx-auto">
+            <p className="mt-3 text-base text-muted-foreground sm:text-lg">
+              The people behind the platform — united by a shared mission.
+            </p>
+          </motion.div>
+
+          <motion.div
+            className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"
+            variants={stagger}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-60px" }}
+          >
+            {teamMembers.map((member) => (
+              <motion.div key={member.name} variants={fadeUp}>
+                <div className="h-full rounded-2xl border border-border bg-card p-6 text-center light-glow transition-transform duration-300 hover:-translate-y-1">
+                  <div className="mx-auto mb-4 h-20 w-20 overflow-hidden rounded-full border border-border">
+                    <img
+                      src={member.photo}
+                      alt={`${member.name}, ${member.role}`}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  <h3 className="mb-0.5 text-base font-bold text-foreground">{member.name}</h3>
+                  <p className="mb-2 text-xs font-medium text-primary">{member.role}</p>
+                  <p className="mb-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{member.bio}</p>
+                  <div className="flex items-center justify-center gap-1 text-muted-foreground">
+                    <MapPinIcon className="h-3 w-3" />
+                    <span className="text-[11px]">{member.location}</span>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── TESTIMONIALS ───────────────────────────────── */}
+      <section className="border-y border-border bg-muted/30 px-4 py-16 sm:py-20">
+        <div className="mx-auto max-w-3xl">
+          <motion.div
+            className="mx-auto mb-10 max-w-md text-center"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <span className="text-xs font-semibold uppercase tracking-wider text-primary">Team Stories</span>
+            <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
+              Hear from our <span className="text-primary">team</span>
+            </h2>
+            <p className="mt-3 text-base text-muted-foreground sm:text-lg">
               Real stories from the people building the future of talent.
             </p>
           </motion.div>
 
           <motion.div
             key={activeTestimonial}
-            initial={{ opacity: 0, x: direction * 60 }}
+            initial={{ opacity: 0, x: direction * 40 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.45, ease: "easeOut" }}
-            className="glass-card dark:premium-card rounded-2xl p-8 sm:p-10 text-center relative">
-            
-            <Quote className="w-8 h-8 text-primary/20 mx-auto mb-4" />
-            <p className="text-lg sm:text-xl text-foreground leading-relaxed mb-6 italic">
+            transition={{ duration: 0.45, ease }}
+            className="relative rounded-2xl border border-border bg-card p-8 text-center light-glow sm:p-10"
+          >
+            <Quote className="mx-auto mb-4 h-8 w-8 text-primary/30" />
+            <p className="mb-6 text-lg leading-relaxed text-foreground sm:text-xl">
               "{t.quote}"
             </p>
-            <div className="flex items-center justify-center gap-1 mb-4">
+            <div className="mb-4 flex items-center justify-center gap-1">
               {Array.from({ length: t.rating }).map((_, i) =>
-              <Star key={i} className="w-4 h-4 fill-primary text-primary" />
+              <Star key={i} className="h-4 w-4 fill-primary text-primary" />
               )}
             </div>
             <div className="flex items-center justify-center gap-3">
-              <div className="w-11 h-11 rounded-full overflow-hidden border border-primary/20">
-                <img src={t.photo} alt={t.name} className="w-full h-full object-cover" />
+              <div className="h-11 w-11 overflow-hidden rounded-full border border-border">
+                <img src={t.photo} alt={t.name} className="h-full w-full object-cover" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-sm">{t.name}</p>
+                <p className="text-sm font-semibold">{t.name}</p>
                 <p className="text-xs text-muted-foreground">{t.role} · {t.tenure}</p>
               </div>
             </div>
           </motion.div>
 
-          <div className="flex items-center justify-center gap-4 mt-6">
-            <Button size="icon" variant="ghost" className="rounded-full w-9 h-9" onClick={() => goTestimonial(-1)}>
-              <ChevronLeft className="w-4 h-4" />
+          <div className="mt-6 flex items-center justify-center gap-4">
+            <Button size="icon" variant="ghost" className="h-9 w-9 rounded-full" onClick={() => goTestimonial(-1)} aria-label="Previous testimonial">
+              <ChevronLeft className="h-4 w-4" />
             </Button>
             <div className="flex gap-2">
               {testimonials.map((_, i) =>
               <button
                 key={i}
                 onClick={() => {setDirection(i > activeTestimonial ? 1 : -1);setActiveTestimonial(i);}}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${i === activeTestimonial ? "bg-primary w-6" : "bg-muted-foreground/30 hover:bg-muted-foreground/50"}`} />
+                aria-label={`Go to testimonial ${i + 1}`}
+                className={`h-2 rounded-full transition-all duration-300 ${i === activeTestimonial ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"}`} />
 
               )}
             </div>
-            <Button size="icon" variant="ghost" className="rounded-full w-9 h-9" onClick={() => goTestimonial(1)}>
-              <ChevronRight className="w-4 h-4" />
+            <Button size="icon" variant="ghost" className="h-9 w-9 rounded-full" onClick={() => goTestimonial(1)} aria-label="Next testimonial">
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </section>
-
-      {/* Join Us CTA — Enhanced */}
-      
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      
 
       {/* Footer */}
       <Footer />

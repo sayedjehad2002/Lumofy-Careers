@@ -7,7 +7,7 @@ const AuroraEffect = ({ className = "" }: { className?: string }) => {
       <motion.div
         className="absolute top-[10%] left-[-20%] w-[140%] h-[40%] rounded-[50%] blur-[100px]"
         style={{
-          background: "linear-gradient(90deg, hsl(217 91% 60% / 0.08), hsl(200 90% 55% / 0.12), hsl(217 91% 60% / 0.06))",
+          background: "linear-gradient(90deg, hsl(223 83% 60% / 0.08), hsl(200 90% 55% / 0.12), hsl(223 83% 60% / 0.06))",
         }}
         animate={{
           x: [0, 80, -40, 0],
@@ -51,7 +51,7 @@ const AuroraEffect = ({ className = "" }: { className?: string }) => {
       <motion.div
         className="absolute inset-0"
         style={{
-          background: "linear-gradient(180deg, transparent 30%, hsl(217 91% 60% / 0.02) 50%, transparent 70%)",
+          background: "linear-gradient(180deg, transparent 30%, hsl(223 83% 60% / 0.02) 50%, transparent 70%)",
         }}
         animate={{ opacity: [0.3, 0.7, 0.3] }}
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}

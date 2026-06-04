@@ -1,7 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap");
+/* Lumofy brand fonts: Urbanist (display/headings) + Source Sans 3 (body) — matches lumofy.ai */
+@import url('https://fonts.googleapis.com/css2?family=Urbanist:wght@500;600;700;800;900&family=Source+Sans+3:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -9,8 +7,8 @@
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 220 35% 8%;
+    --background: 0 0% 98%;
+    --foreground: 0 0% 9%;
 
     --card: 0 0% 100%;
     --card-foreground: 220 35% 8%;
@@ -18,7 +16,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 35% 8%;
 
-    --primary: 217 91% 50%;
+    --primary: 223 83% 50%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 16% 92%;
@@ -35,28 +33,28 @@
 
     --border: 220 14% 86%;
     --input: 220 14% 86%;
-    --ring: 217 91% 50%;
+    --ring: 223 83% 50%;
 
     --radius: 0.5rem;
 
     --sidebar-background: 220 20% 97%;
     --sidebar-foreground: 220 35% 8%;
-    --sidebar-primary: 217 91% 50%;
+    --sidebar-primary: 223 83% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 16% 92%;
     --sidebar-accent-foreground: 220 30% 12%;
     --sidebar-border: 220 14% 86%;
-    --sidebar-ring: 217 91% 50%;
+    --sidebar-ring: 223 83% 50%;
 
-    --lumofy-blue: 217 91% 60%;
-    --lumofy-glow: 217 91% 70%;
+    --lumofy-blue: 223 83% 60%;
+    --lumofy-glow: 223 83% 70%;
     --surface: 220 15% 95%;
     --surface-hover: 220 15% 90%;
-    --chart-1: 217 91% 50%;
-    --chart-2: 185 60% 40%;
-    --chart-3: 150 50% 40%;
-    --chart-4: 280 50% 50%;
-    --chart-5: 30 80% 55%;
+    --chart-1: 223 83% 52%;
+    --chart-2: 149 65% 45%;
+    --chart-3: 264 75% 64%;
+    --chart-4: 336 68% 58%;
+    --chart-5: 38 92% 52%;
     --sidebar: 220 20% 97%;
 
     /* Intelligence dashboard tokens */
@@ -73,12 +71,13 @@
     --intel-warning-subtle: 40 80% 95%;
     --intel-danger: 0 72% 51%;
     --intel-danger-subtle: 0 60% 96%;
-    --intel-accent: 217 91% 55%;
+    --intel-accent: 223 83% 55%;
     --intel-accent-subtle: 217 70% 95%;
     --intel-tab-bg: 220 16% 94%;
     --intel-tab-active: 0 0% 100%;
     --intel-gauge-track: 220 14% 90%;
-    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    --font-sans: 'Source Sans 3', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-display: 'Urbanist', 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
     --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
@@ -102,7 +101,7 @@
     --popover: 222 26% 11%;
     --popover-foreground: 220 12% 95%;
 
-    --primary: 217 100% 62%;
+    --primary: 223 90% 62%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 222 22% 15%;
@@ -116,25 +115,25 @@
 
     --border: 222 18% 18%;
     --input: 222 18% 18%;
-    --ring: 217 100% 62%;
+    --ring: 223 90% 62%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --lumofy-blue: 217 100% 62%;
-    --lumofy-glow: 217 100% 72%;
+    --lumofy-blue: 223 90% 62%;
+    --lumofy-glow: 223 90% 72%;
     --surface: 222 24% 12%;
     --surface-hover: 222 22% 16%;
 
-    --neon-blue: 217 100% 65%;
+    --neon-blue: 223 90% 65%;
     --neon-purple: 270 90% 65%;
     --neon-cyan: 185 90% 55%;
 
-    --chart-1: 217 100% 62%;
-    --chart-2: 185 70% 50%;
-    --chart-3: 152 60% 50%;
-    --chart-4: 270 80% 60%;
-    --chart-5: 30 90% 60%;
+    --chart-1: 223 90% 64%;
+    --chart-2: 149 60% 52%;
+    --chart-3: 264 80% 70%;
+    --chart-4: 336 70% 64%;
+    --chart-5: 38 92% 58%;
     --sidebar: 222 28% 9%;
 
     /* Intelligence dashboard tokens – dark */
@@ -151,7 +150,7 @@
     --intel-warning-subtle: 38 40% 14%;
     --intel-danger: 0 75% 55%;
     --intel-danger-subtle: 0 40% 14%;
-    --intel-accent: 217 100% 65%;
+    --intel-accent: 223 90% 65%;
     --intel-accent-subtle: 217 50% 16%;
     --intel-tab-bg: 222 22% 13%;
     --intel-tab-active: 222 22% 17%;
@@ -159,12 +158,12 @@
 
     --sidebar-background: 222 28% 9%;
     --sidebar-foreground: 220 12% 95%;
-    --sidebar-primary: 217 100% 62%;
+    --sidebar-primary: 223 90% 62%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 222 22% 15%;
     --sidebar-accent-foreground: 220 12% 90%;
     --sidebar-border: 222 18% 18%;
-    --sidebar-ring: 217 100% 62%;
+    --sidebar-ring: 223 90% 62%;
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.12);
     --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.12);
     --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.2), 0 1px 2px -1px hsl(0 0% 0% / 0.2);
@@ -183,24 +182,29 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-family: 'Source Sans 3', system-ui, sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
-  /* Smooth theme transition */
-  html,
-  html *,
-  html *::before,
-  html *::after {
-    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.15s ease, box-shadow 0.3s ease;
+  /* Headings use Urbanist (Lumofy display font) */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Urbanist', 'Source Sans 3', system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
-  /* Exclude elements where transition causes jank */
-  html input,
-  html textarea,
-  html [data-no-theme-transition],
-  html .animate-spin,
-  html .animate-ping,
-  html .animate-pulse {
-    transition: none !important;
+
+  /* NOTE: a global `html *` transition used to live here and forced a transition
+     on EVERY element — a major source of scroll/animation jank. Theme transitions
+     are now scoped to `body` (above) only. */
+
+  /* Respect users who prefer reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
@@ -218,15 +222,15 @@
   }
 
   .glow-blue {
-    box-shadow: 0 0 20px hsl(217 91% 60% / 0.15), 0 0 60px hsl(217 91% 60% / 0.05);
+    box-shadow: 0 0 20px hsl(223 83% 60% / 0.15), 0 0 60px hsl(223 83% 60% / 0.05);
   }
 
   .glow-blue-sm {
-    box-shadow: 0 0 10px hsl(217 91% 60% / 0.1);
+    box-shadow: 0 0 10px hsl(223 83% 60% / 0.1);
   }
 
   .text-gradient {
-    background: linear-gradient(135deg, hsl(217 91% 70%), hsl(217 91% 50%));
+    background: linear-gradient(135deg, hsl(223 83% 70%), hsl(223 83% 50%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -244,7 +248,7 @@
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(135deg, hsl(217 91% 60% / 0.3), hsl(217 91% 60% / 0.05));
+    background: linear-gradient(135deg, hsl(223 83% 60% / 0.3), hsl(223 83% 60% / 0.05));
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
@@ -268,8 +272,8 @@
     padding: 1px;
     background: linear-gradient(
       135deg,
-      hsl(217 91% 60% / 0),
-      hsl(217 91% 60% / 0)
+      hsl(223 83% 60% / 0),
+      hsl(223 83% 60% / 0)
     );
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
@@ -280,16 +284,16 @@
   .glass-card:hover::before {
     background: linear-gradient(
       135deg,
-      hsl(217 91% 60% / 0.5),
+      hsl(223 83% 60% / 0.5),
       hsl(280 60% 60% / 0.2),
-      hsl(217 91% 60% / 0.1)
+      hsl(223 83% 60% / 0.1)
     );
   }
   .glass-card:hover {
     background: hsl(var(--card) / 0.75);
     border-color: hsl(var(--primary) / 0.15);
     box-shadow:
-      0 8px 32px hsl(217 91% 60% / 0.08),
+      0 8px 32px hsl(223 83% 60% / 0.08),
       0 2px 8px hsl(0 0% 0% / 0.06),
       inset 0 1px 0 hsl(0 0% 100% / 0.05);
   }
@@ -299,9 +303,9 @@
   }
   .dark .glass-card:hover {
     background: hsl(222 24% 14% / 0.75);
-    border-color: hsl(217 91% 60% / 0.25);
+    border-color: hsl(223 83% 60% / 0.25);
     box-shadow:
-      0 8px 32px hsl(217 91% 60% / 0.1),
+      0 8px 32px hsl(223 83% 60% / 0.1),
       0 2px 8px hsl(0 0% 0% / 0.15),
       inset 0 1px 0 hsl(0 0% 100% / 0.04);
   }
@@ -316,7 +320,7 @@
     height: 200%;
     background: radial-gradient(
       circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
-      hsl(217 91% 60% / 0.06) 0%,
+      hsl(223 83% 60% / 0.06) 0%,
       transparent 50%
     );
     pointer-events: none;
@@ -369,8 +373,8 @@
   /* Neon glow effects */
   .dark .neon-glow {
     box-shadow:
-      0 0 15px hsl(217 100% 62% / 0.2),
-      0 0 45px hsl(217 100% 62% / 0.08),
+      0 0 15px hsl(223 90% 62% / 0.2),
+      0 0 45px hsl(223 90% 62% / 0.08),
       inset 0 1px 0 hsl(0 0% 100% / 0.04);
   }
   .dark .neon-glow-purple {
@@ -399,10 +403,10 @@
     padding: 1px;
     background: linear-gradient(
       135deg,
-      hsl(217 100% 62% / 0.3),
+      hsl(223 90% 62% / 0.3),
       hsl(270 90% 65% / 0.15),
       hsl(185 90% 55% / 0.2),
-      hsl(217 100% 62% / 0.1)
+      hsl(223 90% 62% / 0.1)
     );
     background-size: 300% 300%;
     animation: gradient-shift 6s ease infinite;
@@ -427,13 +431,13 @@
     position: absolute;
     inset: 0;
     background-image:
-      radial-gradient(1px 1px at 20% 30%, hsl(217 100% 65% / 0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 20% 30%, hsl(223 90% 65% / 0.3) 0%, transparent 100%),
       radial-gradient(1px 1px at 40% 70%, hsl(270 90% 65% / 0.2) 0%, transparent 100%),
       radial-gradient(1px 1px at 60% 20%, hsl(185 90% 55% / 0.25) 0%, transparent 100%),
-      radial-gradient(1px 1px at 80% 50%, hsl(217 100% 65% / 0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 80% 50%, hsl(223 90% 65% / 0.2) 0%, transparent 100%),
       radial-gradient(1px 1px at 10% 60%, hsl(270 90% 65% / 0.15) 0%, transparent 100%),
       radial-gradient(1px 1px at 70% 80%, hsl(185 90% 55% / 0.2) 0%, transparent 100%),
-      radial-gradient(1px 1px at 90% 15%, hsl(217 100% 65% / 0.25) 0%, transparent 100%),
+      radial-gradient(1px 1px at 90% 15%, hsl(223 90% 65% / 0.25) 0%, transparent 100%),
       radial-gradient(1px 1px at 30% 90%, hsl(270 90% 65% / 0.2) 0%, transparent 100%);
     animation: float-particles 20s linear infinite;
     pointer-events: none;
@@ -447,7 +451,7 @@
 
   /* Neon text */
   .dark .neon-text {
-    text-shadow: 0 0 10px hsl(217 100% 62% / 0.5), 0 0 30px hsl(217 100% 62% / 0.15);
+    text-shadow: 0 0 10px hsl(223 90% 62% / 0.5), 0 0 30px hsl(223 90% 62% / 0.15);
   }
 
   /* Kbd shortcut styling */
@@ -472,13 +476,13 @@
   /* Soft glow for light mode cards */
   .light-glow {
     box-shadow:
-      0 4px 20px hsl(217 91% 60% / 0.08),
-      0 1px 3px hsl(0 0% 0% / 0.04);
+      0 1px 2px hsl(0 0% 31% / 0.08),
+      0 4px 12px hsl(0 0% 31% / 0.06);
   }
   .light-glow:hover {
     box-shadow:
-      0 8px 30px hsl(217 91% 60% / 0.12),
-      0 2px 6px hsl(0 0% 0% / 0.06);
+      0 2px 4px hsl(0 0% 31% / 0.08),
+      0 12px 28px hsl(0 0% 31% / 0.10);
   }
 
   /* Light mode text shimmer */
@@ -486,7 +490,7 @@
     background: linear-gradient(
       110deg,
       hsl(var(--foreground)) 35%,
-      hsl(217 91% 50%) 50%,
+      hsl(223 83% 50%) 50%,
       hsl(var(--foreground)) 65%
     );
     background-size: 200% 100%;
@@ -507,7 +511,7 @@
   }
 
   @keyframes breathing {
-    0%, 100% { box-shadow: 0 0 0 0 hsl(217 91% 60% / 0.15); }
-    50% { box-shadow: 0 0 0 6px hsl(217 91% 60% / 0); }
+    0%, 100% { box-shadow: 0 0 0 0 hsl(223 83% 60% / 0.15); }
+    50% { box-shadow: 0 0 0 6px hsl(223 83% 60% / 0); }
   }
 }

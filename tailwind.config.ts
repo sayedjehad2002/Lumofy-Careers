@@ -15,7 +15,7 @@ export default {
   	extend: {
   		fontFamily: {
   			sans: [
-  				'Inter',
+  				'Source Sans 3',
   				'ui-sans-serif',
   				'system-ui',
   				'-apple-system',
@@ -161,10 +161,10 @@ export default {
   			},
   			'pulse-glow': {
   				'0%, 100%': {
-  					boxShadow: '0 0 15px hsl(217 91% 60% / 0.2)'
+  					boxShadow: '0 0 15px hsl(223 83% 60% / 0.2)'
   				},
   				'50%': {
-  					boxShadow: '0 0 30px hsl(217 91% 60% / 0.4)'
+  					boxShadow: '0 0 30px hsl(223 83% 60% / 0.4)'
   				}
   			}
   		},

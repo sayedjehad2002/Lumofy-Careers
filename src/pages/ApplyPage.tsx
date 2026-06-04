@@ -14,6 +14,12 @@ import { motion } from "framer-motion";
 import { NATIONALITIES } from "@/data/nationalities";
 import type { Applicant } from "@/types/careers";
 
+const ease = [0.22, 1, 0.36, 1] as [number, number, number, number];
+const fadeUp = {
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease } },
+};
+
 // ── Progress Steps ──
 const STEPS = [
   { label: "Personal Info", icon: User },
@@ -23,7 +29,7 @@ const STEPS = [
 
 function ProgressIndicator({ current }: { current: number }) {
   return (
-    <div className="flex items-center justify-center gap-0 mb-8">
+    <div className="mb-8 flex items-center justify-center gap-0">
       {STEPS.map((step, i) => {
         const Icon = step.icon;
         const isActive = i === current;
@@ -32,22 +38,22 @@ function ProgressIndicator({ current }: { current: number }) {
           <div key={step.label} className="flex items-center">
             <div className="flex flex-col items-center">
               <div
-                className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
+                className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-medium transition-all ${
                   isActive
                     ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
                     : isDone
-                    ? "bg-primary/20 text-primary"
-                    : "bg-secondary text-muted-foreground"
+                    ? "bg-primary/15 text-primary"
+                    : "bg-muted text-muted-foreground"
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="h-4 w-4" />
               </div>
-              <span className={`text-[11px] mt-1.5 ${isActive ? "text-primary font-medium" : "text-muted-foreground"}`}>
+              <span className={`mt-1.5 text-[11px] ${isActive ? "font-medium text-primary" : "text-muted-foreground"}`}>
                 {step.label}
               </span>
             </div>
             {i < STEPS.length - 1 && (
-              <div className={`w-16 sm:w-24 h-0.5 mx-2 mb-5 ${isDone ? "bg-primary/40" : "bg-border"}`} />
+              <div className={`mx-2 mb-5 h-0.5 w-12 sm:w-20 ${isDone ? "bg-primary/40" : "bg-border"}`} />
             )}
           </div>
         );
@@ -61,10 +67,12 @@ function NationalitySelect({
   value,
   onChange,
   error,
+  id,
 }: {
   value: string;
   onChange: (v: string) => void;
   error?: string;
+  id?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -78,9 +86,13 @@ function NationalitySelect({
 
   return (
     <div className="relative">
-      <div
-        className={`flex h-10 w-full items-center rounded-md border bg-secondary px-3 py-2 text-sm cursor-pointer transition-colors ${
-          error ? "border-destructive/50" : "border-border"
+      <button
+        type="button"
+        id={id}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={`flex h-10 w-full items-center rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+          error ? "border-destructive" : "border-input"
         }`}
         onClick={() => {
           setOpen(true);
@@ -92,30 +104,33 @@ function NationalitySelect({
         ) : (
           <span className="flex-1 text-muted-foreground">Select nationality...</span>
         )}
-      </div>
+      </button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute z-50 top-full mt-1 w-full rounded-md border border-border bg-popover shadow-lg max-h-64 overflow-hidden flex flex-col">
-            <div className="p-2 border-b border-border">
+          <div className="absolute top-full z-50 mt-1 flex max-h-64 w-full flex-col overflow-hidden rounded-md border border-border bg-popover shadow-lg">
+            <div className="border-b border-border p-2">
               <Input
                 ref={inputRef}
                 placeholder="Search nationality..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-8 bg-background"
+                className="h-8"
+                aria-label="Search nationality"
               />
             </div>
-            <div className="overflow-y-auto flex-1">
+            <div className="flex-1 overflow-y-auto" role="listbox">
               {filtered.length === 0 ? (
-                <p className="p-3 text-sm text-muted-foreground text-center">No results found</p>
+                <p className="p-3 text-center text-sm text-muted-foreground">No results found</p>
               ) : (
                 filtered.map((n) => (
                   <button
                     key={n}
                     type="button"
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors ${
-                      n === value ? "bg-primary/10 text-primary font-medium" : ""
+                    role="option"
+                    aria-selected={n === value}
+                    className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground ${
+                      n === value ? "bg-primary/10 font-medium text-primary" : ""
                     }`}
                     onClick={() => {
                       onChange(n);
@@ -131,7 +146,7 @@ function NationalitySelect({
           </div>
         </>
       )}
-      {error && <p className="text-destructive text-xs mt-1">{error}</p>}
+      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
   );
 }
@@ -174,9 +189,9 @@ const ApplyPage = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="pt-24 text-center text-muted-foreground">
+        <div className="px-4 pt-32 text-center text-muted-foreground">
           <p>Job not found.</p>
-          <Link to="/" className="text-primary hover:underline mt-2 inline-block">Back to positions</Link>
+          <Link to="/" className="mt-2 inline-block text-primary hover:underline">Back to positions</Link>
         </div>
       </div>
     );
@@ -187,9 +202,26 @@ const ApplyPage = () => {
     setCvError("");
     if (!file) return;
     const validTypes = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
-    if (!validTypes.includes(file.type)) { setCvError("Please upload a PDF, DOC, or DOCX file."); return; }
-    if (file.size > 10 * 1024 * 1024) { setCvError("File size must be under 10MB."); return; }
+    if (!validTypes.includes(file.type)) {
+      setCvError("Please upload a PDF, DOC, or DOCX file.");
+      setCvFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setCvError("File size must be under 10MB.");
+      setCvFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     setCvFile(file);
+    // Clear any prior submit-time CV requirement error once a valid file is chosen.
+    setErrors((prev) => {
+      if (!prev.cv) return prev;
+      const next = { ...prev };
+      delete next.cv;
+      return next;
+    });
   };
 
   const validate = () => {
@@ -233,6 +265,14 @@ const ApplyPage = () => {
 
       if (uploadError || uploadData?.error) {
         toast.error(uploadData?.error || "Failed to upload CV. Please try again.");
+        setSubmitting(false);
+        return;
+      }
+
+      // P0 guard: the upload-cv response must include both storagePath and applicantId
+      // before we destructure/use them, otherwise the page would crash on undefined.
+      if (!uploadData?.storagePath || !uploadData?.applicantId) {
+        toast.error("Upload failed, please try again.");
         setSubmitting(false);
         return;
       }
@@ -291,18 +331,23 @@ const ApplyPage = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="pt-32 pb-20 px-4 text-center">
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="max-w-md mx-auto">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="w-8 h-8 text-primary" />
+        <section className="px-4 py-20 pt-32 text-center sm:py-24">
+          <motion.div
+            className="mx-auto max-w-md"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease }}
+          >
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+              <CheckCircle className="h-8 w-8 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold mb-3">Application Submitted!</h1>
-            <p className="text-muted-foreground mb-6">
-              Thank you for applying to <strong>{job.title}</strong> at Lumofy. We'll review your application and get back to you soon.
+            <h1 className="mb-3 text-2xl font-extrabold tracking-tight sm:text-3xl">Application submitted</h1>
+            <p className="mb-6 text-muted-foreground">
+              Thank you for applying to <strong className="text-foreground">{job.title}</strong> at Lumofy. We'll review your application and get back to you soon.
             </p>
-            <Button onClick={() => navigate("/")} size="lg">Back to Careers</Button>
+            <Button onClick={() => navigate("/")} size="lg" className="h-12 rounded-xl px-8 text-base">Back to Careers</Button>
           </motion.div>
-        </div>
+        </section>
       </div>
     );
   }
@@ -312,22 +357,27 @@ const ApplyPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="pt-24 pb-20 px-4">
-        <div className="max-w-[960px] mx-auto">
-          <Link to={`/jobs/${job.id}`} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
-            <ArrowLeft className="w-4 h-4" />
+      <div className="px-4 py-12 pt-24 sm:py-16 sm:pt-28">
+        <div className="mx-auto max-w-2xl">
+          <Link to={`/jobs/${job.id}`} className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" />
             Back to {job.title}
           </Link>
 
           {/* Job header */}
-          <motion.div className="rounded-2xl bg-card border border-border p-6 sm:p-8 mb-8" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Briefcase className="w-5 h-5 text-primary" />
+          <motion.div
+            className="mb-8 rounded-2xl border border-border bg-card p-6 light-glow sm:p-8"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                <Briefcase className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold">Apply for {job.title}</h1>
-                <p className="text-muted-foreground text-sm">{job.department} · {job.location}</p>
+                <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">Apply for {job.title}</h1>
+                <p className="text-sm text-muted-foreground">{job.department} · {job.location}</p>
               </div>
             </div>
           </motion.div>
@@ -335,42 +385,43 @@ const ApplyPage = () => {
           {/* Progress */}
           <ProgressIndicator current={activeStep} />
 
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* ── Card 1: Personal Information ── */}
             <motion.div
-              className="rounded-2xl bg-card border border-border p-6 sm:p-8 shadow-sm"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
+              className="rounded-2xl border border-border bg-card p-6 light-glow sm:p-8"
+              initial="hidden"
+              animate="show"
+              variants={fadeUp}
             >
-              <h2 className="text-lg font-semibold mb-1">Personal Information</h2>
-              <p className="text-sm text-muted-foreground mb-6">Tell us about yourself and how we can reach you.</p>
+              <h2 className="text-lg font-bold tracking-tight">Personal Information</h2>
+              <p className="mb-6 mt-1 text-sm text-muted-foreground">Tell us about yourself and how we can reach you.</p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+              <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
                 <div data-field="fullName">
-                  <Label className="text-sm">Full Name <span className="text-destructive">*</span></Label>
-                  <Input {...field("fullName", formData.fullName)} className="bg-secondary border-border mt-1.5" />
-                  {errors.fullName && <p className="text-destructive text-xs mt-1">{errors.fullName}</p>}
+                  <Label htmlFor="fullName" className="text-sm">Full Name <span className="text-destructive">*</span></Label>
+                  <Input id="fullName" {...field("fullName", formData.fullName)} className="mt-1.5" aria-invalid={!!errors.fullName} />
+                  {errors.fullName && <p className="mt-1 text-xs text-destructive">{errors.fullName}</p>}
                 </div>
                 <div data-field="email">
-                  <Label className="text-sm">Email <span className="text-destructive">*</span></Label>
-                  <Input type="email" {...field("email", formData.email)} className="bg-secondary border-border mt-1.5" />
-                  {errors.email && <p className="text-destructive text-xs mt-1">{errors.email}</p>}
+                  <Label htmlFor="email" className="text-sm">Email <span className="text-destructive">*</span></Label>
+                  <Input id="email" type="email" {...field("email", formData.email)} className="mt-1.5" aria-invalid={!!errors.email} />
+                  {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email}</p>}
                 </div>
                 <div data-field="phone">
-                  <Label className="text-sm">Phone <span className="text-destructive">*</span></Label>
-                  <Input {...field("phone", formData.phone)} className="bg-secondary border-border mt-1.5" />
-                  {errors.phone && <p className="text-destructive text-xs mt-1">{errors.phone}</p>}
+                  <Label htmlFor="phone" className="text-sm">Phone <span className="text-destructive">*</span></Label>
+                  <Input id="phone" {...field("phone", formData.phone)} className="mt-1.5" aria-invalid={!!errors.phone} />
+                  {errors.phone && <p className="mt-1 text-xs text-destructive">{errors.phone}</p>}
                 </div>
                 <div data-field="location">
-                  <Label className="text-sm">Current Location <span className="text-destructive">*</span></Label>
-                  <Input {...field("location", formData.location)} className="bg-secondary border-border mt-1.5" />
-                  {errors.location && <p className="text-destructive text-xs mt-1">{errors.location}</p>}
+                  <Label htmlFor="location" className="text-sm">Current Location <span className="text-destructive">*</span></Label>
+                  <Input id="location" {...field("location", formData.location)} className="mt-1.5" aria-invalid={!!errors.location} />
+                  {errors.location && <p className="mt-1 text-xs text-destructive">{errors.location}</p>}
                 </div>
                 <div data-field="nationality">
-                  <Label className="text-sm">Nationality <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="nationality" className="text-sm">Nationality <span className="text-destructive">*</span></Label>
                   <div className="mt-1.5">
                     <NationalitySelect
+                      id="nationality"
                       value={formData.nationality}
                       onChange={(v) => setFormData({ ...formData, nationality: v })}
                       error={errors.nationality}
@@ -378,19 +429,20 @@ const ApplyPage = () => {
                   </div>
                 </div>
                 <div>
-                  <Label className="text-sm">LinkedIn Profile</Label>
-                  <Input placeholder="https://linkedin.com/in/..." {...field("linkedin", formData.linkedin)} className="bg-secondary border-border mt-1.5" />
+                  <Label htmlFor="linkedin" className="text-sm">LinkedIn Profile</Label>
+                  <Input id="linkedin" placeholder="https://linkedin.com/in/..." {...field("linkedin", formData.linkedin)} className="mt-1.5" />
                 </div>
                 <div className="sm:col-span-2">
-                  <Label className="text-sm">Portfolio / Website</Label>
-                  <Input placeholder="https://..." {...field("portfolio", formData.portfolio)} className="bg-secondary border-border mt-1.5" />
+                  <Label htmlFor="portfolio" className="text-sm">Portfolio / Website</Label>
+                  <Input id="portfolio" placeholder="https://..." {...field("portfolio", formData.portfolio)} className="mt-1.5" />
                 </div>
                 <div className="sm:col-span-2">
-                  <Label className="text-sm">Cover Letter</Label>
+                  <Label htmlFor="coverLetter" className="text-sm">Cover Letter</Label>
                   <Textarea
+                    id="coverLetter"
                     placeholder="Tell us why you're interested in this role..."
                     {...field("coverLetter", formData.coverLetter)}
-                    className="bg-secondary border-border mt-1.5 min-h-[120px]"
+                    className="mt-1.5 min-h-[120px]"
                   />
                 </div>
               </div>
@@ -398,98 +450,105 @@ const ApplyPage = () => {
 
             {/* ── Card 2: CV Upload ── */}
             <motion.div
-              className="rounded-2xl bg-card border border-border p-6 sm:p-8 shadow-sm"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
+              className="rounded-2xl border border-border bg-card p-6 light-glow sm:p-8"
+              initial="hidden"
+              animate="show"
+              variants={fadeUp}
               data-field="cv"
             >
-              <h2 className="text-lg font-semibold mb-1">Upload CV / Resume</h2>
-              <p className="text-sm text-muted-foreground mb-5">PDF, DOC, DOCX — Max 10MB</p>
+              <h2 className="text-lg font-bold tracking-tight">Upload CV / Resume</h2>
+              <p className="mb-5 mt-1 text-sm text-muted-foreground">PDF, DOC, DOCX — Max 10MB</p>
 
               {cvFile ? (
-                <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-xl p-4">
-                  <FileText className="w-8 h-8 text-primary flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{cvFile.name}</p>
+                <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <FileText className="h-8 w-8 flex-shrink-0 text-primary" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{cvFile.name}</p>
                     <p className="text-xs text-muted-foreground">{cvFile.size < 1024 * 1024 ? `${(cvFile.size / 1024).toFixed(1)} KB` : `${(cvFile.size / 1024 / 1024).toFixed(2)} MB`}</p>
                   </div>
                   <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
-                    onClick={() => { setCvFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                    size="icon"
+                    aria-label="Remove uploaded CV"
+                    onClick={() => { setCvFile(null); setCvError(""); if (fileInputRef.current) fileInputRef.current.value = ""; }}
                     className="text-muted-foreground hover:text-destructive"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="h-4 w-4" />
                   </Button>
                 </div>
               ) : (
-                <div
-                  className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all hover:bg-secondary/50 ${
-                    errors.cv ? "border-destructive/50" : "border-border hover:border-primary/40"
+                <button
+                  type="button"
+                  className={`w-full rounded-xl border-2 border-dashed p-10 text-center transition-all hover:bg-muted/50 ${
+                    cvError ? "border-destructive" : errors.cv ? "border-destructive/60" : "border-border hover:border-primary/40"
                   }`}
                   onClick={() => fileInputRef.current?.click()}
+                  aria-label="Upload your CV"
                 >
                   <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFileChange} />
-                  <Upload className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
-                  <p className="text-sm font-medium mb-1">Click to upload your CV</p>
-                  <p className="text-xs text-muted-foreground">PDF, DOC, DOCX – Max 2MB</p>
-                </div>
+                  <Upload className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+                  <p className="mb-1 text-sm font-medium">Click to upload your CV</p>
+                  <p className="text-xs text-muted-foreground">PDF, DOC, DOCX — Max 10MB</p>
+                </button>
               )}
-              {cvError && <p className="text-destructive text-xs mt-2">{cvError}</p>}
-              {errors.cv && !cvError && <p className="text-destructive text-xs mt-2">{errors.cv}</p>}
+              {/* Inline validation feedback — surfaced immediately on file rejection */}
+              {cvError && <p className="mt-2 text-xs text-destructive" role="alert">{cvError}</p>}
+              {errors.cv && !cvError && <p className="mt-2 text-xs text-destructive">{errors.cv}</p>}
             </motion.div>
 
             {/* ── Card 3: Screening Questions ── */}
             {job.screeningQuestions.length > 0 && (
               <motion.div
-                className="rounded-2xl bg-card border border-border p-6 sm:p-8 shadow-sm"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
+                className="rounded-2xl border border-border bg-card p-6 light-glow sm:p-8"
+                initial="hidden"
+                animate="show"
+                variants={fadeUp}
               >
-                <h2 className="text-lg font-semibold mb-1">Screening Questions</h2>
-                <p className="text-sm text-muted-foreground mb-6">Help us understand your fit for this role.</p>
+                <h2 className="text-lg font-bold tracking-tight">Screening Questions</h2>
+                <p className="mb-6 mt-1 text-sm text-muted-foreground">Help us understand your fit for this role.</p>
 
                 <div className="space-y-6">
                   {job.screeningQuestions.map((q, idx) => (
-                    <div key={q.id} data-field={`sq_${q.id}`} className={idx > 0 ? "pt-6 border-t border-border" : ""}>
-                      <Label className="text-sm font-medium">
+                    <div key={q.id} data-field={`sq_${q.id}`} className={idx > 0 ? "border-t border-border pt-6" : ""}>
+                      <Label htmlFor={`sq-${q.id}`} className="text-sm font-medium">
                         {q.question} {q.required && <span className="text-destructive">*</span>}
                       </Label>
                       {q.type === "short_text" && (
                         <Input
+                          id={`sq-${q.id}`}
                           value={screeningAnswers[q.id] || ""}
                           onChange={(e) => setScreeningAnswers({ ...screeningAnswers, [q.id]: e.target.value })}
-                          className="bg-secondary border-border mt-2"
+                          className="mt-2"
                         />
                       )}
                       {q.type === "long_text" && (
                         <Textarea
+                          id={`sq-${q.id}`}
                           value={screeningAnswers[q.id] || ""}
                           onChange={(e) => setScreeningAnswers({ ...screeningAnswers, [q.id]: e.target.value })}
-                          className="bg-secondary border-border mt-2 min-h-[100px]"
+                          className="mt-2 min-h-[100px]"
                         />
                       )}
                       {q.type === "number" && (
                         <Input
+                          id={`sq-${q.id}`}
                           type="number"
                           value={screeningAnswers[q.id] || ""}
                           onChange={(e) => setScreeningAnswers({ ...screeningAnswers, [q.id]: e.target.value })}
-                          className="bg-secondary border-border mt-2"
+                          className="mt-2"
                         />
                       )}
                       {q.type === "yes_no" && (
                         <RadioGroup
                           value={screeningAnswers[q.id] || ""}
                           onValueChange={(v) => setScreeningAnswers({ ...screeningAnswers, [q.id]: v })}
-                          className="flex gap-6 mt-3"
+                          className="mt-3 flex gap-6"
                         >
                           {["Yes", "No"].map((opt) => (
                             <label
                               key={opt}
-                              className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border cursor-pointer transition-all ${
+                              className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-4 py-2.5 transition-all ${
                                 screeningAnswers[q.id] === opt
                                   ? "border-primary bg-primary/5"
                                   : "border-border hover:border-primary/30"
@@ -505,12 +564,12 @@ const ApplyPage = () => {
                         <RadioGroup
                           value={screeningAnswers[q.id] || ""}
                           onValueChange={(v) => setScreeningAnswers({ ...screeningAnswers, [q.id]: v })}
-                          className="space-y-2 mt-3"
+                          className="mt-3 space-y-2"
                         >
                           {q.options.map((opt) => (
                             <label
                               key={opt}
-                              className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border cursor-pointer transition-all ${
+                              className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-4 py-2.5 transition-all ${
                                 screeningAnswers[q.id] === opt
                                   ? "border-primary bg-primary/5"
                                   : "border-border hover:border-primary/30"
@@ -522,7 +581,7 @@ const ApplyPage = () => {
                           ))}
                         </RadioGroup>
                       )}
-                      {errors[`sq_${q.id}`] && <p className="text-destructive text-xs mt-1.5">{errors[`sq_${q.id}`]}</p>}
+                      {errors[`sq_${q.id}`] && <p className="mt-1.5 text-xs text-destructive">{errors[`sq_${q.id}`]}</p>}
                     </div>
                   ))}
                 </div>
@@ -531,8 +590,8 @@ const ApplyPage = () => {
 
             {/* ── Submit Button ── */}
             <div className="pt-2">
-              <Button type="submit" size="lg" className="w-full h-[52px] text-base shadow-md" disabled={submitting}>
-                {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base" disabled={submitting}>
+                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {submitting ? "Submitting..." : "Submit Application"}
               </Button>
             </div>

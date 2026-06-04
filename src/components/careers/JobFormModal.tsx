@@ -13,7 +13,7 @@ import type { Job, ScreeningQuestion } from "@/types/careers";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import AIJobAssistModal from "./AIJobAssistModal";
-import lumofyLogo from "@/assets/lumofy-logo.jpg";
+import lumofyLogo from "@/assets/lumofy-mark.png";
 
 interface JobFormModalProps {
   job?: Job | null;

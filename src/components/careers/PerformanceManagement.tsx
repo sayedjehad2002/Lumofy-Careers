@@ -287,7 +287,7 @@ const PerformanceManagement = ({ sessionToken }: { sessionToken: string }) => {
 
     try {
       const { data, error } = await supabase.functions.invoke("analyze-performance", {
-        body: { employees },
+        body: { employees, sessionToken },
       });
       if (error) throw new Error(error.message || "AI analysis failed");
       if (data?.error) throw new Error(data.error);

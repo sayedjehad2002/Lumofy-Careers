@@ -56,7 +56,7 @@ const TestimonialsSection = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-foreground/[0.02] via-foreground/[0.05] to-foreground/[0.02]" />
         <motion.div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[500px] rounded-full blur-[200px] pointer-events-none"
-          style={{ background: "hsl(217 91% 60% / 0.06)" }}
+          style={{ background: "hsl(223 83% 60% / 0.06)" }}
           animate={{ scale: [1, 1.15, 1] }}
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
         />

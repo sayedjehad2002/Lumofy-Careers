@@ -38,7 +38,7 @@ const FloatingShapes = ({ className = "" }: { className?: string }) => {
                 width: shape.size,
                 height: shape.size,
                 opacity: shape.opacity,
-                background: `radial-gradient(circle, hsl(217 91% 60% / 0.1), transparent)`,
+                background: `radial-gradient(circle, hsl(223 83% 60% / 0.1), transparent)`,
               }}
             />
           ) : (
@@ -51,7 +51,7 @@ const FloatingShapes = ({ className = "" }: { className?: string }) => {
               <path
                 d={hexagonPath}
                 fill="none"
-                stroke="hsl(217 91% 60% / 0.3)"
+                stroke="hsl(223 83% 60% / 0.3)"
                 strokeWidth="1.5"
               />
             </svg>

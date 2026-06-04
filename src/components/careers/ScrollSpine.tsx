@@ -15,7 +15,7 @@ const ScrollSpine = () => {
             height: "100%",
             scaleY: smoothProgress,
             transformOrigin: "top",
-            background: "linear-gradient(180deg, hsl(217 91% 60% / 0.8), hsl(270 80% 60% / 0.4))",
+            background: "linear-gradient(180deg, hsl(223 83% 60% / 0.8), hsl(270 80% 60% / 0.4))",
           }}
         />
       </div>
@@ -26,7 +26,7 @@ const ScrollSpine = () => {
         style={{
           top: 0,
           y: dotY,
-          boxShadow: "0 0 10px hsl(217 91% 60% / 0.6), 0 0 25px hsl(217 91% 60% / 0.2)",
+          boxShadow: "0 0 10px hsl(223 83% 60% / 0.6), 0 0 25px hsl(223 83% 60% / 0.2)",
         }}
       />
 

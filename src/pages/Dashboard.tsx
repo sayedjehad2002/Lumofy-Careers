@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import lumofyLogo from "@/assets/lumofy-logo.jpg";
+import lumofyLogo from "@/assets/lumofy-mark.png";
 import { Link } from "react-router-dom";
 import {
   Briefcase, Users, BarChart3, ChevronDown,

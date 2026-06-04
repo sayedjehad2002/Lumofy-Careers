@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { adminQuery } from "@/lib/adminQuery";
 import { APPLICANT_STATUSES, type Applicant, type ApplicantStatus, type Job } from "@/types/careers";
 import { toast } from "sonner";
-import lumofyLogo from "@/assets/lumofy-logo.jpg";
+import lumofyLogo from "@/assets/lumofy-mark.png";
 import { parseChartBlocks, InlineChart, type ChartBlock } from "./CopilotChart";
 import { parseReportRequests, ReportDownloadCard, type ReportRequest } from "./CopilotReport";
 
