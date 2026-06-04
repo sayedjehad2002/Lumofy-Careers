@@ -1,0 +1,1 @@
+ALTER TABLE public.applicants ALTER COLUMN stage_entered_at SET DEFAULT now();

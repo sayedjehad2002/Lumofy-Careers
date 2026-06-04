@@ -1,0 +1,88 @@
+project_id = "qpmlmmvqpppmaniewzqd"
+
+[functions.analyze-cv]
+verify_jwt = false
+
+[functions.verify-password]
+verify_jwt = false
+
+[functions.get-cv-url]
+verify_jwt = false
+
+[functions.get-applicants]
+verify_jwt = false
+
+[functions.update-applicant]
+verify_jwt = false
+
+[functions.upload-cv]
+verify_jwt = false
+
+[functions.upload-jd]
+verify_jwt = false
+
+[functions.get-jd-url]
+verify_jwt = false
+
+[functions.ai-job-assist]
+verify_jwt = false
+
+[functions.copilot-chat]
+verify_jwt = false
+
+[functions.copilot-sessions]
+verify_jwt = false
+
+[functions.cv-library-upload]
+verify_jwt = false
+
+[functions.cv-library-parse]
+verify_jwt = false
+
+[functions.cv-library-classify]
+verify_jwt = false
+
+[functions.cv-library-manage]
+verify_jwt = false
+
+[functions.cv-library-analyze]
+verify_jwt = false
+
+[functions.auto-analyze-applicant]
+verify_jwt = false
+
+[functions.delete-applicant]
+verify_jwt = false
+
+[functions.turnover-manage]
+verify_jwt = false
+
+[functions.analyze-performance]
+verify_jwt = false
+
+[functions.survey-manage]
+verify_jwt = false
+
+[functions.survey-ai-insights]
+verify_jwt = false
+
+[functions.survey-ai-generate]
+verify_jwt = false
+
+[functions.survey-ai-improve]
+verify_jwt = false
+
+[functions.copilot-report]
+verify_jwt = false
+
+[functions.pipeline-automation]
+verify_jwt = false
+
+[functions.survey-response-analyze]
+verify_jwt = false
+
+[functions.survey-intelligence]
+verify_jwt = false
+
+[functions.admin-data]
+verify_jwt = false

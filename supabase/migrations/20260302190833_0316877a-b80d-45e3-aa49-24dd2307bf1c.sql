@@ -1,0 +1,1 @@
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS ai_scoring_weights jsonb DEFAULT '{"skills":35,"tools":25,"experience":20,"industry":10,"education":5,"stability":5}'::jsonb;

@@ -1,0 +1,1 @@
+ALTER TABLE public.cv_library_candidates ADD COLUMN ai_analysis jsonb DEFAULT NULL;
