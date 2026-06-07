@@ -87,14 +87,15 @@ const Dashboard = () => {
     sourceStatus: ApplicantStatus;
   }>({ open: false, applicantId: "", applicantName: "", targetStatus: "new", sourceStatus: "new" });
 
-  const mainTabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-4 h-4" /> },
-    { id: "jobs", label: "Jobs", icon: <Briefcase className="w-4 h-4" /> },
-    { id: "applicants", label: "Applicants", icon: <Users className="w-4 h-4" /> },
-    { id: "pipeline", label: "Pipeline", icon: <BarChart3 className="w-4 h-4" /> },
-    { id: "cv-library", label: "CV Library", icon: <Library className="w-4 h-4" /> },
-    { id: "eos-calculator", label: "End of Service", icon: <Calculator className="w-4 h-4" /> },
+  const mainTabs: { id: Tab; label: string; icon: React.ReactNode; group: string }[] = [
+    { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-4 h-4" />, group: "Hiring" },
+    { id: "jobs", label: "Jobs", icon: <Briefcase className="w-4 h-4" />, group: "Hiring" },
+    { id: "applicants", label: "Applicants", icon: <Users className="w-4 h-4" />, group: "Hiring" },
+    { id: "pipeline", label: "Pipeline", icon: <BarChart3 className="w-4 h-4" />, group: "Hiring" },
+    { id: "cv-library", label: "CV Library", icon: <Library className="w-4 h-4" />, group: "Talent" },
+    { id: "eos-calculator", label: "End of Service", icon: <Calculator className="w-4 h-4" />, group: "Tools" },
   ];
+  const navGroups = ["Hiring", "Talent", "Tools"];
 
   const filteredApplicants = useMemo(() => {
     if (selectedJobId === "all") return applicants;
@@ -269,52 +270,45 @@ const Dashboard = () => {
           </button>
         </div>
 
-        <nav className="p-3 flex-1 space-y-0.5 relative z-10 overflow-y-auto">
+        <nav className="p-3 flex-1 space-y-4 relative z-10 overflow-y-auto">
           <LayoutGroup id="sidebar-nav">
-            {mainTabs.map((tab, i) => (
-              <motion.button
-                key={tab.id}
-                custom={i}
-                variants={sidebarItemVariants}
-                initial="initial"
-                animate="animate"
-                onClick={() => { setActiveTab(tab.id); setSelectedApplicant(null); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] tracking-wide transition-colors duration-200 relative overflow-hidden group ${
-                  activeTab === tab.id
-                    ? "text-primary font-semibold"
-                    : "text-muted-foreground hover:text-foreground font-medium"
-                }`}
-                whileHover={{ x: 2 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {activeTab === tab.id && (
-                  <motion.div
-                    layoutId="sidebar-active-bg"
-                    className="absolute inset-0 bg-primary/10 dark:bg-primary/15 rounded-lg dark:shadow-[0_0_15px_hsl(217_100%_62%/0.15)]"
-                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                  />
-                )}
-                <motion.span
-                  className="relative z-10 flex items-center"
-                  animate={activeTab === tab.id ? { rotate: [0, -8, 8, 0] } : {}}
-                  transition={{ duration: 0.4, ease: "easeInOut" }}
-                >
-                  {tab.icon}
-                </motion.span>
-                <span className="relative z-10">{tab.label}</span>
-                {tab.id === "applicants" && applicants.length > 0 && (
-                  <motion.span
-                    className="ml-auto text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-semibold relative z-10"
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 15 }}
+            {navGroups.map((group) => (
+              <div key={group} className="space-y-0.5">
+                <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">{group}</p>
+                {mainTabs.filter((t) => t.group === group).map((tab) => (
+                  <motion.button
+                    key={tab.id}
+                    custom={mainTabs.indexOf(tab)}
+                    variants={sidebarItemVariants}
+                    initial="initial"
+                    animate="animate"
+                    onClick={() => { setActiveTab(tab.id); setSelectedApplicant(null); }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] tracking-wide transition-colors duration-200 relative overflow-hidden group ${
+                      activeTab === tab.id
+                        ? "text-primary font-semibold"
+                        : "text-muted-foreground hover:text-foreground font-medium"
+                    }`}
+                    whileHover={{ x: 2 }}
+                    whileTap={{ scale: 0.98 }}
                   >
-                    {applicants.length}
-                  </motion.span>
-                )}
-              </motion.button>
+                    {activeTab === tab.id && (
+                      <motion.div
+                        layoutId="sidebar-active-bg"
+                        className="absolute inset-0 rounded-lg bg-primary/10 dark:bg-primary/15"
+                        transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center">{tab.icon}</span>
+                    <span className="relative z-10">{tab.label}</span>
+                    {tab.id === "applicants" && applicants.length > 0 && (
+                      <span className="relative z-10 ml-auto rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                        {applicants.length}
+                      </span>
+                    )}
+                  </motion.button>
+                ))}
+              </div>
             ))}
-
           </LayoutGroup>
         </nav>
         <div className="p-3 border-t border-border relative z-10 space-y-1">
