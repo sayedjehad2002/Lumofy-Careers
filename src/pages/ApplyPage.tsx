@@ -12,6 +12,7 @@ import Navbar from "@/components/careers/Navbar";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { NATIONALITIES } from "@/data/nationalities";
+import { getApplicationFieldErrors } from "@/lib/applicationSchema";
 import type { Applicant } from "@/types/careers";
 
 const ease = [0.22, 1, 0.36, 1] as [number, number, number, number];
@@ -247,12 +248,9 @@ const ApplyPage = () => {
   };
 
   const validate = () => {
-    const errs: Record<string, string> = {};
-    if (!formData.fullName.trim()) errs.fullName = "Full name is required";
-    if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errs.email = "Valid email is required";
-    if (!formData.phone.trim()) errs.phone = "Phone number is required";
-    if (!formData.location.trim()) errs.location = "Location is required";
-    if (!formData.nationality.trim()) errs.nationality = "Please select your nationality";
+    // Personal-field rules come from the shared zod schema (typed + unit-tested);
+    // CV-file + dynamic screening checks stay here (they depend on runtime state).
+    const errs: Record<string, string> = getApplicationFieldErrors(formData);
     if (!cvFile) errs.cv = "CV/Resume is required";
     (job.screeningQuestions ?? []).forEach((q) => {
       if (q.required && !screeningAnswers[q.id]?.trim()) errs[`sq_${q.id}`] = "This question is required";
