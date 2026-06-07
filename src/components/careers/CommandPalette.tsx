@@ -25,6 +25,7 @@ const CommandPalette = ({ onNavigateDashboard, isDashboard }: CommandPaletteProp
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { isHrUser } = useCareers();
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
