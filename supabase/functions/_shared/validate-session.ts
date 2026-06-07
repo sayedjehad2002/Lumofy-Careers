@@ -29,6 +29,14 @@ export async function validateSession(
     }),
   });
 
+  const forbidden = (msg: string) => ({
+    valid: false as const,
+    response: new Response(JSON.stringify({ error: msg }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    }),
+  });
+
   if (!sessionToken) return unauthorized("Unauthorized");
 
   const supabase = createServiceClient();
@@ -40,7 +48,19 @@ export async function validateSession(
     try {
       const { data, error } = await supabase.auth.getUser(sessionToken);
       if (!error && data?.user) {
-        return { valid: true, supabase };
+        // Authorization (not just authentication): the signed-in user must be on
+        // the HR allowlist AND active. A valid Supabase account that isn't on the
+        // list gets NO access — this is the "can't get in even with a password"
+        // guarantee. The owner is seeded; invitees are added on accept.
+        const { data: hr } = await supabase
+          .from("hr_users")
+          .select("status")
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+        if (hr?.status === "active") {
+          return { valid: true, supabase };
+        }
+        return forbidden("Your account is not authorized for the HR dashboard.");
       }
     } catch (_e) {
       // not a valid JWT for us — fall through to the legacy check
