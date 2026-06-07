@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
       aiScoringWeights,
     } = await req.json();
 
-    const seniority = inferSeniority(jobTitle, requirements);
+    const seniority = inferSeniority(jobTitle, requirements, null, jobDescription);
 
     // SESSION CONSISTENCY (fix #8): use the shared validator + service client
     // instead of hand-rolling the admin_sessions lookup.

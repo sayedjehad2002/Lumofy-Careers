@@ -16,7 +16,7 @@ serve(async (req) => {
     // SENIORITY CALIBRATION: derive one effective level for all generated content.
     // Prefer an explicit seniority string when provided, else fall back to the title;
     // inferSeniority normalizes both.
-    const level = inferSeniority(seniority || jobTitle, requirements, employmentType);
+    const level = inferSeniority(seniority || jobTitle, requirements, employmentType, description || summary);
 
     // SESSION CONSISTENCY (fix #8): shared validator + service client.
     const auth = await validateSession(sessionToken, corsHeaders);

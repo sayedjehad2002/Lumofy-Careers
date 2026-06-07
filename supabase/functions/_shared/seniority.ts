@@ -1,37 +1,42 @@
 // Shared seniority inference + AI calibration for the evaluative AI edge functions.
 //
-// Jobs have no explicit seniority field, so we INFER the level from the job title
-// (with the requirements text and employment type as fallback signals) and turn it
-// into calibration instructions that make the AI's strictness match the role:
+// The role's level is understood from the JOB TITLE *and* the JOB DESCRIPTION
+// together (with requirements + employment type as extra signals), then turned into
+// calibration instructions that make the AI's strictness match the role:
 //   Intern → lenient / coaching ............. Lead → strict + leadership bar.
 //
+// Two layers, on purpose:
+//   1. inferSeniority(...)   — a fast, deterministic HINT from title/description.
+//   2. the calibration block — tells the model to RE-READ the title + full
+//      description and, if they clearly disagree with the hint, calibrate to what
+//      the title + description actually describe. So the final judgment is always
+//      ALIGNED with the real job context, even when the keyword hint is imperfect.
+//
 // Used by:
-//   • ai-job-assist        (generation — tone & difficulty of generated content)
-//   • analyze-cv           (scoring)
+//   • ai-job-assist          (generation — tone & difficulty of generated content)
+//   • analyze-cv             (scoring)
 //   • auto-analyze-applicant (scoring)
-//   • cv-library-analyze   (scoring)
+//   • cv-library-analyze     (scoring)
 //
 // Left NEUTRAL on purpose: cv-library-parse, cv-library-classify, transcribe-audio.
 // Reading / extracting / transcribing a document must stay faithful regardless of the
-// role level — calibration belongs only in EVALUATION and GENERATION, never in parsing.
-//
-// These are heuristics, not ground truth. They are intentionally conservative and
-// default to "Mid" when no signal is found. (A future explicit HR "Seniority" field
-// can override this — pass the chosen level straight into inferSeniority's first arg.)
+// role level — calibration belongs only in EVALUATION and GENERATION, never parsing.
 
 export type Seniority = "Intern" | "Junior" | "Mid" | "Senior" | "Lead";
 
-// Infer a seniority bucket. `title` may also be an explicit level string (e.g. the
-// "Senior" value from a future dropdown) — keyword matching normalizes both.
-// Order matters: the most senior signals are checked first.
+// Infer a seniority bucket from title + description (+ requirements / employment type).
+// `title` may also be an explicit level string (e.g. a future dropdown's "Senior") —
+// keyword matching normalizes both. Title is the strongest signal; the description and
+// requirements supply experience-year and entry-level signals when the title is neutral.
 export function inferSeniority(
   title?: string | null,
   requirements?: unknown,
   employmentType?: string | null,
+  description?: string | null,
 ): Seniority {
   const t = String(title || "").toLowerCase();
 
-  // 1) Strong title / level-string signals (most senior first).
+  // 1) Title — strongest signal (most senior first).
   if (/\b(chief|cto|ceo|cfo|coo|vp|vice[- ]president|head\s+of|head|director|principal|staff|lead|manager|mgr)\b/.test(t)) {
     return "Lead";
   }
@@ -42,10 +47,18 @@ export function inferSeniority(
   // 2) Employment type fallback (Internship → Intern).
   if (String(employmentType || "").toLowerCase().includes("intern")) return "Intern";
 
-  // 3) Years-of-experience signal pulled from the requirements text (e.g. "5+ years").
-  const reqText = Array.isArray(requirements)
-    ? requirements.join(" ")
-    : (typeof requirements === "string" ? requirements : "");
+  const d = String(description || "").toLowerCase();
+
+  // 3) Explicit entry-level phrasing in the description (used only when the title was
+  //    neutral; kept conservative to avoid false positives like "work with seniors").
+  if (/\b(no experience required|no prior experience|fresh graduate|entry[- ]level|internship)\b/.test(d)) {
+    return "Intern";
+  }
+
+  // 4) Years-of-experience signal from requirements + description combined.
+  const reqText =
+    (Array.isArray(requirements) ? requirements.join(" ")
+      : typeof requirements === "string" ? requirements : "") + " " + d;
   const m = reqText.toLowerCase().match(/(\d{1,2})\s*\+?\s*years?/);
   if (m) {
     const yrs = parseInt(m[1], 10);
@@ -55,52 +68,40 @@ export function inferSeniority(
     return "Lead";
   }
 
-  // 4) No signal → standard bar.
+  // 5) No signal → standard bar.
   return "Mid";
 }
 
-// Calibration block for SCORING / ANALYSIS prompts. Sets the baseline score band,
-// experience expectation, and tone so the same candidate is judged appropriately for
-// the role's level. The opening line makes it OVERRIDE any static band already in the
-// host prompt, so callers only need to drop this string in near the scoring rules.
+// The strictness scale, shared so the model can RE-ALIGN if the hint disagrees with
+// the actual title + description.
+const ANALYSIS_SCALE =
+`- Intern: lenient (~45-65); reward potential, coursework, and attitude; do NOT expect full-time experience; coaching tone.
+- Junior: ~50-70; foundational skills + ~0-2 years; moderate (not heavy) penalties.
+- Mid: ~55-75; ~3-5 years; standard strictness.
+- Senior: strict (~60-80); ~5-8 years; penalize shallow experience or no ownership.
+- Lead/Manager: strict + leadership bar; 8+ years; penalize missing people/strategic leadership.`;
+
+// Calibration block for SCORING / ANALYSIS prompts. Drops in near the scoring rules.
+// It states the hinted level, then forces the model to confirm alignment against the
+// title + full job description before judging — so scoring is always tied to the real role.
 export function analysisCalibration(level: Seniority): string {
-  const bands: Record<Seniority, string> = {
-    Intern:
-`- Typical candidates should land ~45-65; a promising student / fresh graduate with relevant coursework, projects, or genuine enthusiasm can score 60+.
-- Do NOT expect prior full-time experience. Reward potential, learning trajectory, foundational knowledge, and attitude.
-- Apply only LIGHT penalties for missing advanced tools or years; frame gaps as development areas, not disqualifiers. Use a supportive, coaching tone.`,
-    Junior:
-`- Typical candidates should land ~50-70. Expect foundational skills and roughly 0-2 years of experience.
-- Reward solid fundamentals and growth trajectory; apply MODERATE (not heavy) penalties for missing advanced or senior-only skills.`,
-    Mid:
-`- Typical candidates should land ~55-75. Expect ~3-5 years of relevant experience and the ability to deliver independently.
-- Apply standard strictness: penalize missing core skills, reward clear specialization.`,
-    Senior:
-`- Typical candidates should land ~60-80, and ONLY for genuinely strong profiles. Expect ~5-8 years of depth and demonstrated ownership.
-- Penalize HEAVILY for shallow experience, no end-to-end ownership, or only basic skills. Do not reward seniority titles that lack substance.`,
-    Lead:
-`- Typical candidates should land ~60-80, and ONLY with clear leadership evidence. Expect 8+ years plus demonstrated people/technical leadership and strategic impact.
-- Penalize HEAVILY for missing team leadership, mentoring, cross-functional, or strategic experience — even when individual-contributor skills are strong.`,
-  };
-  return `SENIORITY CALIBRATION — ${level.toUpperCase()} ROLE (this REPLACES any other "average should score X-Y" guidance in these instructions; judge strictly RELATIVE TO THIS LEVEL, not in absolute terms):
-${bands[level]}`;
+  return `SENIORITY CALIBRATION (this REPLACES any other "average should score X-Y" guidance in these instructions):
+Based on the job title, this looks like a ${level} role. FIRST, read the JOB TITLE together with the FULL JOB DESCRIPTION, RESPONSIBILITIES, and REQUIREMENTS (where provided) and confirm the role's TRUE seniority — the title + description are the source of truth. If they clearly indicate a different level than ${level}, calibrate to the level they actually describe. Then evaluate the candidate STRICTLY RELATIVE TO that level:
+${ANALYSIS_SCALE}
+Keep the score, strengths/gaps, and recommendation consistent with the role's level and the rest of the job context.`;
 }
 
+const GENERATION_SCALE =
+`- Intern: warm, encouraging; 0-1 years; emphasize learning & fundamentals; modest requirements; simple screening.
+- Junior: entry level; ~1-2 years; achievable requirements; fundamentals-focused screening.
+- Mid: balanced, professional; ~3-5 years; standard requirements; moderately challenging screening.
+- Senior: high bar; ~5-8 years; real depth/specialization; rigorous screening.
+- Lead/Manager: leadership & strategy; 8+ years; leadership/stakeholder scope; people-management screening.`;
+
 // Calibration block for the GENERATION prompts (ai-job-assist). Shapes tone, the
-// experience bar, and the difficulty of generated job content / screening questions
-// to match the role level.
+// experience bar, and difficulty so generated content is aligned with the role.
 export function generationCalibration(level: Seniority): string {
-  const guidance: Record<Seniority, string> = {
-    Intern:
-`Write warm, encouraging, accessible content. Expect 0-1 years of experience (or none) and emphasize learning, mentorship, curiosity, and fundamentals. Keep requirements modest and avoid an intimidating "must-have" wall. Screening questions must assess fundamentals, attitude, and willingness to learn — NOT deep production experience.`,
-    Junior:
-`Pitch at entry level. Expect ~1-2 years and foundational skills. Keep requirements achievable; screening questions should probe core fundamentals and growth potential.`,
-    Mid:
-`Use a balanced, professional tone. Expect ~3-5 years and independent delivery. Use standard requirements and moderately challenging screening questions.`,
-    Senior:
-`Set a high bar. Expect ~5-8 years, advanced skills, and ownership. Requirements should reflect real depth and specialization; screening questions should be rigorous and probe genuine technical and decision-making depth.`,
-    Lead:
-`Emphasize leadership, strategy, and impact. Expect 8+ years plus demonstrated people/technical leadership. Requirements should include leadership and stakeholder scope; screening questions should probe people management, strategic thinking, and cross-functional influence.`,
-  };
-  return `ROLE LEVEL — ${level.toUpperCase()}: ${guidance[level]}`;
+  return `ROLE LEVEL & ALIGNMENT: based on the job title this looks like a ${level} role. Read the job title together with any provided summary/description/context, and make the generated content's seniority, tone, experience bar, and difficulty consistent with the ACTUAL role described — if the title + context clearly indicate a different level than ${level}, follow what they describe. Level scale:
+${GENERATION_SCALE}
+Ensure the output is internally aligned with the role's level and consistent with the rest of the job details provided.`;
 }

@@ -122,8 +122,8 @@ serve(async (req) => {
       });
     }
 
-    // Infer the role's seniority so scoring strictness matches the level.
-    const seniority = inferSeniority(job.title, job.requirements, job.type);
+    // Infer the role's seniority (title + description) so scoring strictness matches the level.
+    const seniority = inferSeniority(job.title, job.requirements, job.type, job.description);
 
     // AI calls now route through the shared OpenRouter helper (../_shared/ai.ts).
 
