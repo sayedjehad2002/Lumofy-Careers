@@ -20,7 +20,7 @@ const JobCard = ({ job, index }: JobCardProps) => {
       transition={{ duration: 0.6, delay: Math.min(index, 6) * 0.06, ease }}
     >
       <Link to={`/jobs/${job.id}`} className="group block">
-        <div className="flex rounded-2xl border border-border bg-card p-5 light-glow transition-transform duration-300 hover:-translate-y-1 sm:p-6">
+        <div className="flex rounded-2xl border border-border bg-card p-5 light-glow transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 sm:p-6">
           {/* Left accent line */}
           <div className="w-[3px] shrink-0 rounded-full bg-primary/15 transition-colors duration-300 group-hover:bg-primary" />
 

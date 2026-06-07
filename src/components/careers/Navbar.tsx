@@ -50,7 +50,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
               >
                 <Link
                   to={link.to}
-                  className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-secondary relative group"
+                  className="px-3 py-2 text-sm text-muted-foreground hover:text-primary transition-colors rounded-md relative group"
                 >
                   {link.label}
                   <span className="absolute bottom-0.5 left-3 right-3 h-[2px] bg-primary/60 rounded-full scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
