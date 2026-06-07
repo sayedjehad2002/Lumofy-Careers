@@ -3,10 +3,12 @@ import { Menu, X } from "lucide-react";
 import { useState, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { useCareers } from "@/contexts/CareersContext";
 import lumofyLogo from "@/assets/lumofy-mark.png";
 
 const Navbar = forwardRef<HTMLElement>((_, ref) => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { isHrUser } = useCareers();
 
   const links = [
     { to: "/", label: "Home" },
@@ -57,17 +59,19 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
                 </Link>
               </motion.div>
             ))}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.6, duration: 0.3 }}
-            >
-              <Link to="/dashboard">
-                <Button size="sm" className="ml-2 breathing-ring">
-                  HR Dashboard
-                </Button>
-              </Link>
-            </motion.div>
+            {isHrUser && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.6, duration: 0.3 }}
+              >
+                <Link to="/dashboard">
+                  <Button size="sm" className="ml-2 breathing-ring">
+                    HR Dashboard
+                  </Button>
+                </Link>
+              </motion.div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 md:hidden">
@@ -122,11 +126,13 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
                   </Link>
                 </motion.div>
               ))}
-              <Link to="/dashboard" onClick={() => setMobileOpen(false)}>
-                <Button size="sm" className="w-full mt-2">
-                  HR Dashboard
-                </Button>
-              </Link>
+              {isHrUser && (
+                <Link to="/dashboard" onClick={() => setMobileOpen(false)}>
+                  <Button size="sm" className="w-full mt-2">
+                    HR Dashboard
+                  </Button>
+                </Link>
+              )}
             </div>
           </motion.div>
         )}

@@ -14,6 +14,7 @@ import {
   Search, ArrowRight, Sparkles, Moon, Sun,
 } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
+import { useCareers } from "@/contexts/CareersContext";
 
 interface CommandPaletteProps {
   onNavigateDashboard?: (tab: string) => void;
@@ -46,7 +47,8 @@ const CommandPalette = ({ onNavigateDashboard, isDashboard }: CommandPaletteProp
     { label: "Browse Jobs", icon: Briefcase, path: "/jobs" },
     { label: "About Lumofy", icon: Info, path: "/about" },
     { label: "Benefits", icon: Gift, path: "/benefits" },
-    { label: "HR Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+    // HR Dashboard only surfaces for authorized HR users.
+    ...(isHrUser ? [{ label: "HR Dashboard", icon: LayoutDashboard, path: "/dashboard" }] : []),
   ];
 
   const dashboardTabs = [

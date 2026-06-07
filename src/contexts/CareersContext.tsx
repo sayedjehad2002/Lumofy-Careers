@@ -10,6 +10,9 @@ interface CareersContextType {
   sessionToken: string | null;
   setSessionToken: (token: string | null) => void;
   authReady: boolean;
+  isHrUser: boolean;
+  hrRole: string | null;
+  hrChecked: boolean;
   addJob: (job: Job) => Promise<void>;
   updateJob: (job: Job) => Promise<void>;
   deleteJob: (jobId: string) => Promise<void>;
@@ -142,6 +145,9 @@ export function CareersProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [isHrUser, setIsHrUser] = useState(false);
+  const [hrRole, setHrRole] = useState<string | null>(null);
+  const [hrChecked, setHrChecked] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -192,6 +198,26 @@ export function CareersProvider({ children }: { children: ReactNode }) {
     });
     return () => { mounted = false; sub.subscription.unsubscribe(); };
   }, []);
+
+  // Authorization: is the signed-in user on the HR allowlist? Drives whether the
+  // HR Dashboard button + route are shown. (The server enforces this regardless;
+  // this is just the UI's view so we don't show a door that won't open.)
+  useEffect(() => {
+    if (!authReady) return;
+    let active = true;
+    if (!sessionToken) { setIsHrUser(false); setHrRole(null); setHrChecked(true); return; }
+    setHrChecked(false);
+    supabase.functions
+      .invoke("hr-me", { body: { sessionToken } })
+      .then(({ data }) => {
+        if (!active) return;
+        setIsHrUser(!!data?.authorized);
+        setHrRole((data?.role as string) ?? null);
+        setHrChecked(true);
+      })
+      .catch(() => { if (active) { setIsHrUser(false); setHrRole(null); setHrChecked(true); } });
+    return () => { active = false; };
+  }, [sessionToken, authReady]);
 
   const addJob = useCallback(async (job: Job) => {
     if (!sessionToken) throw new Error("Not authenticated");
@@ -333,7 +359,7 @@ export function CareersProvider({ children }: { children: ReactNode }) {
   const getJobById = useCallback((id: string) => jobs.find(j => j.id === id), [jobs]);
 
   return (
-    <CareersContext.Provider value={{ jobs, applicants, loading, sessionToken, setSessionToken, authReady, addJob, updateJob, deleteJob, archiveJob, restoreJob, addApplicant, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, getJobById, refreshData: fetchData }}>
+    <CareersContext.Provider value={{ jobs, applicants, loading, sessionToken, setSessionToken, authReady, isHrUser, hrRole, hrChecked, addJob, updateJob, deleteJob, archiveJob, restoreJob, addApplicant, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, getJobById, refreshData: fetchData }}>
       {children}
     </CareersContext.Provider>
   );

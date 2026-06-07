@@ -47,11 +47,13 @@ import DashboardOverview from "@/components/careers/DashboardOverview";
 import CandidateProfile from "@/components/careers/CandidateProfile";
 import CVLibrary from "@/components/careers/CVLibrary";
 import SettlementCalculator from "@/components/careers/SettlementCalculator";
+import HrTeam from "@/components/careers/HrTeam";
+import ShareJobLink, { jobApplyUrl } from "@/components/careers/ShareJobLink";
 import ApplicantsListView from "@/components/careers/ApplicantsListView";
 import PipelineHealthScorecard from "@/components/careers/pipeline/PipelineHealthScorecard";
 import StageCapacityLimits, { DEFAULT_CAPACITIES } from "@/components/careers/pipeline/StageCapacityLimits";
 
-type Tab = "overview" | "jobs" | "applicants" | "pipeline" | "cv-library" | "eos-calculator";
+type Tab = "overview" | "jobs" | "applicants" | "pipeline" | "cv-library" | "eos-calculator" | "hr-team";
 
 // Client-side gate for pipeline stage moves. Server-side enforcement is handled
 // separately; this just prevents obviously-illegal drags in the UI.
@@ -68,7 +70,7 @@ const ALLOWED_TRANSITIONS: Record<ApplicantStatus, ApplicantStatus[]> = {
 };
 
 const Dashboard = () => {
-  const { jobs, applicants, loading, sessionToken, authReady, addJob, updateJob, archiveJob, restoreJob, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI } = useCareers();
+  const { jobs, applicants, loading, sessionToken, authReady, isHrUser, hrChecked, addJob, updateJob, archiveJob, restoreJob, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI } = useCareers();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [selectedJobId, setSelectedJobId] = useState<string>("all");
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
@@ -94,6 +96,7 @@ const Dashboard = () => {
     { id: "pipeline", label: "Pipeline", icon: <BarChart3 className="w-4 h-4" />, group: "Hiring" },
     { id: "cv-library", label: "CV Library", icon: <Library className="w-4 h-4" />, group: "Talent" },
     { id: "eos-calculator", label: "End of Service", icon: <Calculator className="w-4 h-4" />, group: "Tools" },
+    { id: "hr-team", label: "HR Team", icon: <UsersRound className="w-4 h-4" />, group: "Tools" },
   ];
   const navGroups = ["Hiring", "Talent", "Tools"];
 
@@ -134,7 +137,12 @@ const Dashboard = () => {
         toast.success("Job updated successfully");
       } else {
         await addJob(job);
-        toast.success("Job created successfully");
+        try {
+          await navigator.clipboard.writeText(jobApplyUrl(job.id));
+          toast.success("Job created — apply link copied. Share it on LinkedIn!");
+        } catch {
+          toast.success("Job created successfully");
+        }
       }
     } catch {
       toast.error("Failed to save job");
@@ -215,7 +223,7 @@ const Dashboard = () => {
     toast.success("Signed out.");
   }, []);
 
-  if (!authReady) {
+  if (!authReady || (sessionToken && !hrChecked)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -225,6 +233,22 @@ const Dashboard = () => {
 
   if (!sessionToken) {
     return <DashboardAuth />;
+  }
+
+  // Signed in, but not on the HR allowlist → no access (the server denies the
+  // data too; this is the matching UI).
+  if (!isHrUser) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-6">
+        <div className="max-w-sm text-center">
+          <h1 className="text-lg font-semibold text-foreground">Access not authorized</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            You're signed in, but this account isn't on the HR team yet. Ask an admin to send you an invite, then sign in again.
+          </p>
+          <Button variant="outline" size="sm" onClick={handleSignOut} className="mt-5 rounded-xl">Sign out</Button>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {
@@ -462,6 +486,7 @@ const Dashboard = () => {
                         <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs" onClick={() => { setSelectedJobId(job.id); setActiveTab("applicants"); }}>
                           <Users className="w-3.5 h-3.5 mr-1" aria-hidden="true" />View
                         </Button>
+                        <ShareJobLink jobId={job.id} jobTitle={job.title} />
                         <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => { setEditingJob(job); setJobFormOpen(true); }} aria-label={`Edit ${job.title}`}>
                           <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
@@ -671,6 +696,11 @@ const Dashboard = () => {
           {/* EOS CALCULATOR TAB */}
           {activeTab === "eos-calculator" && (
             <SettlementCalculator />
+          )}
+
+          {/* HR TEAM TAB */}
+          {activeTab === "hr-team" && sessionToken && (
+            <HrTeam sessionToken={sessionToken} />
           )}
 
             </motion.div>
