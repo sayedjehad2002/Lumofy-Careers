@@ -3,8 +3,10 @@ import { Sparkles, ArrowRight, Rocket, Brain, Sprout, MapPin, Users, Globe } fro
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import AnimatedCounter from "./AnimatedCounter";
+import AuroraEffect from "./AuroraEffect";
 import CommandPalette from "./CommandPalette";
 import { SITE } from "@/data/site";
+import { fadeUp, staggerContainer, revealViewport } from "@/lib/motion";
 
 // Split a stat string like "10+" into its numeric part and trailing suffix so the
 // count-up animation can drive the number while SITE stays the single source of truth.
@@ -13,36 +15,27 @@ const splitStat = (s: string) => {
   return match ? { value: Number(match[1]), suffix: match[2] } : { value: 0, suffix: s };
 };
 
-const ease = [0.22, 1, 0.36, 1] as [number, number, number, number];
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease } },
-};
-
-const stagger = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
-};
-
 const Hero = () => {
   return (
     <>
       <CommandPalette />
 
       {/* ── HERO ───────────────────────────────────────── */}
-      <section className="relative px-4 pt-24 pb-14 sm:pt-28 sm:pb-20">
-        {/* subtle brand wash, no animation */}
+      <section className="relative overflow-hidden px-4 pt-24 pb-14 sm:pt-28 sm:pb-20">
+        {/* Signature Lumofy aurora backdrop — living brand colour, GPU-only,
+            reduced-motion-safe via the app-level MotionConfig. */}
+        <AuroraEffect />
+        {/* subtle brand wash for readable contrast over the aurora */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[340px] bg-gradient-to-b from-primary/[0.05] to-transparent" />
 
         <motion.div
-          className="relative mx-auto max-w-4xl text-center"
-          variants={stagger}
+          className="relative z-10 mx-auto max-w-4xl text-center"
+          variants={staggerContainer()}
           initial="hidden"
           animate="show"
         >
           <motion.div variants={fadeUp}>
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.06] px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.06] px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary backdrop-blur-sm">
               <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
               AI-Powered Talent Platform
             </span>
@@ -54,7 +47,12 @@ const Hero = () => {
           >
             Build your future
             <br />
-            <span className="text-primary">at Lumofy</span>
+            <span
+              className="bg-clip-text text-transparent"
+              style={{ backgroundImage: "linear-gradient(120deg, hsl(223 83% 58%), hsl(265 85% 66%), hsl(190 90% 52%))" }}
+            >
+              at Lumofy
+            </span>
           </motion.h1>
 
           <motion.p
@@ -84,10 +82,10 @@ const Hero = () => {
         <div className="mx-auto max-w-5xl">
           <motion.div
             className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4"
-            variants={stagger}
+            variants={staggerContainer()}
             initial="hidden"
             whileInView="show"
-            viewport={{ once: true, margin: "-60px" }}
+            viewport={revealViewport}
           >
             {[
               { ...splitStat(SITE.stats.employees), label: "Active Employees", icon: Users },
@@ -133,10 +131,10 @@ const Hero = () => {
 
           <motion.div
             className="grid grid-cols-1 gap-6 md:grid-cols-3 lg:gap-8"
-            variants={stagger}
+            variants={staggerContainer()}
             initial="hidden"
             whileInView="show"
-            viewport={{ once: true, margin: "-60px" }}
+            viewport={revealViewport}
           >
             {[
               { icon: Rocket, title: "Shape the future of talent", desc: "Work on products used by organizations across MENA to transform how they build talent.", accent: "Impact at Scale" },
@@ -157,7 +155,6 @@ const Hero = () => {
           </motion.div>
         </div>
       </section>
-
     </>
   );
 };
