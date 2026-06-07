@@ -45,7 +45,6 @@ import DashboardAuth from "@/components/careers/DashboardAuth";
 import JobFormModal from "@/components/careers/JobFormModal";
 import DashboardOverview from "@/components/careers/DashboardOverview";
 import CandidateProfile from "@/components/careers/CandidateProfile";
-import ThemeToggle from "@/components/ThemeToggle";
 import CVLibrary from "@/components/careers/CVLibrary";
 import SettlementCalculator from "@/components/careers/SettlementCalculator";
 import ApplicantsListView from "@/components/careers/ApplicantsListView";
@@ -256,9 +255,7 @@ const Dashboard = () => {
               <span className="font-semibold text-sm tracking-tight">Lumofy</span>
               <p className="text-[10px] text-muted-foreground tracking-wide uppercase font-medium">HR Dashboard</p>
             </div>
-          </Link>
-          <ThemeToggle />
-        </div>
+          </Link>        </div>
 
         {/* Search shortcut hint */}
         <div className="px-3 pt-3 relative z-10">
@@ -338,9 +335,7 @@ const Dashboard = () => {
           <Link to="/" className="flex items-center gap-2">
             <img src={lumofyLogo} alt="Lumofy logo" className="w-7 h-7 object-contain rounded-md bg-white/90 p-0.5" />
             <span className="font-bold text-sm">Lumofy HR</span>
-          </Link>
-          <ThemeToggle />
-        </div>
+          </Link>        </div>
         {/* Horizontally scrollable tab strip — keeps all tabs reachable with
             ≥44px tap targets instead of cramming them into the header row. */}
         <nav
