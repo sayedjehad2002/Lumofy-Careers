@@ -356,24 +356,48 @@ const ApplyPage = () => {
   };
 
   if (submitted) {
+    const reveal = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease } } };
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main id="main" className="px-4 py-20 pt-32 text-center sm:py-24">
+        <main id="main" className="relative overflow-hidden px-4 py-20 pt-32 text-center sm:py-24">
+          {/* Signature aurora glow behind the confirmation */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute left-1/2 top-28 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/15 blur-[120px]"
+          />
           <motion.div
-            className="mx-auto max-w-md"
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease }}
+            className="relative mx-auto max-w-md"
+            initial="hidden"
+            animate="show"
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } } }}
           >
-            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+            <motion.div
+              className="relative mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10"
+              variants={{
+                hidden: { opacity: 0, scale: 0.5 },
+                show: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 260, damping: 17 } },
+              }}
+            >
+              {/* One-shot expanding ring pulse */}
+              <motion.span
+                aria-hidden="true"
+                className="absolute inset-0 rounded-full ring-2 ring-primary/40"
+                initial={{ opacity: 0.7, scale: 0.85 }}
+                animate={{ opacity: 0, scale: 1.9 }}
+                transition={{ duration: 0.9, ease: "easeOut", delay: 0.2 }}
+              />
               <CheckCircle className="h-8 w-8 text-primary" aria-hidden="true" />
-            </div>
-            <h1 className="mb-3 text-2xl font-extrabold tracking-tight sm:text-3xl">Application submitted</h1>
-            <p className="mb-6 text-muted-foreground">
+            </motion.div>
+            <motion.h1 variants={reveal} className="mb-3 text-2xl font-extrabold tracking-tight sm:text-3xl">
+              Application submitted
+            </motion.h1>
+            <motion.p variants={reveal} className="mb-6 text-muted-foreground">
               Thank you for applying to <strong className="text-foreground">{job.title}</strong> at Lumofy. We'll review your application and get back to you soon.
-            </p>
-            <Button onClick={() => navigate("/")} size="lg" className="h-12 rounded-xl px-8 text-base">Back to Careers</Button>
+            </motion.p>
+            <motion.div variants={reveal}>
+              <Button onClick={() => navigate("/")} size="lg" className="h-12 rounded-xl px-8 text-base">Back to Careers</Button>
+            </motion.div>
           </motion.div>
         </main>
       </div>
