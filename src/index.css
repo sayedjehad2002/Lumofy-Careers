@@ -385,6 +385,15 @@
     }
   }
 
+  /* Signature Lumofy gradient text (blue -> purple -> cyan) for headline accents. */
+  .text-aurora {
+    background-image: linear-gradient(120deg, hsl(223 83% 58%), hsl(265 85% 66%), hsl(190 90% 52%));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
   /* Page transition */
   .page-transition {
     animation: page-enter 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;

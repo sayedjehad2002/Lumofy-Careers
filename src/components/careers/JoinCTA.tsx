@@ -2,10 +2,13 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import AuroraEffect from "./AuroraEffect";
 
 const JoinCTA = () => (
-  <section className="px-4 py-20 sm:py-24">
-    <div className="mx-auto max-w-3xl text-center">
+  <section className="relative overflow-hidden px-4 py-20 sm:py-24">
+    {/* Signature aurora to bookend the page (mirrors the hero). */}
+    <AuroraEffect className="opacity-70" />
+    <div className="relative z-10 mx-auto max-w-3xl text-center">
       <motion.h2
         className="text-4xl font-extrabold tracking-tight sm:text-5xl"
         initial={{ opacity: 0, y: 24 }}
@@ -13,7 +16,7 @@ const JoinCTA = () => (
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
       >
-        Come build work that <span className="text-primary">matters</span>.
+        Come build work that <span className="text-aurora">matters</span>.
       </motion.h2>
       <motion.p
         className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground"

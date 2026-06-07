@@ -47,12 +47,7 @@ const Hero = () => {
           >
             Build your future
             <br />
-            <span
-              className="bg-clip-text text-transparent"
-              style={{ backgroundImage: "linear-gradient(120deg, hsl(223 83% 58%), hsl(265 85% 66%), hsl(190 90% 52%))" }}
-            >
-              at Lumofy
-            </span>
+            <span className="text-aurora">at Lumofy</span>
           </motion.h1>
 
           <motion.p
