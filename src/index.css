@@ -362,6 +362,29 @@
     }
   }
 
+  /* Signature CTA sheen: a soft light sweep across primary buttons on hover. */
+  .btn-sheen {
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-sheen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 35%, hsl(0 0% 100% / 0.18) 50%, transparent 65%);
+    transform: translateX(-130%);
+    transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+  }
+  .btn-sheen:hover::after {
+    transform: translateX(130%);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .btn-sheen::after {
+      transition: none;
+    }
+  }
+
   /* Page transition */
   .page-transition {
     animation: page-enter 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
