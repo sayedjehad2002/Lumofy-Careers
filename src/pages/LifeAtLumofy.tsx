@@ -4,11 +4,12 @@ import { motion } from "framer-motion";
 import {
   Quote, ChevronLeft, ChevronRight, Star,
   Globe, BookOpen, Palmtree, Users, TrendingUp,
-  Lightbulb, Target, HeartPulse, Briefcase, MapPin as MapPinIcon, Heart } from
+  Lightbulb, Target, Briefcase, MapPin as MapPinIcon, Heart } from
 "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import CulturePerkCard from "@/components/careers/CulturePerkCard";
+import { SITE } from "@/data/site";
 
 const ease = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
@@ -23,14 +24,13 @@ const stagger = {
 };
 
 const cultureHighlights = [
-{ icon: Globe, title: "Remote-First", desc: "Work from anywhere across the MENA region with flexible arrangements." },
+{ icon: Globe, title: "Flexible & Hybrid", desc: "Work from our office or remotely — we support flexible, hybrid arrangements across the MENA region." },
 { icon: BookOpen, title: "Learning Budget", desc: "Annual stipend for courses, conferences, and professional certifications." },
 { icon: Palmtree, title: "Flexible Time Off", desc: "We trust you to manage your time and recharge when you need it." },
 { icon: Users, title: "Flat Culture", desc: "Your ideas matter from day one — no red tape, just impact." },
 { icon: TrendingUp, title: "Career Growth", desc: "Clear paths for advancement with mentorship from senior leaders." },
 { icon: Lightbulb, title: "Innovation Days", desc: "Dedicated time each month to explore new ideas and build prototypes." },
-{ icon: Target, title: "Impactful Work", desc: "Build products used by organizations transforming talent across the region." },
-{ icon: HeartPulse, title: "Health & Wellness", desc: "Comprehensive health insurance and wellness programs for every team member." }];
+{ icon: Target, title: "Impactful Work", desc: "Build products used by organizations transforming talent across the region." }];
 
 
 const teamMembers = [
@@ -52,8 +52,8 @@ const testimonials = [
 
 
 const stats = [
-{ icon: Users, value: "30+", label: "Team Members" },
-{ icon: MapPinIcon, value: "5+", label: "Countries" },
+{ icon: Users, value: SITE.stats.employees, label: "Team Members" },
+{ icon: MapPinIcon, value: SITE.stats.countries, label: "Countries" },
 { icon: Briefcase, value: "100+", label: "Clients Served" },
 { icon: Heart, value: "4.8/5", label: "Employee Satisfaction" }];
 
@@ -81,6 +81,7 @@ const LifeAtLumofy = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
+      <main id="main">
       {/* ── HERO ───────────────────────────────────────── */}
       <section className="relative px-4 pt-36 pb-16 sm:pb-20">
         {/* subtle brand wash, no animation */}
@@ -93,7 +94,7 @@ const LifeAtLumofy = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease }}
           >
-            <Heart className="h-3.5 w-3.5" />
+            <Heart className="h-3.5 w-3.5" aria-hidden="true" />
             Life at Lumofy
           </motion.span>
 
@@ -130,7 +131,7 @@ const LifeAtLumofy = () => {
             {stats.map((s) => (
               <motion.div key={s.label} variants={fadeUp}>
                 <div className="rounded-2xl border border-border bg-card p-5 text-center light-glow sm:p-6">
-                  <s.icon className="mx-auto mb-2.5 h-6 w-6 text-primary" />
+                  <s.icon className="mx-auto mb-2.5 h-6 w-6 text-primary" aria-hidden="true" />
                   <div className="text-3xl font-extrabold tabular-nums text-foreground sm:text-4xl">{s.value}</div>
                   <p className="mt-2 text-xs text-muted-foreground sm:text-sm">{s.label}</p>
                 </div>
@@ -160,14 +161,14 @@ const LifeAtLumofy = () => {
           </motion.div>
 
           <motion.div
-            className="grid grid-cols-2 gap-4 md:grid-cols-4"
+            className="flex flex-wrap justify-center gap-4"
             variants={stagger}
             initial="hidden"
             whileInView="show"
             viewport={{ once: true, margin: "-60px" }}
           >
             {cultureHighlights.map((item) =>
-            <CulturePerkCard key={item.title} icon={item.icon} title={item.title} desc={item.desc} />
+            <CulturePerkCard key={item.title} icon={item.icon} title={item.title} desc={item.desc} className="w-[calc(50%-0.5rem)] md:w-[calc(25%-0.75rem)]" />
             )}
           </motion.div>
         </div>
@@ -214,7 +215,7 @@ const LifeAtLumofy = () => {
                   <p className="mb-2 text-xs font-medium text-primary">{member.role}</p>
                   <p className="mb-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{member.bio}</p>
                   <div className="flex items-center justify-center gap-1 text-muted-foreground">
-                    <MapPinIcon className="h-3 w-3" />
+                    <MapPinIcon className="h-3 w-3" aria-hidden="true" />
                     <span className="text-[11px]">{member.location}</span>
                   </div>
                 </div>
@@ -250,13 +251,13 @@ const LifeAtLumofy = () => {
             transition={{ duration: 0.45, ease }}
             className="relative rounded-2xl border border-border bg-card p-8 text-center light-glow sm:p-10"
           >
-            <Quote className="mx-auto mb-4 h-8 w-8 text-primary/30" />
+            <Quote className="mx-auto mb-4 h-8 w-8 text-primary/30" aria-hidden="true" />
             <p className="mb-6 text-lg leading-relaxed text-foreground sm:text-xl">
               "{t.quote}"
             </p>
-            <div className="mb-4 flex items-center justify-center gap-1">
+            <div className="mb-4 flex items-center justify-center gap-1" role="img" aria-label={`Rated ${t.rating} out of 5`}>
               {Array.from({ length: t.rating }).map((_, i) =>
-              <Star key={i} className="h-4 w-4 fill-primary text-primary" />
+              <Star key={i} className="h-4 w-4 fill-primary text-primary" aria-hidden="true" />
               )}
             </div>
             <div className="flex items-center justify-center gap-3">
@@ -272,7 +273,7 @@ const LifeAtLumofy = () => {
 
           <div className="mt-6 flex items-center justify-center gap-4">
             <Button size="icon" variant="ghost" className="h-9 w-9 rounded-full" onClick={() => goTestimonial(-1)} aria-label="Previous testimonial">
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </Button>
             <div className="flex gap-2">
               {testimonials.map((_, i) =>
@@ -285,11 +286,12 @@ const LifeAtLumofy = () => {
               )}
             </div>
             <Button size="icon" variant="ghost" className="h-9 w-9 rounded-full" onClick={() => goTestimonial(1)} aria-label="Next testimonial">
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
         </div>
       </section>
+      </main>
 
       {/* Footer */}
       <Footer />

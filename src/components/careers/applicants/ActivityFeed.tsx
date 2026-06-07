@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import type { Applicant } from "@/types/careers";
 import { APPLICANT_STATUSES } from "@/types/careers";
+import { TONE_TEXT } from "@/components/careers/statusColors";
 
 interface ActivityFeedProps {
   applicants: Applicant[];
@@ -46,7 +47,7 @@ const ActivityFeed = ({ applicants, getJobTitle }: ActivityFeedProps) => {
           detail: `AI scored ${a.aiAnalysis.fitScore}/100 — ${a.aiAnalysis.fitLevel}`,
           timestamp: new Date(a.aiAnalysis.analyzedAt),
           icon: Brain,
-          color: "text-violet-400",
+          color: TONE_TEXT.ai,
         });
       }
 
@@ -59,7 +60,7 @@ const ActivityFeed = ({ applicants, getJobTitle }: ActivityFeedProps) => {
           detail: `Moved to ${statusInfo?.label || a.status}`,
           timestamp: new Date(a.stageEnteredAt),
           icon: ArrowRight,
-          color: a.status === "rejected" ? "text-destructive" : a.status === "hired" ? "text-emerald-400" : "text-amber-400",
+          color: a.status === "rejected" ? TONE_TEXT.danger : a.status === "hired" ? TONE_TEXT.success : TONE_TEXT.warning,
         });
       }
 

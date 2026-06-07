@@ -101,7 +101,8 @@
     --popover: 222 26% 11%;
     --popover-foreground: 220 12% 95%;
 
-    --primary: 223 90% 62%;
+    /* Darkened from 223 90% 62% (only 3.97:1 vs white) to meet WCAG AA (~4.5:1). */
+    --primary: 223 83% 54%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 222 22% 15%;
@@ -115,7 +116,7 @@
 
     --border: 222 18% 18%;
     --input: 222 18% 18%;
-    --ring: 223 90% 62%;
+    --ring: 223 83% 54%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -209,6 +210,16 @@
 }
 
 @layer utilities {
+  /* Hide scrollbars while keeping scroll behaviour (referenced by horizontally
+     scrollable tab/pill strips in the dashboard). */
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
   .glass {
     background: hsl(var(--card) / 0.88);
     backdrop-filter: blur(20px) saturate(1.1);

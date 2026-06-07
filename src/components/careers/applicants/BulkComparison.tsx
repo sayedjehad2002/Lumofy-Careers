@@ -10,6 +10,7 @@ import { Brain, GitCompareArrows, Loader2, CheckCircle2, XCircle, Minus } from "
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Applicant, Job } from "@/types/careers";
+import { TONE_TEXT, TONE_SOFT, TONE_SUBTLE } from "@/components/careers/statusColors";
 
 interface BulkComparisonProps {
   applicants: Applicant[];
@@ -100,8 +101,8 @@ const BulkComparison = ({ applicants, job }: BulkComparisonProps) => {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-base flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
-                  <GitCompareArrows className="w-4 h-4 text-violet-400" />
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${TONE_SUBTLE.ai}`}>
+                  <GitCompareArrows className={`w-4 h-4 ${TONE_TEXT.ai}`} aria-hidden="true" />
                 </div>
                 Bulk AI Comparison
               </CardTitle>
@@ -113,9 +114,9 @@ const BulkComparison = ({ applicants, job }: BulkComparisonProps) => {
               size="sm"
               onClick={runComparison}
               disabled={comparing || selected.size < 2}
-              className="bg-gradient-to-r from-violet-600 to-primary text-xs h-9"
+              className="bg-gradient-to-r from-[hsl(var(--chart-3))] to-primary text-xs h-9"
             >
-              {comparing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Brain className="w-3.5 h-3.5 mr-1.5" />}
+              {comparing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" aria-hidden="true" /> : <Brain className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />}
               Compare
             </Button>
           </div>
@@ -177,11 +178,11 @@ const BulkComparison = ({ applicants, job }: BulkComparisonProps) => {
                         <td className="p-2 font-medium">{row.dimension}</td>
                         {row.values.map((v, vi) => (
                           <td key={vi} className="p-2 text-center">
-                            <span className={`font-semibold ${v.score === maxScore && maxScore > 0 ? "text-emerald-400" : ""}`}>
+                            <span className={`font-semibold ${v.score === maxScore && maxScore > 0 ? TONE_TEXT.success : ""}`}>
                               {v.value}
                             </span>
                             {v.score === maxScore && maxScore > 0 && (
-                              <CheckCircle2 className="w-3 h-3 text-emerald-400 inline ml-1" />
+                              <CheckCircle2 className={`w-3 h-3 inline ml-1 ${TONE_TEXT.success}`} aria-hidden="true" />
                             )}
                           </td>
                         ))}
@@ -224,7 +225,7 @@ const BulkComparison = ({ applicants, job }: BulkComparisonProps) => {
                 <div key={a.id} className="flex-1 text-center p-2 rounded-lg bg-muted/20">
                   <p className="text-[10px] font-medium truncate">{a.fullName}</p>
                   <Badge variant="secondary" className={`text-[9px] mt-1 border-0 ${
-                    a.aiAnalysis?.recommendation === "Fast-Track to Interview" ? "bg-emerald-500/10 text-emerald-400" :
+                    a.aiAnalysis?.recommendation === "Fast-Track to Interview" ? TONE_SOFT.success :
                     a.aiAnalysis?.recommendation === "Not Recommended" ? "bg-destructive/10 text-destructive" :
                     "bg-primary/10 text-primary"
                   }`}>

@@ -4,15 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CHART_SOFT_BORDERED, TONE_SOFT, TONE_BORDER } from "@/components/careers/statusColors";
 
 const TAG_COLORS: Record<string, string> = {
-  "Top Talent": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-  "Referred": "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  "Bahraini": "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  "Urgent": "bg-red-500/20 text-red-400 border-red-500/30",
-  "Senior": "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  "Remote": "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
-  "Internal": "bg-pink-500/20 text-pink-400 border-pink-500/30",
+  "Top Talent": `${TONE_SOFT.success} ${TONE_BORDER.success} border`,
+  "Referred": CHART_SOFT_BORDERED[0],
+  "Bahraini": CHART_SOFT_BORDERED[2],
+  "Urgent": `${TONE_SOFT.danger} ${TONE_BORDER.danger} border`,
+  "Senior": `${TONE_SOFT.warning} ${TONE_BORDER.warning} border`,
+  "Remote": CHART_SOFT_BORDERED[1],
+  "Internal": CHART_SOFT_BORDERED[3],
 };
 
 const SUGGESTED_TAGS = Object.keys(TAG_COLORS);

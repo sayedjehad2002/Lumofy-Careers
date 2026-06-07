@@ -18,4 +18,19 @@ export default defineConfig(() => ({
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime"],
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split heavy, independently-cached libs so route-lazy chunks don't
+        // duplicate them and the public site doesn't ship admin-only vendors.
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          charts: ["recharts"],
+          xlsx: ["xlsx"],
+          pdf: ["jspdf", "jspdf-autotable"],
+          dnd: ["@hello-pangea/dnd"],
+        },
+      },
+    },
+  },
 }));

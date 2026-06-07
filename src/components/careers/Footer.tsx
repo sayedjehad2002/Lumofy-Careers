@@ -1,7 +1,6 @@
-import { motion } from "framer-motion";
 import { Linkedin, Mail, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { forwardRef } from "react";
+import { SITE } from "@/data/site";
 
 const Footer = forwardRef<HTMLElement>((_, ref) => {
   return (
@@ -31,16 +30,16 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
           <div>
             <h4 className="font-semibold text-sm mb-3 text-foreground">Get in Touch</h4>
             <div className="space-y-2">
-              <a className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors" href="mailto:Jhasan@lumofy.com">
-                <Mail className="w-4 h-4" />
-                Jhasan@lumofy.com
+              <a className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors" href={`mailto:${SITE.careersEmail}`}>
+                <Mail className="w-4 h-4" aria-hidden="true" />
+                {SITE.careersEmail}
               </a>
               <a target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors" href="https://www.linkedin.com/company/lumofyinc/">
-                <Linkedin className="w-4 h-4" />
+                <Linkedin className="w-4 h-4" aria-hidden="true" />
                 LinkedIn
               </a>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="w-4 h-4" />
+                <MapPin className="w-4 h-4" aria-hidden="true" />
                 Sanabis, Bahrain
               </div>
             </div>
@@ -52,8 +51,8 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             © {new Date().getFullYear()} Lumofy. All rights reserved.
           </p>
           <div className="flex gap-4">
-            <a href="#" className="text-xs text-muted-foreground hover:text-primary transition-colors">Privacy Policy</a>
-            <a href="#" className="text-xs text-muted-foreground hover:text-primary transition-colors">Terms of Service</a>
+            <span className="text-xs text-muted-foreground">Privacy Policy</span>
+            <span className="text-xs text-muted-foreground">Terms of Service</span>
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingDown, ArrowRight } from "lucide-react";
 import type { Applicant, ApplicantStatus } from "@/types/careers";
 import { APPLICANT_STATUSES } from "@/types/careers";
+import { TONE_SOFT } from "@/components/careers/statusColors";
 
 interface PipelineFunnelProps {
   applicants: Applicant[];
@@ -84,7 +85,7 @@ const PipelineFunnel = ({ applicants }: PipelineFunnelProps) => {
               {i > 0 && (
                 <div className="w-16 text-right">
                   <Badge variant="secondary" className={`text-[9px] py-0 border-0 ${
-                    stage.conversionFromPrev < 50 ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-400"
+                    stage.conversionFromPrev < 50 ? "bg-destructive/10 text-destructive" : TONE_SOFT.success
                   }`}>
                     {stage.conversionFromPrev}%
                   </Badge>

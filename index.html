@@ -3,6 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <script>
+      // Apply the saved theme before first paint to avoid a light/dark flash (FOUC).
+      try { if (localStorage.getItem('lumofy-theme') === 'dark') document.documentElement.classList.add('dark'); } catch (e) {}
+    </script>
     <title>Lumofy Careers – Join Our Team</title>
     <meta name="description" content="Explore career opportunities at Lumofy. Join a dynamic team building the future of HR technology across the Middle East and beyond.">
     <meta name="author" content="Lumofy" />

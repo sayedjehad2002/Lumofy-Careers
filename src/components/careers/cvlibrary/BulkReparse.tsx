@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { TONE_TEXT } from "@/components/careers/statusColors";
 
 interface CVCandidate {
   id: string;
@@ -120,8 +121,8 @@ export default function BulkReparse({ candidates, filteredIds, onReparse, onRefr
             </div>
             <Progress value={progress} className="h-2" />
             <div className="flex gap-4 text-xs">
-              <span className="text-emerald-400 flex items-center gap-1"><Check className="w-3 h-3" /> {completed} done</span>
-              {failed > 0 && <span className="text-red-400 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {failed} failed</span>}
+              <span className={`flex items-center gap-1 ${TONE_TEXT.success}`}><Check className="w-3 h-3" aria-hidden="true" /> {completed} done</span>
+              {failed > 0 && <span className="text-destructive flex items-center gap-1"><AlertCircle className="w-3 h-3" aria-hidden="true" /> {failed} failed</span>}
             </div>
           </div>
         ) : (

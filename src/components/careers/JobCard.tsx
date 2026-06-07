@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { MapPin, Clock, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Job } from "@/types/careers";
 
@@ -49,11 +48,11 @@ const JobCard = ({ job, index }: JobCardProps) => {
 
                 <div className="mb-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5" />
+                    <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
                     {job.location}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5" />
+                    <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                     {job.type}
                   </span>
                 </div>
@@ -70,14 +69,10 @@ const JobCard = ({ job, index }: JobCardProps) => {
               </div>
 
               <div className="shrink-0 self-center">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="rounded-xl transition-colors duration-300 group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground"
-                >
+                <span className="inline-flex h-9 items-center rounded-xl border border-input bg-background px-3 text-sm font-medium text-foreground transition-colors duration-300 group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground">
                   View details
-                  <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
-                </Button>
+                  <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" aria-hidden="true" />
+                </span>
               </div>
             </div>
           </div>

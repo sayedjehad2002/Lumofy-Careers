@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Brain, Star, X, Users, ArrowUpDown } from "lucide-react";
 import type { Applicant } from "@/types/careers";
+import { tierSoft, TONE_SOFT, TONE_TEXT } from "@/components/careers/statusColors";
 
 interface CandidateCompareViewProps {
   applicants: Applicant[];
@@ -13,13 +14,6 @@ interface CandidateCompareViewProps {
   onUnpin: (id: string) => void;
   onClearAll: () => void;
 }
-
-const TIER_COLORS: Record<string, string> = {
-  "Top Match": "bg-emerald-500/15 text-emerald-400",
-  "Strong Match": "bg-primary/15 text-primary",
-  "Moderate Match": "bg-yellow-500/15 text-yellow-400",
-  "Weak Match": "bg-destructive/10 text-destructive",
-};
 
 const CandidateCompareView = ({ applicants, pinnedIds, onUnpin, onClearAll }: CandidateCompareViewProps) => {
   const pinned = useMemo(
@@ -57,7 +51,7 @@ const CandidateCompareView = ({ applicants, pinnedIds, onUnpin, onClearAll }: Ca
       getValue: (a) => {
         const tier = a.aiAnalysis?.rankingTier;
         return tier ? (
-          <Badge variant="secondary" className={`text-[10px] py-0 border-0 ${TIER_COLORS[tier] || ""}`}>{tier}</Badge>
+          <Badge variant="secondary" className={`text-[10px] py-0 border-0 ${tier ? tierSoft(tier) : ""}`}>{tier}</Badge>
         ) : "—";
       },
     },
@@ -78,7 +72,7 @@ const CandidateCompareView = ({ applicants, pinnedIds, onUnpin, onClearAll }: Ca
       getValue: (a) => (
         <div className="flex flex-wrap gap-1">
           {(a.aiAnalysis?.strengths || []).slice(0, 3).map((s, i) => (
-            <Badge key={i} variant="secondary" className="text-[9px] py-0 border-0 bg-emerald-500/10 text-emerald-400">{s}</Badge>
+            <Badge key={i} variant="secondary" className={`text-[9px] py-0 border-0 ${TONE_SOFT.success}`}>{s}</Badge>
           ))}
           {!a.aiAnalysis?.strengths?.length && <span className="text-xs text-muted-foreground">—</span>}
         </div>
@@ -111,7 +105,7 @@ const CandidateCompareView = ({ applicants, pinnedIds, onUnpin, onClearAll }: Ca
       label: "Overall Rating",
       getValue: (a) => a.rating ? (
         <span className="flex items-center gap-1 text-sm">
-          <Star className="w-3.5 h-3.5 text-yellow-400 fill-current" />
+          <Star className={`w-3.5 h-3.5 fill-current ${TONE_TEXT.warning}`} aria-hidden="true" />
           {(Object.values(a.rating).reduce((s, v) => s + v, 0) / 5).toFixed(1)}
         </span>
       ) : "—",

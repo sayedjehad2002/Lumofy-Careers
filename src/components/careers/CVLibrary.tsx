@@ -5,7 +5,7 @@ import {
   AlertCircle, Check, Archive, RefreshCw, User, Mail, Phone,
   Globe, MapPin, Briefcase, Star, Filter, ArrowUpDown, Plus,
   Shield, TrendingUp, Target, MessageSquare, Zap, BarChart3,
-  AlertTriangle, BookOpen, Lightbulb, ThumbsUp, ThumbsDown, Sparkles,
+  AlertTriangle, BookOpen, Lightbulb, ThumbsUp, ThumbsDown,
   Layers, History, UserPlus, Palette
 } from "lucide-react";
 import SmartSearch, { parseQuery, type ParsedQuery } from "./cvlibrary/SmartSearch";
@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/accordion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { TONE_SOFT, TONE_TEXT, TONE_BORDER } from "./statusColors";
 
 interface CVAIAnalysis {
   fitScore: number;
@@ -106,29 +107,29 @@ const DEPARTMENTS = [
 ];
 
 const CV_STATUSES = [
-  { value: "new", label: "New", color: "bg-blue-500/20 text-blue-400" },
-  { value: "reviewed", label: "Reviewed", color: "bg-yellow-500/20 text-yellow-400" },
-  { value: "shortlisted", label: "Shortlisted", color: "bg-emerald-500/20 text-emerald-400" },
+  { value: "new", label: "New", color: "bg-[hsl(var(--chart-1)/0.2)] text-[hsl(var(--chart-1))]" },
+  { value: "reviewed", label: "Reviewed", color: TONE_SOFT.warning },
+  { value: "shortlisted", label: "Shortlisted", color: TONE_SOFT.success },
   { value: "archived", label: "Archived", color: "bg-muted text-muted-foreground" },
 ];
 
 const CONFIDENCE_COLORS: Record<string, string> = {
-  High: "bg-emerald-500/20 text-emerald-400",
-  Medium: "bg-yellow-500/20 text-yellow-400",
-  Low: "bg-red-500/20 text-red-400",
+  High: TONE_SOFT.success,
+  Medium: TONE_SOFT.warning,
+  Low: TONE_SOFT.danger,
 };
 
 const RECOMMENDATION_COLORS: Record<string, string> = {
-  "Fast-Track to Interview": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-  "Proceed to Next Stage": "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  "Hold for Review": "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  "Not Recommended": "bg-red-500/20 text-red-400 border-red-500/30",
+  "Fast-Track to Interview": `${TONE_SOFT.success} ${TONE_BORDER.success}`,
+  "Proceed to Next Stage": "bg-[hsl(var(--chart-1)/0.2)] text-[hsl(var(--chart-1))] border-[hsl(var(--chart-1)/0.3)]",
+  "Hold for Review": `${TONE_SOFT.warning} ${TONE_BORDER.warning}`,
+  "Not Recommended": `${TONE_SOFT.danger} ${TONE_BORDER.danger}`,
 };
 
 const FIT_COLORS: Record<string, string> = {
-  "Strong Fit": "text-emerald-400",
-  "Moderate Fit": "text-yellow-400",
-  "Low Fit": "text-red-400",
+  "Strong Fit": TONE_TEXT.success,
+  "Moderate Fit": TONE_TEXT.warning,
+  "Low Fit": TONE_TEXT.danger,
 };
 
 type CVSubTab = "library" | "duplicates" | "insights" | "matching" | "reparse" | "export" | "completeness" | "gdpr" | "audit";
@@ -136,11 +137,10 @@ type CVSubTab = "library" | "duplicates" | "insights" | "matching" | "reparse" |
 interface Props {
   sessionToken: string;
   jobs?: { id: string; title: string; department: string; status: string; requirements: string[] }[];
-  onOpenCopilot?: (context: { candidateData: Record<string, any>; autoPrompt: string }) => void;
   onSessionExpired?: () => void;
 }
 
-export default function CVLibrary({ sessionToken, jobs = [], onOpenCopilot, onSessionExpired }: Props) {
+export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }: Props) {
   const [candidates, setCandidates] = useState<CVCandidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -511,44 +511,6 @@ export default function CVLibrary({ sessionToken, jobs = [], onOpenCopilot, onSe
                   <p className="text-sm text-muted-foreground mt-1">{c.resume_file_name}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {onOpenCopilot && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
-                      onClick={() => {
-                        const candidateCtx: Record<string, any> = {
-                          fullName: c.name || "Unknown",
-                          email: c.email,
-                          location: c.location,
-                          nationality: c.nationality,
-                          country: c.country,
-                          status: c.status,
-                          cvFileName: c.resume_file_name,
-                          yearsExperience: c.years_experience,
-                          skills: c.skills,
-                          industries: c.industries,
-                          rolesSummary: c.roles_summary,
-                          suggestedDepartment: dept,
-                          suggestedJobTitle: title,
-                          classificationConfidence: c.classification_confidence,
-                        };
-                        if (ai) {
-                          candidateCtx.aiAnalysis = ai;
-                        }
-                        const name = c.name || "this candidate";
-                        const score = ai?.fitScore ?? "N/A";
-                        const rec = ai?.recommendation ?? "N/A";
-                        onOpenCopilot({
-                          candidateData: candidateCtx,
-                          autoPrompt: `I need you to take full ownership of your AI rating for ${name}. You gave a Fit Score of ${score}/100 and recommended "${rec}". Now defend this rating as if you're presenting to the CEO and HR leadership. Be direct, confident, and unapologetic. Provide:\n\n1. **Your verdict** — state it clearly and own it\n2. **Hard evidence from the CV** — cite specific skills, experience, and qualifications that justify the score\n3. **Why not higher?** — explain exactly what's missing or weak\n4. **Why not lower?** — explain what saves this candidate\n5. **Hiring risks** — be brutally honest about red flags\n6. **Your recommendation** — would you stake your reputation on this hire? Why or why not?\n\nDon't hedge. Don't be diplomatic. Give me the real assessment I'd need to defend in a boardroom.`,
-                        });
-                      }}
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Reason with Copilot
-                    </Button>
-                  )}
                   <Badge className={CV_STATUSES.find(s => s.value === c.status)?.color || ""}>
                     {CV_STATUSES.find(s => s.value === c.status)?.label || c.status}
                   </Badge>
@@ -658,7 +620,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onOpenCopilot, onSe
                       <ul className="text-sm space-y-1">
                         {(c.classification_evidence || []).map((e, i) => (
                           <li key={i} className="flex items-start gap-1.5">
-                            <Check className="w-3 h-3 text-emerald-400 mt-0.5 flex-shrink-0" />
+                            <Check className={`w-3 h-3 mt-0.5 flex-shrink-0 ${TONE_TEXT.success}`} aria-hidden="true" />
                             {e}
                           </li>
                         ))}
@@ -740,11 +702,11 @@ export default function CVLibrary({ sessionToken, jobs = [], onOpenCopilot, onSe
                               <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-secondary/30">
                                 <div className="mt-0.5">
                                   {s.evidence === "Yes" ? (
-                                    <Check className="w-4 h-4 text-emerald-400" />
+                                    <Check className={`w-4 h-4 ${TONE_TEXT.success}`} aria-hidden="true" />
                                   ) : s.evidence === "Partial" ? (
-                                    <AlertCircle className="w-4 h-4 text-yellow-400" />
+                                    <AlertCircle className={`w-4 h-4 ${TONE_TEXT.warning}`} aria-hidden="true" />
                                   ) : (
-                                    <X className="w-4 h-4 text-red-400" />
+                                    <X className="w-4 h-4 text-destructive" aria-hidden="true" />
                                   )}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -765,7 +727,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onOpenCopilot, onSe
                             </p>
                             <div className="flex flex-wrap gap-1">
                               {ai.detectedSkills?.map((s, i) => (
-                                <Badge key={i} variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-400">{s}</Badge>
+                                <Badge key={i} variant="secondary" className={`text-[10px] ${TONE_SOFT.success}`}>{s}</Badge>
                               ))}
                               {(!ai.detectedSkills || ai.detectedSkills.length === 0) && <p className="text-xs text-muted-foreground">None detected</p>}
                             </div>
@@ -776,7 +738,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onOpenCopilot, onSe
                             </p>
                             <div className="flex flex-wrap gap-1">
                               {ai.missingSkills?.map((s, i) => (
-                                <Badge key={i} variant="secondary" className="text-[10px] bg-red-500/10 text-red-400">{s}</Badge>
+                                <Badge key={i} variant="secondary" className="text-[10px] bg-destructive/10 text-destructive">{s}</Badge>
                               ))}
                               {(!ai.missingSkills || ai.missingSkills.length === 0) && <p className="text-xs text-muted-foreground">None missing</p>}
                             </div>
@@ -795,11 +757,11 @@ export default function CVLibrary({ sessionToken, jobs = [], onOpenCopilot, onSe
                       <AccordionContent>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
-                            <p className="text-xs font-medium text-emerald-400 mb-2">Strengths</p>
+                            <p className={`text-xs font-medium mb-2 ${TONE_TEXT.success}`}>Strengths</p>
                             <ul className="space-y-1.5">
                               {ai.strengths?.map((s, i) => (
                                 <li key={i} className="text-sm flex items-start gap-1.5">
-                                  <Check className="w-3 h-3 text-emerald-400 mt-0.5 flex-shrink-0" />
+                                  <Check className={`w-3 h-3 mt-0.5 flex-shrink-0 ${TONE_TEXT.success}`} aria-hidden="true" />
                                   {s}
                                 </li>
                               ))}
@@ -807,11 +769,11 @@ export default function CVLibrary({ sessionToken, jobs = [], onOpenCopilot, onSe
                             </ul>
                           </div>
                           <div>
-                            <p className="text-xs font-medium text-red-400 mb-2">Gaps</p>
+                            <p className="text-xs font-medium text-destructive mb-2">Gaps</p>
                             <ul className="space-y-1.5">
                               {ai.gaps?.map((g, i) => (
                                 <li key={i} className="text-sm flex items-start gap-1.5">
-                                  <AlertCircle className="w-3 h-3 text-red-400 mt-0.5 flex-shrink-0" />
+                                  <AlertCircle className="w-3 h-3 text-destructive mt-0.5 flex-shrink-0" aria-hidden="true" />
                                   {g}
                                 </li>
                               ))}
@@ -853,7 +815,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onOpenCopilot, onSe
                     <AccordionItem value="risk">
                       <AccordionTrigger className="text-sm font-semibold">
                         <span className="flex items-center gap-2">
-                          <AlertTriangle className="w-4 h-4 text-yellow-400" /> Hiring Risk Indicators
+                          <AlertTriangle className={`w-4 h-4 ${TONE_TEXT.warning}`} aria-hidden="true" /> Hiring Risk Indicators
                         </span>
                       </AccordionTrigger>
                       <AccordionContent>
@@ -861,7 +823,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onOpenCopilot, onSe
                           <ul className="space-y-1.5">
                             {ai.riskIndicators.map((r, i) => (
                               <li key={i} className="text-sm flex items-start gap-1.5">
-                                <AlertTriangle className="w-3 h-3 text-yellow-400 mt-0.5 flex-shrink-0" />
+                                <AlertTriangle className={`w-3 h-3 mt-0.5 flex-shrink-0 ${TONE_TEXT.warning}`} aria-hidden="true" />
                                 {r}
                               </li>
                             ))}

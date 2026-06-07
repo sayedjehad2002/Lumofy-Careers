@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { DEFAULT_AI_WEIGHTS, type AIScoringWeights } from "@/types/careers";
-import { X, Plus, Trash2, Upload, FileText, Sparkles, Loader2 } from "lucide-react";
+import { Plus, Trash2, Upload, FileText, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,12 +8,34 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
 import { departments, jobTypes } from "@/data/jobs";
 import type { Job, ScreeningQuestion } from "@/types/careers";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import AIJobAssistModal from "./AIJobAssistModal";
+import { TONE_TEXT } from "./statusColors";
 import lumofyLogo from "@/assets/lumofy-mark.png";
+
+const WEIGHT_KEYS = ["skills", "tools", "experience", "industry", "education", "stability"] as const;
+
+/** Scale weights so they sum to exactly 100 (largest bucket absorbs rounding). */
+function normalizeWeights(weights: AIScoringWeights): AIScoringWeights {
+  const total = WEIGHT_KEYS.reduce((s, k) => s + (weights[k] || 0), 0);
+  if (total === 0) return weights;
+  const scaled = {} as AIScoringWeights;
+  WEIGHT_KEYS.forEach((k) => {
+    scaled[k] = Math.max(0, Math.round((weights[k] || 0) * (100 / total)));
+  });
+  const scaledTotal = WEIGHT_KEYS.reduce((s, k) => s + scaled[k], 0);
+  if (scaledTotal !== 100) {
+    const largest = [...WEIGHT_KEYS].sort((a, b) => scaled[b] - scaled[a])[0];
+    scaled[largest] += 100 - scaledTotal;
+  }
+  return scaled;
+}
 
 interface JobFormModalProps {
   job?: Job | null;
@@ -202,6 +224,14 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
       return;
     }
 
+    // AI scoring weights must form a valid distribution.
+    const weightsTotal = WEIGHT_KEYS.reduce((s, k) => s + (aiWeights[k] || 0), 0);
+    if (weightsTotal === 0) {
+      toast.error("AI scoring weights can't all be zero — assign at least one dimension.");
+      return;
+    }
+    const normalizedWeights = normalizeWeights(aiWeights);
+
     const jobId = job?.id || `job_${Date.now()}`;
 
     // Upload JD file if new
@@ -227,9 +257,10 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
       jdFilePath: jdResult?.path || jdFilePath || undefined,
       jdFileSize: jdResult?.size || undefined,
       jdFileUploadedAt: jdResult ? new Date().toISOString() : job?.jdFileUploadedAt,
-      aiScoringWeights: aiWeights,
+      aiScoringWeights: normalizedWeights,
     };
 
+    setAiWeights(normalizedWeights);
     onSave(finalJob);
   };
 
@@ -247,44 +278,51 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 backdrop-blur-sm p-4 pt-10 pb-10">
-        <div className="w-full max-w-3xl rounded-2xl bg-card border border-border shadow-2xl">
+      <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+        <DialogContent
+          className="max-w-3xl w-full p-0 gap-0 max-h-[90vh] overflow-hidden flex flex-col bg-card"
+          onInteractOutside={(e) => { if (jdUploading) e.preventDefault(); }}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-border">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-bold">{isEdit ? "Edit Job" : "Add New Job"}</h2>
-              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <img src={lumofyLogo} alt="" className="w-3.5 h-3.5 rounded" />
+          <DialogHeader className="p-6 border-b border-border space-y-1 text-left">
+            <DialogTitle className="flex items-center gap-3 text-xl font-bold">
+              {isEdit ? "Edit Job" : "Add New Job"}
+              <span className="flex items-center gap-1 text-[10px] font-normal text-muted-foreground">
+                <img src={lumofyLogo} alt="" className="w-3.5 h-3.5 rounded" aria-hidden="true" />
                 AI by Lumofy
               </span>
-            </div>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              {isEdit ? "Edit the details of this job posting." : "Create a new job posting."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
 
           {/* JD File Upload */}
           <div className="rounded-xl bg-secondary/50 border border-border p-4 space-y-3">
             <div className="flex items-center justify-between">
               <Label className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-primary" />
+                <FileText className="w-4 h-4 text-primary" aria-hidden="true" />
                 Job Description (PDF)
               </Label>
             </div>
             {jdFileName ? (
               <div className="flex items-center gap-3 rounded-lg bg-card border border-border p-3">
-                <FileText className="w-5 h-5 text-primary flex-shrink-0" />
+                <FileText className="w-5 h-5 text-primary flex-shrink-0" aria-hidden="true" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{jdFileName}</p>
                   {jdFile && <p className="text-xs text-muted-foreground">{(jdFile.size / 1024).toFixed(0)} KB</p>}
                 </div>
                 <Button variant="ghost" size="sm" onClick={removeJdFile}>
-                  <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                  <Trash2 className="w-3.5 h-3.5 text-destructive" aria-hidden="true" />
+                  <span className="sr-only">Remove file</span>
                 </Button>
               </div>
             ) : (
               <label className="flex flex-col items-center justify-center h-28 rounded-lg border-2 border-dashed border-border hover:border-primary/40 hover:bg-primary/5 transition-colors cursor-pointer">
-                <Upload className="w-6 h-6 text-muted-foreground mb-2" />
+                <Upload className="w-6 h-6 text-muted-foreground mb-2" aria-hidden="true" />
                 <span className="text-sm text-muted-foreground">Upload Job Description</span>
                 <span className="text-xs text-muted-foreground mt-0.5">PDF, DOC, DOCX – Max 10MB</span>
                 <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleJdFileSelect} />
@@ -292,7 +330,7 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
             )}
           </div>
 
-          <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+          <div className="space-y-6">
             {/* Basic Info */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -354,7 +392,7 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
                   onClick={() => openAiModal("summary")}
                   disabled={!form.title || !form.department}
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
                   Write with AI
                 </Button>
               </div>
@@ -377,7 +415,7 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
                   onClick={() => openAiModal("description")}
                   disabled={!form.title || !form.department}
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
                   Write with AI
                 </Button>
               </div>
@@ -400,11 +438,11 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
                     className="text-primary text-xs gap-1"
                     onClick={() => openAiModal("responsibilities")}
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
                     Generate with AI
                   </Button>
                   <Button type="button" variant="ghost" size="sm" onClick={() => addListItem("responsibilities")}>
-                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
                     Add
                   </Button>
                 </div>
@@ -417,8 +455,8 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
                     className="bg-secondary border-border"
                   />
                   {form.responsibilities.length > 1 && (
-                    <Button variant="ghost" size="icon" onClick={() => removeListItem("responsibilities", i)}>
-                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    <Button variant="ghost" size="icon" onClick={() => removeListItem("responsibilities", i)} aria-label="Remove responsibility">
+                      <Trash2 className="w-3.5 h-3.5 text-destructive" aria-hidden="true" />
                     </Button>
                   )}
                 </div>
@@ -436,11 +474,11 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
                     className="text-primary text-xs gap-1"
                     onClick={() => openAiModal("requirements")}
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
                     Generate with AI
                   </Button>
                   <Button type="button" variant="ghost" size="sm" onClick={() => addListItem("requirements")}>
-                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
                     Add
                   </Button>
                 </div>
@@ -453,8 +491,8 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
                     className="bg-secondary border-border"
                   />
                   {form.requirements.length > 1 && (
-                    <Button variant="ghost" size="icon" onClick={() => removeListItem("requirements", i)}>
-                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    <Button variant="ghost" size="icon" onClick={() => removeListItem("requirements", i)} aria-label="Remove requirement">
+                      <Trash2 className="w-3.5 h-3.5 text-destructive" aria-hidden="true" />
                     </Button>
                   )}
                 </div>
@@ -520,11 +558,11 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
                     className="text-primary text-xs gap-1"
                     onClick={() => openAiModal("screening_questions")}
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
                     Generate with AI
                   </Button>
                   <Button type="button" variant="ghost" size="sm" onClick={addScreeningQuestion}>
-                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
                     Add Question
                   </Button>
                 </div>
@@ -538,8 +576,8 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
                       placeholder="Question text..."
                       className="bg-secondary border-border"
                     />
-                    <Button variant="ghost" size="icon" onClick={() => removeQuestion(i)}>
-                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    <Button variant="ghost" size="icon" onClick={() => removeQuestion(i)} aria-label="Remove screening question">
+                      <Trash2 className="w-3.5 h-3.5 text-destructive" aria-hidden="true" />
                     </Button>
                   </div>
                   <div className="flex gap-3 items-center">
@@ -586,7 +624,7 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
           {/* AI Scoring Weights */}
           <div>
             <Label className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-4 h-4 text-primary" />
+              <Sparkles className="w-4 h-4 text-primary" aria-hidden="true" />
               AI Scoring Configuration
             </Label>
             <p className="text-xs text-muted-foreground mb-3">Adjust how AI weighs each dimension when ranking candidates.</p>
@@ -608,19 +646,31 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
                     value={aiWeights[key]}
                     onChange={(e) => {
                       const newVal = Number(e.target.value);
-                      const oldVal = aiWeights[key];
-                      const diff = newVal - oldVal;
-                      const otherKeys = (["skills","tools","experience","industry","education","stability"] as const).filter(k => k !== key);
+                      const otherKeys = WEIGHT_KEYS.filter(k => k !== key);
                       const otherTotal = otherKeys.reduce((s, k) => s + aiWeights[k], 0);
-                      if (otherTotal === 0 && diff > 0) return;
+                      const remainder = 100 - newVal;
                       const updated = { ...aiWeights, [key]: newVal };
-                      otherKeys.forEach(k => {
-                        updated[k] = Math.max(0, Math.round(aiWeights[k] - (diff * aiWeights[k] / (otherTotal || 1))));
-                      });
-                      const total = Object.values(updated).reduce((a: number, b: number) => a + b, 0);
+
+                      if (otherTotal === 0) {
+                        // Dead-spot fix: when every other bucket is 0 there is
+                        // nothing to scale proportionally, so spread the
+                        // remainder evenly instead of no-op'ing the slider.
+                        const base = Math.floor(remainder / otherKeys.length);
+                        otherKeys.forEach((k, i) => {
+                          updated[k] = base + (i < remainder - base * otherKeys.length ? 1 : 0);
+                        });
+                      } else {
+                        // Scale the other buckets to fill the remaining budget,
+                        // preserving their relative proportions.
+                        otherKeys.forEach(k => {
+                          updated[k] = Math.max(0, Math.round(aiWeights[k] * (remainder / otherTotal)));
+                        });
+                      }
+
+                      const total = WEIGHT_KEYS.reduce((s, k) => s + updated[k], 0);
                       if (total !== 100) {
-                        const largest = otherKeys.sort((a, b) => updated[b] - updated[a])[0];
-                        updated[largest] += 100 - total;
+                        const largest = [...otherKeys].sort((a, b) => updated[b] - updated[a])[0];
+                        updated[largest] = Math.max(0, updated[largest] + (100 - total));
                       }
                       setAiWeights(updated);
                     }}
@@ -631,31 +681,32 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
               ))}
               <div className="flex justify-between pt-2 border-t border-border text-xs">
                 <span className="text-muted-foreground">Total</span>
-                <span className="font-bold text-emerald-400">
+                <span className={`font-bold ${TONE_TEXT.success}`}>
                   {Object.values(aiWeights).reduce((a: number, b: number) => a + b, 0)}%
                 </span>
               </div>
             </div>
           </div>
+          </div>
+          {/* End scrollable body */}
 
-
-          <div className="flex items-center justify-between p-6 border-t border-border">
+          <DialogFooter className="flex-row items-center justify-between p-6 border-t border-border sm:justify-between">
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => handleSave("closed")} disabled={jdUploading}>
-                {jdUploading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                {jdUploading ? <Loader2 className="w-4 h-4 animate-spin mr-1" aria-hidden="true" /> : null}
                 Save as Draft
               </Button>
               <Button onClick={() => handleSave("open")} disabled={jdUploading}>
-                {jdUploading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                {jdUploading ? <Loader2 className="w-4 h-4 animate-spin mr-1" aria-hidden="true" /> : null}
                 {isEdit ? "Update & Publish" : "Publish Job"}
               </Button>
             </div>
-          </div>
-        </div>
-      </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* AI Modal */}
       <AIJobAssistModal

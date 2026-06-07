@@ -2,77 +2,143 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { validateSession } from "../_shared/validate-session.ts";
 
-// Whitelist of tables that can be queried through this proxy
-const ALLOWED_TABLES = new Set([
-  "employees",
-  "headcount_records",
-  "cv_library_candidates",
-  "performance_snapshots",
-  "copilot_memory",
-  "copilot_sessions",
-  "copilot_messages",
-  "pipeline_rules",
-  "pipeline_automation_log",
-  "turnover_entries",
-  "survey_responses",
-  "survey_answers",
-  "surveys",
-  "survey_questions",
-  "survey_intelligence_cache",
-  "policies",
-  "jobs",
-  "applicants",
-  "audit_log",
-]);
+// ---------------------------------------------------------------------------
+// SECURITY MODEL (fix #1 — over-permissive proxy)
+//
+// This function is a thin DB proxy reachable by any holder of a valid admin
+// session. To stop it from becoming a "run arbitrary queries against any table"
+// gateway we enforce, per table:
+//   - a SELECT column allowlist  -> the `select` string is built from it
+//     (we NEVER return `*`, and clients can never supply a select string);
+//   - a WRITABLE column allowlist -> insert/update/upsert payloads are filtered
+//     and any unknown field is REJECTED;
+//   - every filter/order column is validated against the SELECT allowlist
+//     (so you can only filter/sort on real, allowlisted columns);
+//   - update/delete must carry at least one scalar equality filter.
+//
+// Only tables actually used by the app remain in the allowlists. Dormant tables
+// (employees, surveys*, copilot_*, headcount_records, performance_snapshots,
+// turnover_entries, policies, pipeline_*) have been dropped entirely.
+// ---------------------------------------------------------------------------
 
-// Tables allowed for write operations
-const ALLOWED_WRITE_TABLES = new Set([
-  "employees",
-  "headcount_records",
-  "performance_snapshots",
-  "copilot_memory",
-  "copilot_sessions",
-  "copilot_messages",
-  "pipeline_rules",
-  "turnover_entries",
-  "surveys",
-  "survey_questions",
-  "survey_intelligence_cache",
-  "policies",
-  "jobs",
-]);
-
-// Tables with restricted SELECT (only return non-sensitive columns)
-const RESTRICTED_SELECT_FIELDS: Record<string, string> = {
-  // Don't allow selecting password hashes
-  admin_passwords: "id,label,created_at",
+// Per-table SELECT column allowlists. The `select` string sent to PostgREST is
+// built by joining these — clients cannot widen it and `*` is never used.
+const SELECT_COLUMNS: Record<string, readonly string[]> = {
+  // jobs: MUST include every column — the admin dashboard loads full job rows
+  // through this path (CareersContext jobToDbRow / dbRowToJob round-trips them).
+  jobs: [
+    "id", "title", "department", "location", "type", "status", "summary",
+    "description", "responsibilities", "requirements", "benefits",
+    "salary_range", "salary_currency", "posted_date", "deadline",
+    "screening_questions", "jd_file_name", "jd_file_path", "jd_file_size",
+    "jd_file_uploaded_at", "ai_scoring_weights", "created_at", "updated_at",
+  ],
+  // applicants: every column the dashboard renders (dbRowToApplicant).
+  applicants: [
+    "id", "job_id", "full_name", "email", "phone", "location", "nationality",
+    "linkedin", "portfolio", "cover_letter", "cv_file_name", "cv_storage_path",
+    "cv_file_type", "cv_file_size", "screening_answers", "status",
+    "applied_date", "notes", "rating", "ai_analysis", "stage_entered_at",
+    "created_at", "updated_at",
+  ],
+  // cv_library_candidates: full row (CV library dashboard view).
+  cv_library_candidates: [
+    "id", "name", "email", "phone", "nationality", "country", "location",
+    "years_experience", "skills", "industries", "roles_summary", "tags",
+    "status", "resume_file_name", "resume_file_path", "resume_file_type",
+    "resume_file_size", "extracted_text", "suggested_department",
+    "suggested_job_title", "classification_confidence", "classification_reasoning",
+    "classification_evidence", "manual_department", "manual_job_title",
+    "manual_overrides", "uploaded_at", "updated_at", "created_at",
+  ],
 };
+
+// Per-table WRITABLE column allowlists (insert/update/upsert). Server-managed
+// columns (created_at/updated_at are DB-defaulted) are intentionally excluded.
+const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
+  // Exactly the fields the dashboard sends in jobToDbRow.
+  jobs: [
+    "id", "title", "department", "location", "type", "status", "summary",
+    "description", "responsibilities", "requirements", "benefits",
+    "salary_range", "salary_currency", "posted_date", "deadline",
+    "screening_questions", "jd_file_name", "jd_file_path", "jd_file_size",
+    "jd_file_uploaded_at", "ai_scoring_weights",
+  ],
+};
+
+// Tables exposed to this proxy at all. Writes are further gated by the presence
+// of a WRITABLE_COLUMNS entry above. admin_sessions / login_attempts are NOT
+// included: nothing in the app routes them through admin-data (they are handled
+// by dedicated auth functions), so exposing them here would be needless surface.
+const ALLOWED_TABLES = new Set(Object.keys(SELECT_COLUMNS));
 
 // Max rows per select to prevent data exfiltration
 const MAX_SELECT_LIMIT = 500;
 
 type Action = "select" | "insert" | "update" | "delete" | "upsert";
 
-// Validate that column names don't contain SQL injection attempts
+// Defense-in-depth charset check (the allowlist is the real gate).
 function isSafeColumnName(name: string): boolean {
   return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
 }
 
-function validateParams(params: Record<string, unknown>): string | null {
-  // Check eq/neq/gt/lt/in keys for safe column names
-  for (const filterKey of ["eq", "neq", "gt", "lt", "in"]) {
-    if (params[filterKey] && typeof params[filterKey] === "object") {
-      for (const col of Object.keys(params[filterKey] as object)) {
-        if (!isSafeColumnName(col)) return `Invalid column name: ${col}`;
+// Validate every filter/order column referenced in params against the table's
+// SELECT allowlist. Returns an error string, or null if everything is allowed.
+function validateParams(
+  params: Record<string, unknown>,
+  allowedColumns: ReadonlySet<string>,
+): string | null {
+  // Column-keyed filter operators (object: { column: value }).
+  for (const filterKey of ["eq", "neq", "gt", "lt", "in", "ilike"]) {
+    const filter = params[filterKey];
+    if (filter && typeof filter === "object") {
+      for (const col of Object.keys(filter as object)) {
+        if (!isSafeColumnName(col) || !allowedColumns.has(col)) {
+          return `Invalid filter column: ${col}`;
+        }
       }
     }
   }
-  // Validate order column
+  // order: { column, ascending? }
   if (params.order) {
     const ord = params.order as { column?: string };
-    if (ord.column && !isSafeColumnName(ord.column)) return `Invalid order column: ${ord.column}`;
+    if (ord.column && (!isSafeColumnName(ord.column) || !allowedColumns.has(ord.column))) {
+      return `Invalid order column: ${ord.column}`;
+    }
   }
   return null;
+}
+
+// Validate a write payload (object, or array of objects for bulk insert/upsert)
+// against the table's WRITABLE allowlist. Rejects any unknown field.
+function validateWritePayload(
+  data: unknown,
+  writable: ReadonlySet<string>,
+): string | null {
+  const rows = Array.isArray(data) ? data : [data];
+  if (rows.length === 0) return "data must not be empty";
+  for (const row of rows) {
+    if (!row || typeof row !== "object" || Array.isArray(row)) {
+      return "data must be an object";
+    }
+    for (const key of Object.keys(row as Record<string, unknown>)) {
+      if (!isSafeColumnName(key) || !writable.has(key)) {
+        return `Unknown or non-writable field: ${key}`;
+      }
+    }
+  }
+  return null;
+}
+
+// Does `eq` carry at least one scalar (non-null) equality filter? Required for
+// update/delete so a missing/empty filter can't hit every row.
+function hasScalarEqFilter(eq: unknown): boolean {
+  if (!eq || typeof eq !== "object" || Array.isArray(eq)) return false;
+  const entries = Object.entries(eq as Record<string, unknown>);
+  if (entries.length === 0) return false;
+  return entries.some(([, v]) =>
+    v != null && (typeof v === "string" || typeof v === "number" || typeof v === "boolean")
+  );
 }
 
 Deno.serve(async (req) => {
@@ -113,7 +179,7 @@ Deno.serve(async (req) => {
     const auth = await validateSession(sessionToken, corsHeaders);
     if (!auth.valid) return auth.response;
 
-    // Validate table name
+    // Validate table name against the allowlist
     if (!ALLOWED_TABLES.has(table)) {
       return new Response(JSON.stringify({ error: "Invalid table" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -127,8 +193,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // For write operations, check table is in write whitelist
-    if (action !== "select" && !ALLOWED_WRITE_TABLES.has(table)) {
+    const selectColumns = SELECT_COLUMNS[table];
+    const allowedColumnSet = new Set(selectColumns);
+    const writableList = WRITABLE_COLUMNS[table];
+    const writableSet = new Set(writableList || []);
+
+    // For write operations, the table must have a WRITABLE allowlist.
+    if (action !== "select" && !writableList) {
       return new Response(JSON.stringify({ error: "Write not allowed on this table" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -136,8 +207,8 @@ Deno.serve(async (req) => {
 
     const p = params || {};
 
-    // Validate parameters
-    const paramError = validateParams(p);
+    // Validate filter/order columns against the SELECT allowlist
+    const paramError = validateParams(p, allowedColumnSet);
     if (paramError) {
       return new Response(JSON.stringify({ error: paramError }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -162,9 +233,8 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case "select": {
-        // Apply restricted fields if applicable — never allow client-provided select strings
-        const selectFields = RESTRICTED_SELECT_FIELDS[table] || "*";
-        let query = sb.from(table).select(selectFields);
+        // Build the select string from the allowlist — never `*`, never client-supplied.
+        let query = sb.from(table).select(selectColumns.join(","));
         if (p.eq) for (const [col, val] of Object.entries(p.eq as Record<string, unknown>)) {
           query = query.eq(col, val);
         }
@@ -205,12 +275,30 @@ Deno.serve(async (req) => {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+        const writeErr = validateWritePayload(p.data, writableSet);
+        if (writeErr) {
+          return new Response(JSON.stringify({ error: writeErr }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         result = await sb.from(table).insert(p.data as any);
         break;
       }
       case "update": {
         if (!p.data || !p.eq) {
           return new Response(JSON.stringify({ error: "data and eq are required for update" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const writeErr = validateWritePayload(p.data, writableSet);
+        if (writeErr) {
+          return new Response(JSON.stringify({ error: writeErr }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        // Require a scalar equality filter so an update can never hit every row.
+        if (!hasScalarEqFilter(p.eq)) {
+          return new Response(JSON.stringify({ error: "update requires a scalar eq filter" }), {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
@@ -227,6 +315,12 @@ Deno.serve(async (req) => {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+        // Require a scalar equality filter so a delete can never wipe the table.
+        if (!hasScalarEqFilter(p.eq)) {
+          return new Response(JSON.stringify({ error: "delete requires a scalar eq filter" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         let query = sb.from(table).delete();
         for (const [col, val] of Object.entries(p.eq as Record<string, unknown>)) {
           query = query.eq(col, val);
@@ -240,8 +334,30 @@ Deno.serve(async (req) => {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+        const writeErr = validateWritePayload(p.data, writableSet);
+        if (writeErr) {
+          return new Response(JSON.stringify({ error: writeErr }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         const opts: any = {};
-        if (p.onConflict) opts.onConflict = p.onConflict;
+        // onConflict must reference allowlisted columns only.
+        if (p.onConflict) {
+          if (typeof p.onConflict !== "string") {
+            return new Response(JSON.stringify({ error: "onConflict must be a string" }), {
+              status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          const cols = p.onConflict.split(",").map((c) => c.trim());
+          for (const c of cols) {
+            if (!isSafeColumnName(c) || !writableSet.has(c)) {
+              return new Response(JSON.stringify({ error: `Invalid onConflict column: ${c}` }), {
+                status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+          }
+          opts.onConflict = p.onConflict;
+        }
         result = await sb.from(table).upsert(p.data as any, opts);
         break;
       }

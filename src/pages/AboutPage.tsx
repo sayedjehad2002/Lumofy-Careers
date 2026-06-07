@@ -38,6 +38,7 @@ const AboutPage = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
+      <main id="main">
       {/* ── HERO ───────────────────────────────────────── */}
       <section className="relative px-4 pt-32 pb-16">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[300px] bg-gradient-to-b from-primary/[0.05] to-transparent" />
@@ -49,7 +50,7 @@ const AboutPage = () => {
         >
           <motion.div variants={fadeUp}>
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.06] px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
-              <Building2 className="h-3.5 w-3.5" />
+              <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
               Our Story
             </span>
           </motion.div>
@@ -80,7 +81,7 @@ const AboutPage = () => {
           >
             <div className="mb-6 flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                <Building2 className="h-5 w-5 text-primary" />
+                <Building2 className="h-5 w-5 text-primary" aria-hidden="true" />
               </div>
               <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Our Journey</h2>
             </div>
@@ -140,7 +141,7 @@ const AboutPage = () => {
         >
           <div className="mb-6 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <Users className="h-5 w-5 text-primary" />
+              <Users className="h-5 w-5 text-primary" aria-hidden="true" />
             </div>
             <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Who We Are?</h2>
           </div>
@@ -169,7 +170,7 @@ const AboutPage = () => {
             transition={{ duration: 0.6 }}
           >
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.06] px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-primary">
-              <Sparkles className="h-3 w-3" />
+              <Sparkles className="h-3 w-3" aria-hidden="true" />
               Core Values
             </span>
             <h2 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">Purpose, Vision &amp; Mission</h2>
@@ -187,7 +188,7 @@ const AboutPage = () => {
               <motion.div key={item.title} variants={fadeUp}>
                 <div className="group h-full rounded-2xl border border-border bg-card p-6 text-center light-glow transition-transform duration-300 hover:-translate-y-1">
                   <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 transition-colors duration-300 group-hover:bg-primary/15">
-                    <item.icon className="h-7 w-7 text-primary" />
+                    <item.icon className="h-7 w-7 text-primary" aria-hidden="true" />
                   </div>
                   <h3 className="mb-3 text-lg font-bold">{item.title}</h3>
                   <p className="text-sm leading-relaxed text-muted-foreground">{item.description}</p>
@@ -197,6 +198,7 @@ const AboutPage = () => {
           </motion.div>
         </div>
       </section>
+      </main>
 
       <Footer />
     </div>

@@ -8,6 +8,7 @@ import { ClipboardList, Loader2, Brain, CheckCircle2, Copy } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Applicant, Job } from "@/types/careers";
+import { TONE_TEXT, TONE_SUBTLE } from "@/components/careers/statusColors";
 
 interface InterviewPrepProps {
   applicant: Applicant;
@@ -114,8 +115,8 @@ const InterviewPrep = ({ applicant, job }: InterviewPrepProps) => {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-base flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                <ClipboardList className="w-4 h-4 text-emerald-400" />
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${TONE_SUBTLE.success}`}>
+                <ClipboardList className={`w-4 h-4 ${TONE_TEXT.success}`} aria-hidden="true" />
               </div>
               AI Interview Prep Kit
             </CardTitle>

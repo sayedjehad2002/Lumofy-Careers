@@ -3,6 +3,7 @@ import { Shield, Clock, AlertTriangle, Trash2, Check, Calendar } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TONE_TEXT } from "@/components/careers/statusColors";
 
 interface CVCandidate {
   id: string;
@@ -68,20 +69,20 @@ export default function GDPRRetention({ candidates, onDelete, onViewCandidate }:
 
       {flagged.length === 0 ? (
         <div className="rounded-xl bg-card border border-border p-8 text-center">
-          <Check className="w-8 h-8 mx-auto mb-2 text-emerald-400" />
+          <Check className={`w-8 h-8 mx-auto mb-2 ${TONE_TEXT.success}`} aria-hidden="true" />
           <p className="font-medium">All CVs are within retention policy</p>
           <p className="text-xs text-muted-foreground mt-1">No action needed</p>
         </div>
       ) : (
         <>
-          <div className="rounded-xl bg-card border border-yellow-500/20 p-4">
+          <div className="rounded-xl bg-card border border-[hsl(var(--intel-warning)/0.2)] p-4">
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm font-medium flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-yellow-400" />
+                <AlertTriangle className={`w-4 h-4 ${TONE_TEXT.warning}`} aria-hidden="true" />
                 {flagged.length} CV{flagged.length !== 1 ? "s" : ""} exceed retention period
               </p>
               <Button variant="destructive" size="sm" className="gap-1.5" onClick={handleBulkDelete}>
-                <Trash2 className="w-3.5 h-3.5" /> Delete All Flagged
+                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Delete All Flagged
               </Button>
             </div>
 
@@ -91,7 +92,7 @@ export default function GDPRRetention({ candidates, onDelete, onViewCandidate }:
                 const severity = days > months * 60 ? "critical" : days > months * 45 ? "warning" : "info";
                 return (
                   <div key={c.id} className="flex items-center gap-3 p-2 rounded-lg bg-secondary/20">
-                    <Clock className={`w-4 h-4 flex-shrink-0 ${severity === "critical" ? "text-red-400" : severity === "warning" ? "text-yellow-400" : "text-muted-foreground"}`} />
+                    <Clock className={`w-4 h-4 flex-shrink-0 ${severity === "critical" ? TONE_TEXT.danger : severity === "warning" ? TONE_TEXT.warning : "text-muted-foreground"}`} aria-hidden="true" />
                     <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onViewCandidate(c.id)}>
                       <p className="text-sm font-medium truncate">{c.name || "Unknown"}</p>
                       <p className="text-[10px] text-muted-foreground">

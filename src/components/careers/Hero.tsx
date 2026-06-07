@@ -4,6 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import AnimatedCounter from "./AnimatedCounter";
 import CommandPalette from "./CommandPalette";
+import { SITE } from "@/data/site";
+
+// Split a stat string like "10+" into its numeric part and trailing suffix so the
+// count-up animation can drive the number while SITE stays the single source of truth.
+const splitStat = (s: string) => {
+  const match = s.match(/^(\d+)(.*)$/);
+  return match ? { value: Number(match[1]), suffix: match[2] } : { value: 0, suffix: s };
+};
 
 const ease = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
@@ -35,7 +43,7 @@ const Hero = () => {
         >
           <motion.div variants={fadeUp}>
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.06] px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
-              <Sparkles className="h-3.5 w-3.5" />
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
               AI-Powered Talent Platform
             </span>
           </motion.div>
@@ -61,7 +69,7 @@ const Hero = () => {
             <Button size="lg" className="group h-12 rounded-xl px-8 text-base" asChild>
               <Link to="/jobs">
                 Browse open roles
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
               </Link>
             </Button>
             <Button size="lg" variant="outline" className="h-12 rounded-xl px-8 text-base" asChild>
@@ -82,14 +90,14 @@ const Hero = () => {
             viewport={{ once: true, margin: "-60px" }}
           >
             {[
-              { value: 52, suffix: "", label: "Active Employees", icon: Users },
-              { value: 2, suffix: "", label: "Offices — Bahrain & Saudi", icon: Globe },
-              { value: 2020, suffix: "", label: "Year Founded", icon: Rocket, raw: true },
-              { value: 10, suffix: "+", label: "Countries — Remote Team", icon: MapPin },
+              { ...splitStat(SITE.stats.employees), label: "Active Employees", icon: Users },
+              { value: 2, suffix: "", label: `Offices — ${SITE.stats.offices}`, icon: Globe },
+              { value: SITE.stats.founded, suffix: "", label: "Year Founded", icon: Rocket, raw: true },
+              { ...splitStat(SITE.stats.countries), label: "Countries — Remote Team", icon: MapPin },
             ].map((stat) => (
               <motion.div key={stat.label} variants={fadeUp}>
                 <div className="rounded-2xl border border-border bg-card p-5 text-center light-glow sm:p-6">
-                  <stat.icon className="mx-auto mb-2.5 h-6 w-6 text-primary" />
+                  <stat.icon className="mx-auto mb-2.5 h-6 w-6 text-primary" aria-hidden="true" />
                   <div className="text-3xl font-extrabold tabular-nums text-foreground sm:text-4xl">
                     {stat.raw ? (
                       <span>{stat.value}</span>
@@ -138,7 +146,7 @@ const Hero = () => {
               <motion.div key={item.title} variants={fadeUp}>
                 <div className="group h-full rounded-2xl border border-border bg-card p-6 text-center light-glow transition-transform duration-300 hover:-translate-y-1 sm:p-7">
                   <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 transition-colors duration-300 group-hover:bg-primary/15">
-                    <item.icon className="h-7 w-7 text-primary" />
+                    <item.icon className="h-7 w-7 text-primary" aria-hidden="true" />
                   </div>
                   <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-primary/70">{item.accent}</p>
                   <h3 className="mb-3 text-xl font-bold">{item.title}</h3>

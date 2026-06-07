@@ -16,6 +16,16 @@ const AnimatedCounter = ({ value, suffix = "", prefix = "", duration = 1.5, clas
 
   useEffect(() => {
     if (!isInView) return;
+
+    // Respect reduced-motion: show the final value instantly, skip the count-up.
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReducedMotion) {
+      setCount(value);
+      return;
+    }
+
     let start = 0;
     const end = value;
     const stepTime = Math.max(Math.floor((duration * 1000) / end), 16);

@@ -79,12 +79,12 @@ const FilterSection = forwardRef<HTMLDivElement, FilterSectionProps>(({ title, i
             </Badge>
           )}
         </div>
-        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} aria-hidden="true" />
       </CollapsibleTrigger>
       <CollapsibleContent className="pb-3">
         {options.length > 5 && (
           <div className="relative mb-2">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <Input
               placeholder={`Search ${title.toLowerCase()}…`}
               value={sectionSearch}
@@ -139,7 +139,7 @@ const ActiveChip = ({ label, onRemove }: ActiveChipProps) => (
       aria-label="Remove filter"
       className="rounded-full p-0.5 transition-colors hover:bg-primary/20"
     >
-      <X className="h-3 w-3" />
+      <X className="h-3 w-3" aria-hidden="true" />
     </button>
   </motion.div>
 );
@@ -172,7 +172,7 @@ const FilterSidebarContent = forwardRef<HTMLDivElement, FilterSidebarContentProp
   <div ref={ref} className="space-y-1">
     <div className="mb-3 flex items-center justify-between">
       <h2 className="flex items-center gap-2 text-sm font-bold text-foreground">
-        <Filter className="h-4 w-4 text-primary" />
+        <Filter className="h-4 w-4 text-primary" aria-hidden="true" />
         Filters
         {totalActiveFilters > 0 && (
           <Badge className="h-5 border-0 bg-primary px-2 text-[10px] text-primary-foreground">
@@ -182,7 +182,7 @@ const FilterSidebarContent = forwardRef<HTMLDivElement, FilterSidebarContentProp
       </h2>
       {totalActiveFilters > 0 && (
         <Button variant="ghost" size="sm" onClick={onReset} className="h-7 text-xs text-muted-foreground hover:text-foreground">
-          <RotateCcw className="mr-1 h-3 w-3" />
+          <RotateCcw className="mr-1 h-3 w-3" aria-hidden="true" />
           Clear all
         </Button>
       )}
@@ -190,7 +190,7 @@ const FilterSidebarContent = forwardRef<HTMLDivElement, FilterSidebarContentProp
 
     <FilterSection
       title="Department"
-      icon={<Building2 className="h-4 w-4 text-primary" />}
+      icon={<Building2 className="h-4 w-4 text-primary" aria-hidden="true" />}
       options={departments}
       selected={selectedDepartments}
       onToggle={onToggleDepartment}
@@ -199,7 +199,7 @@ const FilterSidebarContent = forwardRef<HTMLDivElement, FilterSidebarContentProp
     <Separator className="my-1" />
     <FilterSection
       title="Location"
-      icon={<MapPin className="h-4 w-4 text-primary" />}
+      icon={<MapPin className="h-4 w-4 text-primary" aria-hidden="true" />}
       options={locations}
       selected={selectedLocations}
       onToggle={onToggleLocation}
@@ -208,7 +208,7 @@ const FilterSidebarContent = forwardRef<HTMLDivElement, FilterSidebarContentProp
     <Separator className="my-1" />
     <FilterSection
       title="Job Type"
-      icon={<Clock className="h-4 w-4 text-primary" />}
+      icon={<Clock className="h-4 w-4 text-primary" aria-hidden="true" />}
       options={jobTypes}
       selected={selectedTypes}
       onToggle={onToggleType}
@@ -319,7 +319,7 @@ const JobsPage = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="px-4 pb-16 pt-28 sm:pt-32">
+      <main id="main" className="px-4 pb-16 pt-28 sm:pt-32">
         {/* Header */}
         <section className="mx-auto mb-8 max-w-6xl">
           <motion.div
@@ -341,7 +341,7 @@ const JobsPage = () => {
           <div className="rounded-2xl border border-border bg-card p-3 light-glow">
             <div className="flex items-center gap-3">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                 <Input
                   placeholder="Search by title, keyword, or skill…"
                   value={search}
@@ -354,7 +354,7 @@ const JobsPage = () => {
               <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
                 <SheetTrigger asChild>
                   <Button variant="outline" size="sm" className="relative h-11 px-4 lg:hidden">
-                    <SlidersHorizontal className="mr-1.5 h-4 w-4" />
+                    <SlidersHorizontal className="mr-1.5 h-4 w-4" aria-hidden="true" />
                     Filters
                     {totalActiveFilters > 0 && (
                       <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
@@ -382,7 +382,7 @@ const JobsPage = () => {
                   aria-label="Copy filter link"
                   className="h-11 px-3 text-muted-foreground hover:text-foreground"
                 >
-                  <Share2 className="h-4 w-4" />
+                  <Share2 className="h-4 w-4" aria-hidden="true" />
                 </Button>
               )}
             </div>
@@ -433,7 +433,7 @@ const JobsPage = () => {
             <div className="min-w-0 flex-1">
               {/* Results header */}
               <div className="mb-4 flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground" aria-live="polite">
                   <span className="font-semibold text-foreground">{filteredJobs.length}</span>{" "}
                   {filteredJobs.length === 1 ? "role" : "roles"}
                   {hasActiveFilters && (
@@ -464,21 +464,21 @@ const JobsPage = () => {
                   {hasActiveFilters ? (
                     <>
                       <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-                        <Search className="h-7 w-7 text-primary" />
+                        <Search className="h-7 w-7 text-primary" aria-hidden="true" />
                       </div>
                       <h2 className="text-lg font-bold tracking-tight text-foreground">No roles match your filters</h2>
                       <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
                         Try adjusting your search or clearing a filter or two to see more openings.
                       </p>
                       <Button variant="outline" size="sm" onClick={resetFilters} className="mt-5 rounded-xl">
-                        <RotateCcw className="mr-1.5 h-4 w-4" />
+                        <RotateCcw className="mr-1.5 h-4 w-4" aria-hidden="true" />
                         Reset all filters
                       </Button>
                     </>
                   ) : (
                     <>
                       <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-                        <Briefcase className="h-7 w-7 text-primary" />
+                        <Briefcase className="h-7 w-7 text-primary" aria-hidden="true" />
                       </div>
                       <h2 className="text-lg font-bold tracking-tight text-foreground">No open roles right now</h2>
                       <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
@@ -486,9 +486,9 @@ const JobsPage = () => {
                       </p>
                       <Button size="sm" asChild className="mt-5 h-11 rounded-xl px-6">
                         <Link to="/">
-                          <Compass className="mr-2 h-4 w-4" />
+                          <Compass className="mr-2 h-4 w-4" aria-hidden="true" />
                           Browse by team
-                          <ArrowRight className="ml-2 h-4 w-4" />
+                          <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
                         </Link>
                       </Button>
                     </>

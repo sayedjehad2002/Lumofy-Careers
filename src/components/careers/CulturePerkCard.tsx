@@ -5,6 +5,7 @@ interface CulturePerkCardProps {
   icon: LucideIcon;
   title: string;
   desc: string;
+  className?: string;
 }
 
 const ease = [0.22, 1, 0.36, 1] as [number, number, number, number];
@@ -14,10 +15,10 @@ const fadeUp = {
   show: { opacity: 1, y: 0, transition: { duration: 0.6, ease } },
 };
 
-const CulturePerkCard = ({ icon: Icon, title, desc }: CulturePerkCardProps) => {
+const CulturePerkCard = ({ icon: Icon, title, desc, className = "" }: CulturePerkCardProps) => {
   return (
     <motion.div
-      className="h-full rounded-2xl border border-border bg-card p-6 text-center light-glow transition-transform duration-300 hover:-translate-y-1"
+      className={`h-full rounded-2xl border border-border bg-card p-6 text-center light-glow transition-transform duration-300 hover:-translate-y-1 ${className}`}
       variants={fadeUp}
     >
       <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">

@@ -7,6 +7,7 @@ import {
   FileText, Brain, MessageSquare, ArrowRight, Calendar, Clock, User
 } from "lucide-react";
 import { APPLICANT_STATUSES, type Applicant } from "@/types/careers";
+import { TONE_SOFT } from "@/components/careers/statusColors";
 
 interface CandidateTimelineProps {
   applicant: Applicant;
@@ -61,8 +62,8 @@ const CandidateTimeline = ({ applicant }: CandidateTimelineProps) => {
         label: `AI Analysis: ${applicant.aiAnalysis.fitLevel} (${applicant.aiAnalysis.fitScore}/100)`,
         detail: applicant.aiAnalysis.summary?.substring(0, 120) + "...",
         date: new Date(applicant.aiAnalysis.analyzedAt),
-        icon: <Brain className="w-3.5 h-3.5" />,
-        color: "bg-violet-500/15 text-violet-400",
+        icon: <Brain className="w-3.5 h-3.5" aria-hidden="true" />,
+        color: TONE_SOFT.ai,
       });
     }
 
@@ -74,8 +75,8 @@ const CandidateTimeline = ({ applicant }: CandidateTimelineProps) => {
         label: "Note Added",
         detail: typeof note === "string" ? note : String(note),
         date: new Date(applicant.appliedDate), // notes don't have timestamps
-        icon: <MessageSquare className="w-3.5 h-3.5" />,
-        color: "bg-yellow-500/15 text-yellow-400",
+        icon: <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />,
+        color: TONE_SOFT.warning,
       });
     });
 
@@ -87,8 +88,8 @@ const CandidateTimeline = ({ applicant }: CandidateTimelineProps) => {
         label: "Rating Submitted",
         detail: `Overall: ${applicant.rating.overallRecommendation}/5`,
         date: new Date(applicant.appliedDate),
-        icon: <User className="w-3.5 h-3.5" />,
-        color: "bg-emerald-500/15 text-emerald-400",
+        icon: <User className="w-3.5 h-3.5" aria-hidden="true" />,
+        color: TONE_SOFT.success,
       });
     }
 

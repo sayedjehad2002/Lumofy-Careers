@@ -3,6 +3,7 @@ import { CheckCircle2, AlertCircle, XCircle, BarChart3, Zap } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { TONE_TEXT } from "@/components/careers/statusColors";
 
 interface CVCandidate {
   id: string;
@@ -86,7 +87,7 @@ export default function DataCompleteness({ candidates, onViewCandidate, onBulkRe
   }, [candidates]);
 
   const scoreColor = (s: number) =>
-    s >= 80 ? "text-emerald-400" : s >= 50 ? "text-yellow-400" : "text-red-400";
+    s >= 80 ? TONE_TEXT.success : s >= 50 ? TONE_TEXT.warning : TONE_TEXT.danger;
 
   return (
     <div className="space-y-4">
@@ -103,11 +104,11 @@ export default function DataCompleteness({ candidates, onViewCandidate, onBulkRe
           <Progress value={analysis.avgScore} className="h-1.5 mt-2" />
         </div>
         <div className="rounded-xl bg-card border border-border p-4 text-center">
-          <p className="text-3xl font-bold text-emerald-400">{analysis.complete}</p>
+          <p className={`text-3xl font-bold ${TONE_TEXT.success}`}>{analysis.complete}</p>
           <p className="text-[10px] text-muted-foreground">Fully Complete</p>
         </div>
         <div className="rounded-xl bg-card border border-border p-4 text-center">
-          <p className="text-3xl font-bold text-red-400">{analysis.incomplete.length}</p>
+          <p className={`text-3xl font-bold ${TONE_TEXT.danger}`}>{analysis.incomplete.length}</p>
           <p className="text-[10px] text-muted-foreground">Below 50%</p>
         </div>
         <div className="rounded-xl bg-card border border-border p-4 text-center">
@@ -126,7 +127,7 @@ export default function DataCompleteness({ candidates, onViewCandidate, onBulkRe
                 <span className="text-xs w-24 text-muted-foreground">{field}</span>
                 <div className="flex-1 h-3 bg-secondary/30 rounded-full overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-red-500/40"
+                    className="h-full rounded-full bg-destructive/40"
                     style={{ width: `${(count / candidates.length) * 100}%` }}
                   />
                 </div>
@@ -152,7 +153,7 @@ export default function DataCompleteness({ candidates, onViewCandidate, onBulkRe
                   <p className="text-sm font-medium truncate">{c.name || "Unknown"}</p>
                   <p className="text-[10px] text-muted-foreground">Missing: {missing.join(", ")}</p>
                 </div>
-                <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" aria-hidden="true" />
               </div>
             ))}
           </div>

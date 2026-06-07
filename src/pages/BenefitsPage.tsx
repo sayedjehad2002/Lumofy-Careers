@@ -49,6 +49,7 @@ const BenefitsPage = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
+      <main id="main">
       {/* ── HERO ───────────────────────────────────────── */}
       <section className="relative px-4 pt-28 pb-14 sm:pb-16">
         {/* subtle brand wash, no animation */}
@@ -87,7 +88,7 @@ const BenefitsPage = () => {
                 className="rounded-2xl border border-border bg-card p-6 light-glow transition-transform duration-300 hover:-translate-y-1"
               >
                 <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
-                  <benefit.icon className="h-5 w-5 text-primary" />
+                  <benefit.icon className="h-5 w-5 text-primary" aria-hidden="true" />
                 </div>
                 <h3 className="mb-1.5 text-lg font-bold">{benefit.title}</h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">
@@ -116,12 +117,13 @@ const BenefitsPage = () => {
             <Button size="lg" className="group h-12 rounded-xl px-8 text-base" asChild>
               <Link to="/jobs">
                 Explore Open Roles
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
               </Link>
             </Button>
           </div>
         </motion.div>
       </section>
+      </main>
 
       <Footer />
     </div>

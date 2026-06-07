@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Brain, Users, Globe, Briefcase, TrendingUp, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { TONE_TEXT, TONE_BORDER } from "@/components/careers/statusColors";
 
 interface CVCandidate {
   id: string;
@@ -22,8 +23,8 @@ interface Props {
 
 const COLORS = [
   "hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))", "hsl(var(--chart-5))", "hsl(142 76% 36%)",
-  "hsl(280 65% 60%)", "hsl(25 95% 53%)",
+  "hsl(var(--chart-4))", "hsl(var(--chart-5))", "hsl(var(--intel-success))",
+  "hsl(var(--chart-3))", "hsl(var(--chart-5))",
 ];
 
 export default function TalentPoolInsights({ candidates }: Props) {
@@ -152,16 +153,16 @@ export default function TalentPoolInsights({ candidates }: Props) {
 
       {/* Talent Gaps */}
       {insights.gapDepts.length > 0 && (
-        <div className="rounded-xl bg-card border border-yellow-500/20 p-4">
+        <div className="rounded-xl bg-card border border-[hsl(var(--intel-warning)/0.2)] p-4">
           <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-yellow-400" /> Talent Gaps Identified
+            <TrendingUp className={`w-4 h-4 ${TONE_TEXT.warning}`} aria-hidden="true" /> Talent Gaps Identified
           </h4>
           <p className="text-xs text-muted-foreground mb-3">
             These departments have fewer candidates than average ({Math.round(insights.avgPerDept)} per department)
           </p>
           <div className="flex flex-wrap gap-2">
             {insights.gapDepts.map(([dept, count]) => (
-              <Badge key={dept} variant="outline" className="text-yellow-400 border-yellow-500/30">
+              <Badge key={dept} variant="outline" className={`${TONE_TEXT.warning} ${TONE_BORDER.warning}`}>
                 {dept}: {count} CVs
               </Badge>
             ))}

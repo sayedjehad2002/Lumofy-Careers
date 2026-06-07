@@ -78,15 +78,18 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
               className="text-foreground"
               onClick={() => setMobileOpen(!mobileOpen)}
               whileTap={{ scale: 0.9 }}
+              aria-label={mobileOpen ? "Close menu" : "Open menu"}
+              aria-expanded={mobileOpen}
+              aria-controls="mobile-menu"
             >
               <AnimatePresence mode="wait">
                 {mobileOpen ? (
                   <motion.span key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                    <X className="w-5 h-5" />
+                    <X className="w-5 h-5" aria-hidden="true" />
                   </motion.span>
                 ) : (
                   <motion.span key="menu" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                    <Menu className="w-5 h-5" />
+                    <Menu className="w-5 h-5" aria-hidden="true" />
                   </motion.span>
                 )}
               </AnimatePresence>
@@ -98,6 +101,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
+            id="mobile-menu"
             className="md:hidden glass border-t border-border overflow-hidden"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}

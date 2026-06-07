@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import {
   ArrowLeft, FileText, Download, Loader2, AlertCircle,
   MessageSquare, Star, Clock, User, Brain, Activity,
-  Mail, Phone, MapPin, ExternalLink, Calendar, Globe, Sparkles, Trash2, FileDown } from
+  Mail, Phone, MapPin, ExternalLink, Calendar, Globe, Trash2, FileDown } from
 "lucide-react";
 import { generateCandidateReport } from "@/utils/candidateReportPdf";
 import { motion } from "framer-motion";
@@ -20,7 +20,6 @@ import InterviewPrep from "@/components/careers/applicants/InterviewPrep";
 import EmailTemplates from "@/components/careers/applicants/EmailTemplates";
 import CandidateTimeline from "@/components/careers/applicants/CandidateTimeline";
 import { APPLICANT_STATUSES, type ApplicantStatus, type Applicant, type Job, type AIAnalysis } from "@/types/careers";
-import type { CopilotContext } from "@/components/careers/CopilotWidget";
 
 interface CandidateProfileProps {
   applicant: Applicant;
@@ -31,7 +30,6 @@ interface CandidateProfileProps {
   onAddNote: (applicantId: string, note: string) => Promise<void>;
   onAIComplete: (applicantId: string, analysis: AIAnalysis) => void;
   onApplicantChange: (applicant: Applicant) => void;
-  onOpenCopilot?: (ctx: CopilotContext) => void;
   onDelete?: (applicantId: string) => Promise<void>;
 }
 
@@ -43,7 +41,7 @@ const TERMINAL_STAGES: ApplicantStatus[] = ["rejected", "hired"];
 
 const CandidateProfile = ({
   applicant, job, sessionToken, onBack,
-  onStatusUpdate, onAddNote, onAIComplete, onApplicantChange, onOpenCopilot, onDelete
+  onStatusUpdate, onAddNote, onAIComplete, onApplicantChange, onDelete
 }: CandidateProfileProps) => {
   const [noteInput, setNoteInput] = useState("");
   const [cvLoading, setCvLoading] = useState(false);
@@ -390,14 +388,7 @@ const CandidateProfile = ({
               onAnalysisComplete={(applicantId, analysis) => {
                 onAIComplete(applicantId, analysis);
                 onApplicantChange({ ...applicant, aiAnalysis: analysis });
-              }}
-              onExplainRating={onOpenCopilot && applicant.aiAnalysis ? () => {
-                onOpenCopilot({
-                  candidateId: applicant.id,
-                  jobId: applicant.jobId,
-                  autoPrompt: `Explain why ${applicant.fullName} is rated ${applicant.aiAnalysis!.fitScore}/100 for ${job?.title || "this role"}. Provide strengths, gaps, risks, and interview focus areas. Use only the CV analysis, job requirements, and screening answers provided.`
-                });
-              } : undefined} />
+              }} />
           </motion.div>
 
 

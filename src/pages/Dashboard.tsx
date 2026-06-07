@@ -46,29 +46,27 @@ import JobFormModal from "@/components/careers/JobFormModal";
 import DashboardOverview from "@/components/careers/DashboardOverview";
 import CandidateProfile from "@/components/careers/CandidateProfile";
 import ThemeToggle from "@/components/ThemeToggle";
-import CopilotWidget, { type CopilotContext, type CrossModuleData } from "@/components/careers/CopilotWidget";
 import CVLibrary from "@/components/careers/CVLibrary";
-import TurnoverAnalytics from "@/components/careers/TurnoverAnalytics";
 import SettlementCalculator from "@/components/careers/SettlementCalculator";
 import ApplicantsListView from "@/components/careers/ApplicantsListView";
-import PerformanceManagement from "@/components/careers/PerformanceManagement";
-import SurveysDashboardTab from "@/components/surveys/SurveysDashboardTab";
-import PoliciesTab from "@/components/careers/PoliciesTab";
-import PipelineAutomation from "@/components/careers/PipelineAutomation";
 import PipelineHealthScorecard from "@/components/careers/pipeline/PipelineHealthScorecard";
 import StageCapacityLimits, { DEFAULT_CAPACITIES } from "@/components/careers/pipeline/StageCapacityLimits";
-import StaleCandidateAlerts from "@/components/careers/pipeline/StaleCandidateAlerts";
-import StageConversionHeatmap from "@/components/careers/pipeline/StageConversionHeatmap";
-import BottleneckDetector from "@/components/careers/pipeline/BottleneckDetector";
-import SmartAutoRouting from "@/components/careers/pipeline/SmartAutoRouting";
-import PredictiveForecast from "@/components/careers/pipeline/PredictiveForecast";
-import PipelineVelocityTrends from "@/components/careers/pipeline/PipelineVelocityTrends";
-import StageGates, { DEFAULT_GATES, type StageGateConfig } from "@/components/careers/pipeline/StageGates";
-import PipelineSnapshots from "@/components/careers/pipeline/PipelineSnapshots";
-import RuleTemplates from "@/components/careers/pipeline/RuleTemplates";
-import HeadcountPage from "@/components/headcount/HeadcountPage";
 
-type Tab = "overview" | "jobs" | "applicants" | "pipeline" | "cv-library" | "analytics" | "eos-calculator" | "performance" | "copilot" | "surveys" | "policies" | "automation" | "headcount";
+type Tab = "overview" | "jobs" | "applicants" | "pipeline" | "cv-library" | "eos-calculator";
+
+// Client-side gate for pipeline stage moves. Server-side enforcement is handled
+// separately; this just prevents obviously-illegal drags in the UI.
+// A candidate may advance to the next stage(s), be rejected from any active
+// stage, or be moved back one step (to correct mistakes). "hired"/"rejected"
+// are terminal except for reverting out of them.
+const ALLOWED_TRANSITIONS: Record<ApplicantStatus, ApplicantStatus[]> = {
+  new: ["reviewing", "shortlisted", "rejected"],
+  reviewing: ["new", "shortlisted", "interview", "rejected"],
+  shortlisted: ["reviewing", "interview", "rejected"],
+  interview: ["shortlisted", "hired", "rejected"],
+  hired: ["interview"],
+  rejected: ["new", "reviewing", "shortlisted", "interview"],
+};
 
 const Dashboard = () => {
   const { jobs, applicants, loading, sessionToken, setSessionToken, addJob, updateJob, deleteJob, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, refreshData } = useCareers();
@@ -78,119 +76,9 @@ const Dashboard = () => {
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
   const [jobFormOpen, setJobFormOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
-  const [copilotContext, setCopilotContext] = useState<CopilotContext | null>(null);
-  const [crossModuleData, setCrossModuleData] = useState<CrossModuleData>({});
   const [stageCapacities, setStageCapacities] = useState<Record<string, number>>(DEFAULT_CAPACITIES);
-  const [stageGates, setStageGates] = useState<StageGateConfig[]>(DEFAULT_GATES);
-  const [pipelineSubTab, setPipelineSubTab] = useState<"board" | "routing" | "alerts" | "analytics" | "gates" | "snapshots" | "templates">("board");
-
-  const openCopilot = useCallback((ctx?: CopilotContext) => {
-    setCopilotContext(ctx || null);
-    setActiveTab("copilot");
-  }, []);
-
-  // Fetch cross-module data for Copilot intelligence
-  useEffect(() => {
-    if (!sessionToken) return;
-    const fetchCrossModuleData = async () => {
-      try {
-        // Fetch surveys summary
-        const surveyRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/survey-manage?action=list`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`, "x-session-token": sessionToken },
-          body: JSON.stringify({}),
-        });
-        let surveys: CrossModuleData["surveys"] = [];
-        if (surveyRes.ok) {
-          const sData = await surveyRes.json();
-          surveys = (sData.surveys || []).map((s: any) => ({
-            id: s.id, title: s.title, status: s.status, category: s.category || "custom",
-            responseCount: s.response_count || 0,
-          }));
-        }
-
-        // Fetch turnover summary
-        const turnoverRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/turnover-manage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-          body: JSON.stringify({ sessionToken, action: "list_entries", data: { year: new Date().getFullYear() } }),
-        });
-        let turnover: CrossModuleData["turnover"] = undefined;
-        if (turnoverRes.ok) {
-          const tData = await turnoverRes.json();
-          const entries = tData.entries || [];
-          const deptCounts: Record<string, number> = {};
-          let voluntary = 0;
-          for (const e of entries) {
-            if (e.included !== false) {
-              deptCounts[e.department || "Unknown"] = (deptCounts[e.department || "Unknown"] || 0) + 1;
-              if (e.termination_type === "Resignation") voluntary++;
-            }
-          }
-          const topDepts = Object.entries(deptCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([dept, count]) => ({ dept, count }));
-          turnover = { totalExits: entries.length, voluntaryExits: voluntary, topDepartments: topDepts, period: `${new Date().getFullYear()}` };
-        }
-
-        // Fetch latest performance snapshot
-        const perfRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-data`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-          body: JSON.stringify({
-            sessionToken, action: "select", table: "performance_snapshots",
-            params: { select: "snapshot_name, total_employees, high_performers, high_potential, red_flag_count, avg_manager_rating", order: { column: "created_at", ascending: false }, limit: 1, maybeSingle: true },
-          }),
-        });
-        let performance: CrossModuleData["performance"] = undefined;
-        if (perfRes.ok) {
-          const perfJson = await perfRes.json();
-          const perfData = perfJson.data;
-          if (perfData) {
-            performance = {
-              totalEmployees: perfData.total_employees,
-              highPerformers: perfData.high_performers,
-              highPotential: perfData.high_potential,
-              redFlags: perfData.red_flag_count,
-              avgRating: perfData.avg_manager_rating || 0,
-              snapshotName: perfData.snapshot_name,
-            };
-          }
-        }
-
-        // Fetch CV Library stats
-        const cvRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-data`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-          body: JSON.stringify({
-            sessionToken, action: "select", table: "cv_library_candidates",
-            params: { select: "skills, suggested_department" },
-          }),
-        });
-        let cvLibrary: CrossModuleData["cvLibrary"] = undefined;
-        if (cvRes.ok) {
-          const cvJson = await cvRes.json();
-          const cvData = cvJson.data;
-          if (cvData && cvData.length > 0) {
-            const skillCounts: Record<string, number> = {};
-            const deptCounts: Record<string, number> = {};
-            for (const c of cvData) {
-              if (c.skills) for (const s of (c.skills as string[])) skillCounts[s] = (skillCounts[s] || 0) + 1;
-              if (c.suggested_department) deptCounts[c.suggested_department] = (deptCounts[c.suggested_department] || 0) + 1;
-            }
-            cvLibrary = {
-              totalCVs: cvData.length,
-              topSkills: Object.entries(skillCounts).sort((a, b) => b[1] - a[1]).slice(0, 15).map(([skill, count]) => ({ skill, count })),
-              departments: Object.entries(deptCounts).sort((a, b) => b[1] - a[1]).map(([dept, count]) => ({ dept, count })),
-            };
-          }
-        }
-
-        setCrossModuleData({ surveys, turnover, performance, cvLibrary });
-      } catch {
-        // Silent — cross-module is optional
-      }
-    };
-    fetchCrossModuleData();
-  }, [sessionToken]);
+  const [deleteJobTarget, setDeleteJobTarget] = useState<Job | null>(null);
+  const [deletingJob, setDeletingJob] = useState(false);
 
   // Confirmation dialog state for drag-and-drop
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -201,25 +89,13 @@ const Dashboard = () => {
     sourceStatus: ApplicantStatus;
   }>({ open: false, applicantId: "", applicantName: "", targetStatus: "new", sourceStatus: "new" });
 
-  const [analyticsOpen, setAnalyticsOpen] = useState(activeTab === "analytics" || activeTab === "eos-calculator" || activeTab === "performance" || activeTab === "policies");
-
   const mainTabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: "jobs", label: "Jobs", icon: <Briefcase className="w-4 h-4" /> },
     { id: "applicants", label: "Applicants", icon: <Users className="w-4 h-4" /> },
     { id: "pipeline", label: "Pipeline", icon: <BarChart3 className="w-4 h-4" /> },
-    { id: "automation", label: "Automation", icon: <Zap className="w-4 h-4" /> },
     { id: "cv-library", label: "CV Library", icon: <Library className="w-4 h-4" /> },
-    { id: "surveys", label: "Surveys", icon: <ClipboardList className="w-4 h-4" /> },
-    { id: "headcount", label: "Headcount", icon: <UsersRound className="w-4 h-4" /> },
-    { id: "copilot", label: "Lumofy Copilot", icon: <Sparkles className="w-4 h-4" /> },
-  ];
-
-  const analyticsSubs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "analytics", label: "Turnover KPIs", icon: <TrendingUp className="w-3.5 h-3.5" /> },
-    { id: "eos-calculator", label: "End of Service", icon: <Calculator className="w-3.5 h-3.5" /> },
-    { id: "performance", label: "Performance Management", icon: <BarChart3 className="w-3.5 h-3.5" /> },
-    { id: "policies", label: "Policies", icon: <BookOpen className="w-3.5 h-3.5" /> },
+    { id: "eos-calculator", label: "End of Service", icon: <Calculator className="w-4 h-4" /> },
   ];
 
   const filteredApplicants = useMemo(() => {
@@ -266,13 +142,17 @@ const Dashboard = () => {
     setEditingJob(null);
   };
 
-  const handleDeleteJob = async (jobId: string) => {
-    if (!window.confirm("Are you sure you want to delete this job?")) return;
+  const handleConfirmDeleteJob = async () => {
+    if (!deleteJobTarget) return;
+    setDeletingJob(true);
     try {
-      await deleteJob(jobId);
+      await deleteJob(deleteJobTarget.id);
       toast.success("Job deleted");
+      setDeleteJobTarget(null);
     } catch {
       toast.error("Failed to delete job");
+    } finally {
+      setDeletingJob(false);
     }
   };
 
@@ -295,6 +175,14 @@ const Dashboard = () => {
     const sourceStatus = source.droppableId as ApplicantStatus;
     const applicant = applicants.find(a => a.id === draggableId);
     if (!applicant) return;
+
+    // Ignore illegal stage transitions (e.g. new → hired directly).
+    if (!ALLOWED_TRANSITIONS[sourceStatus]?.includes(targetStatus)) {
+      toast.error(
+        `Can't move from "${APPLICANT_STATUSES.find(s => s.value === sourceStatus)?.label ?? sourceStatus}" to "${APPLICANT_STATUSES.find(s => s.value === targetStatus)?.label ?? targetStatus}".`
+      );
+      return;
+    }
 
     if (targetStatus === "rejected" || targetStatus === "hired") {
       setConfirmDialog({
@@ -353,7 +241,7 @@ const Dashboard = () => {
       <CommandPalette isDashboard onNavigateDashboard={handleTabNavigate} />
 
       {/* Sidebar */}
-      <aside className="w-64 bg-card border-r border-border flex-shrink-0 hidden lg:flex flex-col dark:particles-bg" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+      <aside className="w-64 bg-card border-r border-border flex-shrink-0 hidden lg:flex flex-col dark:particles-bg">
         <div className="p-5 border-b border-border flex items-center justify-between relative z-10">
           <Link to="/" className="flex items-center gap-2.5">
             <img src={lumofyLogo} alt="Lumofy logo" className="w-8 h-8 object-contain rounded-md bg-white/90 p-0.5" />
@@ -379,7 +267,7 @@ const Dashboard = () => {
 
         <nav className="p-3 flex-1 space-y-0.5 relative z-10 overflow-y-auto">
           <LayoutGroup id="sidebar-nav">
-            {mainTabs.slice(0, 6).map((tab, i) => (
+            {mainTabs.map((tab, i) => (
               <motion.button
                 key={tab.id}
                 custom={i}
@@ -423,115 +311,6 @@ const Dashboard = () => {
               </motion.button>
             ))}
 
-            {/* Analytics dropdown */}
-            <div>
-              <motion.button
-                custom={6}
-                variants={sidebarItemVariants}
-                initial="initial"
-                animate="animate"
-                onClick={() => setAnalyticsOpen(!analyticsOpen)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] tracking-wide transition-colors duration-200 relative overflow-hidden ${
-                  (activeTab === "analytics" || activeTab === "eos-calculator" || activeTab === "performance" || activeTab === "policies")
-                    ? "text-primary font-semibold"
-                    : "text-muted-foreground hover:text-foreground font-medium"
-                }`}
-                whileHover={{ x: 2 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {(activeTab === "analytics" || activeTab === "eos-calculator" || activeTab === "performance" || activeTab === "policies") && (
-                  <motion.div
-                    layoutId="sidebar-active-bg"
-                    className="absolute inset-0 bg-primary/10 dark:bg-primary/15 rounded-lg dark:shadow-[0_0_15px_hsl(217_100%_62%/0.15)]"
-                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                  />
-                )}
-                <span className="flex items-center gap-3 relative z-10">
-                  <BarChart3 className="w-4 h-4" />
-                  <span className="tracking-wide">Analytics</span>
-                </span>
-                <motion.span
-                  className="relative z-10"
-                  animate={{ rotate: analyticsOpen ? 180 : 0 }}
-                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </motion.span>
-              </motion.button>
-              <AnimatePresence>
-                {analyticsOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-                    className="ml-4 mt-1 space-y-0.5 border-l border-border/50 pl-3 overflow-hidden"
-                  >
-                    {analyticsSubs.map((sub, i) => (
-                      <motion.button
-                        key={sub.id}
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.05, duration: 0.25 }}
-                        onClick={() => { setActiveTab(sub.id); setSelectedApplicant(null); }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs tracking-wide transition-all duration-200 relative overflow-hidden ${
-                          activeTab === sub.id ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-secondary font-medium"
-                        }`}
-                        whileHover={{ x: 2 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        {activeTab === sub.id && (
-                          <motion.div
-                            layoutId="sidebar-active-bg"
-                            className="absolute inset-0 bg-primary/10 dark:bg-primary/15 rounded-lg"
-                            transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                          />
-                        )}
-                        <span className="relative z-10 flex items-center gap-2.5">
-                          {sub.icon}
-                          {sub.label}
-                        </span>
-                      </motion.button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Remaining tabs */}
-            {mainTabs.slice(6).map((tab, i) => (
-              <motion.button
-                key={tab.id}
-                custom={7 + i}
-                variants={sidebarItemVariants}
-                initial="initial"
-                animate="animate"
-                onClick={() => { setActiveTab(tab.id); setSelectedApplicant(null); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] tracking-wide transition-colors duration-200 relative overflow-hidden group ${
-                  activeTab === tab.id
-                    ? "text-primary font-semibold"
-                    : "text-muted-foreground hover:text-foreground font-medium"
-                }`}
-                whileHover={{ x: 2 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {activeTab === tab.id && (
-                  <motion.div
-                    layoutId="sidebar-active-bg"
-                    className="absolute inset-0 bg-primary/10 dark:bg-primary/15 rounded-lg dark:shadow-[0_0_15px_hsl(217_100%_62%/0.15)]"
-                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                  />
-                )}
-                <motion.span
-                  className="relative z-10 flex items-center"
-                  animate={activeTab === tab.id ? { rotate: [0, -8, 8, 0] } : {}}
-                  transition={{ duration: 0.4, ease: "easeInOut" }}
-                >
-                  {tab.icon}
-                </motion.span>
-                <span className="relative z-10">{tab.label}</span>
-              </motion.button>
-            ))}
           </LayoutGroup>
         </nav>
         <div className="p-3 border-t border-border relative z-10">
@@ -545,27 +324,39 @@ const Dashboard = () => {
       {/* Mobile header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 glass border-b border-border">
         <div className="flex items-center justify-between px-4 h-14">
-          <span className="font-bold text-sm">Lumofy HR</span>
-          <div className="flex items-center gap-1">
-            <ThemeToggle />
-            {[...mainTabs.slice(0, 5), { id: "analytics" as Tab, label: "Analytics", icon: <TrendingUp className="w-4 h-4" /> }, { id: "eos-calculator" as Tab, label: "EOS", icon: <Calculator className="w-4 h-4" /> }, ...mainTabs.slice(5)].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => { setActiveTab(tab.id); setSelectedApplicant(null); }}
-                className={`px-3 py-1.5 rounded-md text-xs ${
-                  activeTab === tab.id ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <Link to="/" className="flex items-center gap-2">
+            <img src={lumofyLogo} alt="Lumofy logo" className="w-7 h-7 object-contain rounded-md bg-white/90 p-0.5" />
+            <span className="font-bold text-sm">Lumofy HR</span>
+          </Link>
+          <ThemeToggle />
         </div>
+        {/* Horizontally scrollable tab strip — keeps all tabs reachable with
+            ≥44px tap targets instead of cramming them into the header row. */}
+        <nav
+          aria-label="Dashboard sections"
+          className="flex items-center gap-1.5 px-3 pb-2 overflow-x-auto scrollbar-none"
+        >
+          {mainTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => { setActiveTab(tab.id); setSelectedApplicant(null); }}
+              aria-current={activeTab === tab.id ? "page" : undefined}
+              className={`flex items-center gap-1.5 shrink-0 min-h-[44px] px-3.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors ${
+                activeTab === tab.id
+                  ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                  : "bg-secondary/60 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span className="flex items-center" aria-hidden="true">{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
+        </nav>
       </div>
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
-        <div className="p-6 lg:p-8 pt-20 lg:pt-8">
+        <div className="p-6 lg:p-8 pt-28 lg:pt-8">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab + (selectedApplicant ? '-profile' : '')}
@@ -605,8 +396,8 @@ const Dashboard = () => {
 
               {/* Job stat chips */}
               <div className="flex flex-wrap gap-2 mb-5">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-medium text-emerald-400">
-                  <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" /></span>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[hsl(var(--intel-success)/0.1)] border border-[hsl(var(--intel-success)/0.2)] text-xs font-medium text-[hsl(var(--intel-success))]">
+                  <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--intel-success))] opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-[hsl(var(--intel-success))]" /></span>
                   {jobs.filter(j => j.status === "open").length} open
                 </div>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border text-xs font-medium text-muted-foreground">
@@ -635,7 +426,7 @@ const Dashboard = () => {
                       <div className="flex items-start gap-4 flex-1 min-w-0">
                         {/* Left accent */}
                         <div className={`w-1 self-stretch rounded-full flex-shrink-0 ${
-                          job.status === "open" ? "bg-emerald-500" : "bg-muted"
+                          job.status === "open" ? "bg-[hsl(var(--intel-success))]" : "bg-muted"
                         }`} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1.5">
@@ -643,7 +434,7 @@ const Dashboard = () => {
                             <Badge
                               variant="secondary"
                               className={`text-[10px] border-0 flex-shrink-0 ${
-                                job.status === "open" ? "bg-emerald-500/15 text-emerald-400" : "bg-muted text-muted-foreground"
+                                job.status === "open" ? "bg-[hsl(var(--intel-success)/0.15)] text-[hsl(var(--intel-success))]" : "bg-muted text-muted-foreground"
                               }`}
                             >
                               {job.status === "open" ? "Open" : "Closed"}
@@ -669,19 +460,19 @@ const Dashboard = () => {
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs" onClick={() => { setSelectedJobId(job.id); setActiveTab("applicants"); }}>
-                          <Users className="w-3.5 h-3.5 mr-1" />View
+                          <Users className="w-3.5 h-3.5 mr-1" aria-hidden="true" />View
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => { setEditingJob(job); setJobFormOpen(true); }}>
-                          <Pencil className="w-3.5 h-3.5" />
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => { setEditingJob(job); setJobFormOpen(true); }} aria-label={`Edit ${job.title}`}>
+                          <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => handleDuplicateJob(job)}>
-                          <Copy className="w-3.5 h-3.5" />
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => handleDuplicateJob(job)} aria-label={`Duplicate ${job.title}`}>
+                          <Copy className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => handleDeleteJob(job.id)}>
-                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => setDeleteJobTarget(job)} aria-label={`Delete ${job.title}`}>
+                          <Trash2 className="w-3.5 h-3.5 text-destructive" aria-hidden="true" />
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={async () => { await updateJob({ ...job, status: job.status === "open" ? "closed" : "open" }); toast.success("Status updated"); }}>
-                          {job.status === "open" ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={async () => { await updateJob({ ...job, status: job.status === "open" ? "closed" : "open" }); toast.success("Status updated"); }} aria-label={job.status === "open" ? `Close ${job.title}` : `Reopen ${job.title}`}>
+                          {job.status === "open" ? <EyeOff className="w-3.5 h-3.5" aria-hidden="true" /> : <Eye className="w-3.5 h-3.5" aria-hidden="true" />}
                         </Button>
                       </div>
                     </motion.div>
@@ -710,7 +501,6 @@ const Dashboard = () => {
               onSelectApplicant={setSelectedApplicant}
               onStatusUpdate={handleStatusUpdate}
               onDeleteApplicant={deleteApplicant}
-              onOpenCopilot={openCopilot}
               getJobTitle={getJobTitle}
               avgRating={avgRating}
             />
@@ -729,7 +519,6 @@ const Dashboard = () => {
                 updateApplicantAI(applicantId, analysis);
               }}
               onApplicantChange={setSelectedApplicant}
-              onOpenCopilot={openCopilot}
               onDelete={async (id) => {
                 await deleteApplicant(id);
                 setSelectedApplicant(null);
@@ -765,34 +554,6 @@ const Dashboard = () => {
                 <PipelineHealthScorecard applicants={filteredApplicants} />
               </div>
 
-              {/* Sub-tabs */}
-              <div className="flex gap-1 p-1.5 rounded-2xl bg-muted/40 border border-border/40 backdrop-blur-sm overflow-x-auto scrollbar-none mb-5">
-                {([
-                  { id: "board" as const, label: "Kanban Board" },
-                  { id: "routing" as const, label: "AI Routing" },
-                  { id: "alerts" as const, label: "Alerts" },
-                  { id: "analytics" as const, label: "Analytics" },
-                  { id: "gates" as const, label: "Stage Gates" },
-                  { id: "snapshots" as const, label: "Snapshots" },
-                  { id: "templates" as const, label: "Templates" },
-                ] as const).map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setPipelineSubTab(tab.id)}
-                    className={`px-4 py-2 rounded-xl text-xs font-medium transition-all duration-300 whitespace-nowrap ${
-                      pipelineSubTab === tab.id
-                        ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* ═══ KANBAN BOARD ═══ */}
-              {pipelineSubTab === "board" && (
-                <>
                   {/* Stage summary chips */}
                   <div className="flex flex-wrap gap-2 mb-5">
                     {APPLICANT_STATUSES.map((status) => {
@@ -853,14 +614,6 @@ const Dashboard = () => {
                                             avgRating={avgRating(applicant)}
                                             isDragging={snapshot.isDragging}
                                             onClick={() => { setSelectedApplicant(applicant); setActiveTab("applicants"); }}
-                                            onOpenCopilot={() => {
-                                              const jobTitle = getJobTitle(applicant.jobId);
-                                              openCopilot({
-                                                candidateId: applicant.id,
-                                                jobId: applicant.jobId,
-                                                autoPrompt: `Summarize ${applicant.fullName}'s fit for ${jobTitle} and explain their AI score.`,
-                                              });
-                                            }}
                                           />
                                         </div>
                                       )}
@@ -885,58 +638,12 @@ const Dashboard = () => {
                   <div className="mt-5">
                     <StageCapacityLimits applicants={filteredApplicants} capacities={stageCapacities} onCapacitiesChange={setStageCapacities} />
                   </div>
-                </>
-              )}
-
-              {/* ═══ AI ROUTING ═══ */}
-              {pipelineSubTab === "routing" && (
-                <div className="space-y-5">
-                  <SmartAutoRouting applicants={filteredApplicants} onStatusUpdate={updateApplicantStatus} />
-                  <PredictiveForecast applicants={filteredApplicants} />
-                </div>
-              )}
-
-              {/* ═══ ALERTS ═══ */}
-              {pipelineSubTab === "alerts" && (
-                <StaleCandidateAlerts applicants={filteredApplicants} getJobTitle={getJobTitle} />
-              )}
-
-              {/* ═══ ANALYTICS ═══ */}
-              {pipelineSubTab === "analytics" && (
-                <div className="space-y-5">
-                  <StageConversionHeatmap applicants={filteredApplicants} />
-                  <PipelineVelocityTrends applicants={filteredApplicants} />
-                  <BottleneckDetector applicants={filteredApplicants} />
-                </div>
-              )}
-
-              {/* ═══ STAGE GATES ═══ */}
-              {pipelineSubTab === "gates" && (
-                <StageGates applicants={filteredApplicants} gates={stageGates} onGatesChange={setStageGates} />
-              )}
-
-              {/* ═══ SNAPSHOTS ═══ */}
-              {pipelineSubTab === "snapshots" && (
-                <PipelineSnapshots applicants={filteredApplicants} />
-              )}
-
-              {/* ═══ TEMPLATES ═══ */}
-              {pipelineSubTab === "templates" && (
-                <RuleTemplates onCreateRule={(template) => {
-                  toast.success(`Template "${template.name}" — switch to Automation tab to manage rules`);
-                }} />
-              )}
             </div>
           )}
 
           {/* CV LIBRARY TAB */}
           {activeTab === "cv-library" && sessionToken && (
-            <CVLibrary sessionToken={sessionToken} jobs={jobs.map(j => ({ id: j.id, title: j.title, department: j.department, status: j.status, requirements: j.requirements as string[] }))} onOpenCopilot={(ctx) => openCopilot({ candidateData: ctx.candidateData, autoPrompt: ctx.autoPrompt })} onSessionExpired={handleSessionExpired} />
-          )}
-
-          {/* ANALYTICS TAB */}
-          {activeTab === "analytics" && sessionToken && (
-            <TurnoverAnalytics sessionToken={sessionToken} />
+            <CVLibrary sessionToken={sessionToken} jobs={jobs.map(j => ({ id: j.id, title: j.title, department: j.department, status: j.status, requirements: j.requirements as string[] }))} onSessionExpired={handleSessionExpired} />
           )}
 
           {/* EOS CALCULATOR TAB */}
@@ -944,50 +651,6 @@ const Dashboard = () => {
             <SettlementCalculator />
           )}
 
-          {/* PERFORMANCE MANAGEMENT TAB */}
-          {activeTab === "performance" && (
-            <PerformanceManagement sessionToken={sessionToken!} />
-          )}
-
-          {activeTab === "surveys" && sessionToken && (
-            <SurveysDashboardTab sessionToken={sessionToken} />
-          )}
-
-          {activeTab === "policies" && (
-            <PoliciesTab onAskCopilot={(prompt) => {
-              setCopilotContext({ autoPrompt: prompt });
-              setActiveTab("copilot");
-            }} />
-          )}
-
-          {/* HEADCOUNT TAB */}
-          {activeTab === "headcount" && sessionToken && (
-            <HeadcountPage sessionToken={sessionToken} />
-          )}
-
-          {/* PIPELINE AUTOMATION TAB */}
-          {activeTab === "automation" && sessionToken && (
-            <PipelineAutomation sessionToken={sessionToken} jobs={jobs} />
-          )}
-
-          {activeTab === "copilot" && sessionToken && (
-            <CopilotWidget
-              jobs={jobs}
-              applicants={applicants}
-              sessionToken={sessionToken}
-              initialContext={copilotContext}
-              onClearContext={() => setCopilotContext(null)}
-              onNavigateToCandidate={(applicant) => {
-                setSelectedApplicant(applicant);
-                setActiveTab("applicants");
-              }}
-              crossModuleData={crossModuleData}
-              embedded
-              onUpdateStatus={updateApplicantStatus}
-              onAddNote={addApplicantNote}
-              onRefreshData={refreshData}
-            />
-          )}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -1019,6 +682,44 @@ const Dashboard = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmMove}>Confirm</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Job Confirmation */}
+      <AlertDialog open={!!deleteJobTarget} onOpenChange={(open) => !open && !deletingJob && setDeleteJobTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this job?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {(() => {
+                const count = deleteJobTarget ? getApplicantCount(deleteJobTarget.id) : 0;
+                return (
+                  <>
+                    You're about to permanently delete <strong>{deleteJobTarget?.title}</strong>.
+                    {count > 0 ? (
+                      <>
+                        {" "}This will also delete its{" "}
+                        <strong>{count} applicant{count !== 1 ? "s" : ""}</strong> and their CVs.
+                      </>
+                    ) : (
+                      " This job has no applicants."
+                    )}
+                    {" "}This action cannot be undone.
+                  </>
+                );
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingJob}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deletingJob}
+              onClick={(e) => { e.preventDefault(); handleConfirmDeleteJob(); }}
+            >
+              {deletingJob ? "Deleting..." : "Delete Job"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

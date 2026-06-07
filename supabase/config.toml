@@ -30,12 +30,6 @@ verify_jwt = false
 [functions.ai-job-assist]
 verify_jwt = false
 
-[functions.copilot-chat]
-verify_jwt = false
-
-[functions.copilot-sessions]
-verify_jwt = false
-
 [functions.cv-library-upload]
 verify_jwt = false
 
@@ -57,35 +51,8 @@ verify_jwt = false
 [functions.delete-applicant]
 verify_jwt = false
 
-[functions.turnover-manage]
-verify_jwt = false
-
-[functions.analyze-performance]
-verify_jwt = false
-
-[functions.survey-manage]
-verify_jwt = false
-
-[functions.survey-ai-insights]
-verify_jwt = false
-
-[functions.survey-ai-generate]
-verify_jwt = false
-
-[functions.survey-ai-improve]
-verify_jwt = false
-
-[functions.copilot-report]
-verify_jwt = false
-
-[functions.pipeline-automation]
-verify_jwt = false
-
-[functions.survey-response-analyze]
-verify_jwt = false
-
-[functions.survey-intelligence]
-verify_jwt = false
-
 [functions.admin-data]
+verify_jwt = false
+
+[functions.submit-application]
 verify_jwt = false

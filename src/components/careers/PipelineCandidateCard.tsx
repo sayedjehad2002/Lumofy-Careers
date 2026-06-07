@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { Brain, Star, GripVertical, AlertTriangle, Clock, Sparkles, MapPin } from "lucide-react";
+import { Brain, Star, GripVertical, AlertTriangle, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Applicant } from "@/types/careers";
 import { STAGE_SLA_DAYS } from "@/types/careers";
+import { tierSoft, TONE_TEXT } from "./statusColors";
 
 interface PipelineCandidateCardProps {
   applicant: Applicant;
@@ -10,7 +11,6 @@ interface PipelineCandidateCardProps {
   avgRating: string | null;
   isDragging?: boolean;
   onClick?: () => void;
-  onOpenCopilot?: () => void;
 }
 
 function getInitials(name: string) {
@@ -31,15 +31,8 @@ function getRankingTier(score: number): string {
   return "Weak";
 }
 
-const TIER_COLORS: Record<string, string> = {
-  Top: "bg-emerald-500/15 text-emerald-400",
-  Strong: "bg-primary/15 text-primary",
-  Moderate: "bg-yellow-500/15 text-yellow-400",
-  Weak: "bg-destructive/10 text-destructive",
-};
-
 export default function PipelineCandidateCard({
-  applicant, jobTitle, avgRating, isDragging, onClick, onOpenCopilot,
+  applicant, jobTitle, avgRating, isDragging, onClick,
 }: PipelineCandidateCardProps) {
   const initials = useMemo(() => getInitials(applicant.fullName), [applicant.fullName]);
   const daysInStage = useMemo(() => getDaysInStage(applicant.stageEnteredAt), [applicant.stageEnteredAt]);
@@ -57,23 +50,30 @@ export default function PipelineCandidateCard({
           ? "border-destructive/40 hover:border-destructive/60"
           : "border-border hover:border-primary/30 hover:shadow-md"
       }`}
-      onClick={onClick}
     >
       {/* Subtle top gradient for scored candidates */}
       {score != null && score >= 80 && (
         <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary/60 via-primary to-primary/60" />
       )}
 
-      {/* Header: Grip + Avatar + Name + Score */}
+      {/* Header: Grip + Avatar + Name + Score.
+          The name is a real <button> so the profile is keyboard-operable
+          (Enter/Space) independently of the drag handle, which lives on the
+          parent wrapper in Dashboard.tsx. */}
       <div className="flex items-start gap-2">
-        <GripVertical className="w-3.5 h-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 mt-1 flex-shrink-0 transition-colors" />
+        <GripVertical className="w-3.5 h-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 mt-1 flex-shrink-0 transition-colors" aria-hidden="true" />
         <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold flex-shrink-0">
           {initials}
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate leading-tight">{applicant.fullName}</p>
+        <button
+          type="button"
+          onClick={onClick}
+          className="flex-1 min-w-0 text-left rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-card"
+          aria-label={`Open profile for ${applicant.fullName}`}
+        >
+          <p className="text-sm font-semibold truncate leading-tight group-hover:text-primary transition-colors">{applicant.fullName}</p>
           <p className="text-[11px] text-muted-foreground truncate mt-0.5">{jobTitle}</p>
-        </div>
+        </button>
       </div>
 
       {/* Score + Tier row */}
@@ -81,11 +81,11 @@ export default function PipelineCandidateCard({
         {score != null ? (
           <>
             <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10">
-              <Brain className="w-3 h-3 text-primary" />
+              <Brain className="w-3 h-3 text-primary" aria-hidden="true" />
               <span className="text-[10px] font-bold text-primary">{score}</span>
             </div>
             {tier && (
-              <Badge variant="secondary" className={`text-[9px] px-1.5 py-0 h-[16px] border-0 ${TIER_COLORS[tier]}`}>
+              <Badge variant="secondary" className={`text-[9px] px-1.5 py-0 h-[16px] border-0 ${tierSoft(tier)}`}>
                 {tier}
               </Badge>
             )}
@@ -100,32 +100,21 @@ export default function PipelineCandidateCard({
       {/* Bottom meta row */}
       <div className="flex items-center gap-2 mt-2 ml-[42px]">
         <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-          <Clock className="w-2.5 h-2.5" />
+          <Clock className="w-2.5 h-2.5" aria-hidden="true" />
           {daysInStage}d
         </span>
         {isOverdue && (
           <span className="flex items-center gap-0.5 text-[10px] text-destructive font-semibold">
-            <AlertTriangle className="w-2.5 h-2.5" />
+            <AlertTriangle className="w-2.5 h-2.5" aria-hidden="true" />
             SLA
           </span>
         )}
         {avgRating && (
-          <span className="flex items-center gap-0.5 text-[10px] text-yellow-400">
-            <Star className="w-2.5 h-2.5 fill-yellow-400" />
+          <span className={`flex items-center gap-0.5 text-[10px] ${TONE_TEXT.warning}`}>
+            <Star className="w-2.5 h-2.5 fill-current" aria-hidden="true" />
             {avgRating}
           </span>
         )}
-        <div className="ml-auto flex items-center gap-1">
-          {onOpenCopilot && (
-            <button
-              className="flex items-center gap-0.5 text-[10px] text-primary hover:text-primary/80 transition-colors opacity-0 group-hover:opacity-100"
-              onClick={(e) => { e.stopPropagation(); onOpenCopilot(); }}
-              title="AI Reasoning"
-            >
-              <Sparkles className="w-3 h-3" />
-            </button>
-          )}
-        </div>
       </div>
     </div>
   );

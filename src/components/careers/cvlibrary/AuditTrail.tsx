@@ -3,6 +3,7 @@ import { History, Upload, Download, Pencil, Eye, Brain, Trash2, Filter } from "l
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TONE_SOFT, CHART_SOFT } from "@/components/careers/statusColors";
 
 export interface AuditEntry {
   id: string;
@@ -18,15 +19,15 @@ interface Props {
 }
 
 const ACTION_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-  upload: { icon: <Upload className="w-3 h-3" />, color: "bg-emerald-500/20 text-emerald-400", label: "Uploaded" },
-  download: { icon: <Download className="w-3 h-3" />, color: "bg-blue-500/20 text-blue-400", label: "Downloaded" },
-  edit: { icon: <Pencil className="w-3 h-3" />, color: "bg-yellow-500/20 text-yellow-400", label: "Edited" },
-  view: { icon: <Eye className="w-3 h-3" />, color: "bg-secondary text-foreground", label: "Viewed" },
-  ai_parse: { icon: <Brain className="w-3 h-3" />, color: "bg-purple-500/20 text-purple-400", label: "AI Parsed" },
-  ai_analyze: { icon: <Brain className="w-3 h-3" />, color: "bg-primary/20 text-primary", label: "AI Analyzed" },
-  delete: { icon: <Trash2 className="w-3 h-3" />, color: "bg-red-500/20 text-red-400", label: "Deleted" },
-  status_change: { icon: <Filter className="w-3 h-3" />, color: "bg-cyan-500/20 text-cyan-400", label: "Status Changed" },
-  tag_change: { icon: <Filter className="w-3 h-3" />, color: "bg-pink-500/20 text-pink-400", label: "Tags Updated" },
+  upload: { icon: <Upload className="w-3 h-3" aria-hidden="true" />, color: TONE_SOFT.success, label: "Uploaded" },
+  download: { icon: <Download className="w-3 h-3" aria-hidden="true" />, color: CHART_SOFT[0], label: "Downloaded" },
+  edit: { icon: <Pencil className="w-3 h-3" aria-hidden="true" />, color: TONE_SOFT.warning, label: "Edited" },
+  view: { icon: <Eye className="w-3 h-3" aria-hidden="true" />, color: "bg-secondary text-foreground", label: "Viewed" },
+  ai_parse: { icon: <Brain className="w-3 h-3" aria-hidden="true" />, color: TONE_SOFT.ai, label: "AI Parsed" },
+  ai_analyze: { icon: <Brain className="w-3 h-3" aria-hidden="true" />, color: "bg-primary/20 text-primary", label: "AI Analyzed" },
+  delete: { icon: <Trash2 className="w-3 h-3" aria-hidden="true" />, color: TONE_SOFT.danger, label: "Deleted" },
+  status_change: { icon: <Filter className="w-3 h-3" aria-hidden="true" />, color: CHART_SOFT[1], label: "Status Changed" },
+  tag_change: { icon: <Filter className="w-3 h-3" aria-hidden="true" />, color: CHART_SOFT[3], label: "Tags Updated" },
 };
 
 export default function AuditTrail({ entries }: Props) {

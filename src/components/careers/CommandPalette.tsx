@@ -13,7 +13,7 @@ import {
   Briefcase, Home, Users, Info, Gift, LayoutDashboard,
   Search, ArrowRight, Sparkles, Moon, Sun,
 } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/ThemeProvider";
 
 interface CommandPaletteProps {
   onNavigateDashboard?: (tab: string) => void;
@@ -23,7 +23,7 @@ interface CommandPaletteProps {
 const CommandPalette = ({ onNavigateDashboard, isDashboard }: CommandPaletteProps) => {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const { setTheme, theme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -55,9 +55,7 @@ const CommandPalette = ({ onNavigateDashboard, isDashboard }: CommandPaletteProp
     { label: "Applicants", tab: "applicants" },
     { label: "Pipeline", tab: "pipeline" },
     { label: "CV Library", tab: "cv-library" },
-    { label: "Turnover KPIs", tab: "analytics" },
     { label: "EOS Calculator", tab: "eos-calculator" },
-    { label: "Lumofy Copilot", tab: "copilot" },
   ];
 
   return (
@@ -73,9 +71,9 @@ const CommandPalette = ({ onNavigateDashboard, isDashboard }: CommandPaletteProp
               onSelect={() => runAction(() => navigate(p.path))}
               className="gap-3"
             >
-              <p.icon className="w-4 h-4 text-muted-foreground" />
+              <p.icon className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
               {p.label}
-              <ArrowRight className="w-3 h-3 ml-auto text-muted-foreground" />
+              <ArrowRight className="w-3 h-3 ml-auto text-muted-foreground" aria-hidden="true" />
             </CommandItem>
           ))}
         </CommandGroup>
@@ -90,7 +88,7 @@ const CommandPalette = ({ onNavigateDashboard, isDashboard }: CommandPaletteProp
                   onSelect={() => runAction(() => onNavigateDashboard(t.tab))}
                   className="gap-3"
                 >
-                  <LayoutDashboard className="w-4 h-4 text-muted-foreground" />
+                  <LayoutDashboard className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
                   {t.label}
                 </CommandItem>
               ))}
@@ -101,13 +99,13 @@ const CommandPalette = ({ onNavigateDashboard, isDashboard }: CommandPaletteProp
         <CommandSeparator />
         <CommandGroup heading="Actions">
           <CommandItem
-            onSelect={() => runAction(() => setTheme(theme === "dark" ? "light" : "dark"))}
+            onSelect={() => runAction(() => toggleTheme())}
             className="gap-3"
           >
             {theme === "dark" ? (
-              <Sun className="w-4 h-4 text-muted-foreground" />
+              <Sun className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
             ) : (
-              <Moon className="w-4 h-4 text-muted-foreground" />
+              <Moon className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
             )}
             Toggle {theme === "dark" ? "Light" : "Dark"} Mode
           </CommandItem>

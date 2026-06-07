@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,13 @@ const DEFAULT_CAPACITIES: Record<string, number> = {
 const StageCapacityLimits = ({ applicants, capacities, onCapacitiesChange }: StageCapacityLimitsProps) => {
   const [editing, setEditing] = useState(false);
   const [local, setLocal] = useState(capacities);
+
+  // Keep the edit buffer in sync with the source-of-truth `capacities` prop.
+  // Without this the buffer captured only the initial value and went stale when
+  // the parent updated capacities (e.g. after a save or external change).
+  useEffect(() => {
+    setLocal(capacities);
+  }, [capacities]);
 
   const stageCounts = useMemo(() => {
     const map: Record<string, number> = {};
@@ -52,13 +59,13 @@ const StageCapacityLimits = ({ applicants, capacities, onCapacitiesChange }: Sta
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-sm flex items-center gap-2">
-              <Settings2 className="w-4 h-4 text-primary" />
+              <Settings2 className="w-4 h-4 text-primary" aria-hidden="true" />
               Stage Capacity Limits
             </CardTitle>
             <CardDescription className="text-xs">Set maximum candidates per stage</CardDescription>
           </div>
           <Button size="sm" variant={editing ? "default" : "outline"} className="text-xs h-8 rounded-xl"
-            onClick={() => editing ? handleSave() : setEditing(true)}>
+            onClick={() => { if (editing) { handleSave(); } else { setLocal(capacities); setEditing(true); } }}>
             {editing ? "Save" : "Configure"}
           </Button>
         </div>
@@ -74,7 +81,7 @@ const StageCapacityLimits = ({ applicants, capacities, onCapacitiesChange }: Sta
                 animate={{ opacity: 1, x: 0 }}
                 className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20"
               >
-                <AlertTriangle className="w-3.5 h-3.5 text-destructive" />
+                <AlertTriangle className="w-3.5 h-3.5 text-destructive" aria-hidden="true" />
                 <span className="text-xs text-destructive font-medium">
                   {o.label}: {o.count}/{o.max} — over capacity by {o.count - o.max}
                 </span>
@@ -97,7 +104,7 @@ const StageCapacityLimits = ({ applicants, capacities, onCapacitiesChange }: Sta
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1">
-                    <Users className="w-3 h-3 text-muted-foreground" />
+                    <Users className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
                     <span className={`text-sm font-bold ${isOver ? "text-destructive" : ""}`}>{count}</span>
                   </div>
                   {editing ? (

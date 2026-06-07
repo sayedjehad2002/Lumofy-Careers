@@ -119,9 +119,13 @@ export async function validateFileWithMagicBytes(
     }
 
     return { ...basicResult, detectedType };
-  } catch {
-    // If magic byte check fails, still allow if basic validation passed
-    return basicResult;
+  } catch (e) {
+    // SECURITY: fail CLOSED. If we cannot read the file bytes to verify the magic
+    // signature, we must NOT trust the extension/MIME alone — an unreadable or
+    // truncated upload could be a disguised payload. Reject rather than fall back
+    // to the (passed) basic validation.
+    console.error("validateFileWithMagicBytes: read error, failing closed:", e);
+    return { valid: false, error: "Could not verify file contents. Please re-upload the file." };
   }
 }
 

@@ -128,8 +128,9 @@ Deno.serve(async (req) => {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    // ERROR HYGIENE (fix #9): log detail, return a generic message.
     console.error("cv-library-manage error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Internal error" }), {
+    return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

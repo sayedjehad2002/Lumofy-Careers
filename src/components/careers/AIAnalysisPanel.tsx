@@ -13,6 +13,8 @@ import { motion } from "framer-motion";
 import type { Applicant, Job, AIAnalysis } from "@/types/careers";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { TONE_SOFT, TONE_TEXT, TONE_BG, TONE_BORDER } from "./statusColors";
+// TONE_TEXT.ai resolves to the chart-3 (violet) token.
 
 interface AIAnalysisPanelProps {
   applicant: Applicant;
@@ -23,10 +25,10 @@ interface AIAnalysisPanelProps {
 }
 
 const TIER_STYLES: Record<string, string> = {
-  "Top Match": "bg-emerald-500/15 text-emerald-400 shadow-[0_0_8px_hsl(152_69%_40%/0.2)]",
+  "Top Match": `${TONE_SOFT.success} shadow-[0_0_8px_hsl(var(--intel-success)/0.2)]`,
   "Strong Match": "bg-primary/15 text-primary",
   "Moderate Match": "bg-muted text-muted-foreground",
-  "Weak Match": "bg-red-500/10 text-red-400",
+  "Weak Match": "bg-destructive/10 text-destructive",
 };
 
 const SCORE_DIMENSIONS = [
@@ -93,35 +95,35 @@ const AIAnalysisPanel = ({ applicant, job, sessionToken, onAnalysisComplete, onE
   const a = applicant.aiAnalysis;
 
   const fitColor = a?.fitLevel === "Strong Fit"
-    ? "text-emerald-400"
+    ? TONE_TEXT.success
     : a?.fitLevel === "Moderate Fit"
-    ? "text-yellow-400"
-    : "text-red-400";
+    ? TONE_TEXT.warning
+    : TONE_TEXT.danger;
 
   const fitBg = a?.fitLevel === "Strong Fit"
-    ? "bg-emerald-500/15"
+    ? "bg-[hsl(var(--intel-success)/0.15)]"
     : a?.fitLevel === "Moderate Fit"
-    ? "bg-yellow-500/15"
-    : "bg-red-500/15";
+    ? "bg-[hsl(var(--intel-warning)/0.15)]"
+    : "bg-destructive/15";
 
   const recColor: Record<string, string> = {
-    "Fast-Track to Interview": "bg-emerald-500/15 text-emerald-400",
-    "Proceed to Next Stage": "bg-blue-500/15 text-blue-400",
-    "Hold for Review": "bg-yellow-500/15 text-yellow-400",
-    "Not Recommended": "bg-red-500/15 text-red-400",
+    "Fast-Track to Interview": TONE_SOFT.success,
+    "Proceed to Next Stage": "bg-[hsl(var(--chart-1)/0.15)] text-[hsl(var(--chart-1))]",
+    "Hold for Review": TONE_SOFT.warning,
+    "Not Recommended": "bg-destructive/15 text-destructive",
   };
 
   const evidenceIcon = (ev: string) => {
-    if (ev === "Yes") return <CheckCircle className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />;
-    if (ev === "Partial") return <MinusCircle className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" />;
-    return <XCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />;
+    if (ev === "Yes") return <CheckCircle className={`w-3.5 h-3.5 flex-shrink-0 ${TONE_TEXT.success}`} aria-hidden="true" />;
+    if (ev === "Partial") return <MinusCircle className={`w-3.5 h-3.5 flex-shrink-0 ${TONE_TEXT.warning}`} aria-hidden="true" />;
+    return <XCircle className="w-3.5 h-3.5 text-destructive flex-shrink-0" aria-hidden="true" />;
   };
 
   const getProgressColor = (val: number) => {
-    if (val >= 80) return "bg-emerald-500";
+    if (val >= 80) return TONE_BG.success;
     if (val >= 60) return "bg-primary";
-    if (val >= 40) return "bg-yellow-500";
-    return "bg-red-500";
+    if (val >= 40) return TONE_BG.warning;
+    return "bg-destructive";
   };
 
   return (
@@ -178,9 +180,9 @@ const AIAnalysisPanel = ({ applicant, job, sessionToken, onAnalysisComplete, onE
             <>
               {/* CV Parsing Status */}
               {a.cvParsingStatus && a.cvParsingStatus !== "success" && (
-                <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-                  <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-                  <p className="text-sm text-yellow-400">
+                <div className="flex items-center gap-2 bg-[hsl(var(--intel-warning)/0.1)] border border-[hsl(var(--intel-warning)/0.2)] rounded-lg p-3">
+                  <AlertTriangle className={`w-4 h-4 flex-shrink-0 ${TONE_TEXT.warning}`} aria-hidden="true" />
+                  <p className={`text-sm ${TONE_TEXT.warning}`}>
                     {a.cvParsingStatus === "failed"
                       ? "CV could not be fully parsed. Manual HR review required."
                       : "CV was partially parsed. Some data may be incomplete."}
@@ -253,17 +255,17 @@ const AIAnalysisPanel = ({ applicant, job, sessionToken, onAnalysisComplete, onE
               {((a.redFlags && a.redFlags.length > 0) || (a.riskIndicators && a.riskIndicators.length > 0)) && (
                 <div>
                   <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-                    <ShieldAlert className="w-4 h-4 text-red-400" />
+                    <ShieldAlert className="w-4 h-4 text-destructive" aria-hidden="true" />
                     Risk Indicators
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {(a.redFlags || []).map((flag, i) => (
-                      <Badge key={`rf-${i}`} variant="secondary" className="text-xs bg-red-500/10 text-red-400 border border-red-500/20">
+                      <Badge key={`rf-${i}`} variant="secondary" className="text-xs bg-destructive/10 text-destructive border border-destructive/20">
                         {flag}
                       </Badge>
                     ))}
                     {(a.riskIndicators || []).filter(r => !(a.redFlags || []).includes(r)).map((r, i) => (
-                      <Badge key={`ri-${i}`} variant="secondary" className="text-xs bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                      <Badge key={`ri-${i}`} variant="secondary" className={`text-xs ${TONE_SOFT.warning} border ${TONE_BORDER.warning}`}>
                         {r}
                       </Badge>
                     ))}
@@ -280,10 +282,10 @@ const AIAnalysisPanel = ({ applicant, job, sessionToken, onAnalysisComplete, onE
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
-                      { label: "Interview Success", value: a.interviewSuccessProbability, color: "text-emerald-400" },
+                      { label: "Interview Success", value: a.interviewSuccessProbability, color: TONE_TEXT.success },
                       { label: "Offer Acceptance", value: a.offerAcceptanceProbability, color: "text-primary" },
-                      { label: "Early Turnover Risk", value: a.earlyTurnoverRisk, color: "text-red-400", invert: true },
-                      { label: "Growth Potential", value: a.growthPotentialScore, color: "text-purple-400" },
+                      { label: "Early Turnover Risk", value: a.earlyTurnoverRisk, color: TONE_TEXT.danger, invert: true },
+                      { label: "Growth Potential", value: a.growthPotentialScore, color: TONE_TEXT.ai },
                     ].filter(m => m.value != null).map((m, i) => (
                       <div key={i} className="rounded-lg bg-secondary/30 p-3 text-center">
                         <p className="text-[10px] text-muted-foreground mb-1">{m.label}</p>
@@ -337,11 +339,11 @@ const AIAnalysisPanel = ({ applicant, job, sessionToken, onAnalysisComplete, onE
                   {a.detectedSkills && a.detectedSkills.length > 0 && (
                     <div>
                       <h3 className="text-sm font-medium mb-2 flex items-center gap-1.5">
-                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Detected Skills
+                        <CheckCircle className={`w-3.5 h-3.5 ${TONE_TEXT.success}`} aria-hidden="true" /> Detected Skills
                       </h3>
                       <div className="flex flex-wrap gap-1.5">
                         {a.detectedSkills.map((s, i) => (
-                          <Badge key={i} variant="secondary" className="text-xs bg-emerald-500/10 text-emerald-400 border-0">{s}</Badge>
+                          <Badge key={i} variant="secondary" className={`text-xs border-0 ${TONE_SOFT.success}`}>{s}</Badge>
                         ))}
                       </div>
                     </div>
@@ -349,11 +351,11 @@ const AIAnalysisPanel = ({ applicant, job, sessionToken, onAnalysisComplete, onE
                   {a.missingSkills && a.missingSkills.length > 0 && (
                     <div>
                       <h3 className="text-sm font-medium mb-2 flex items-center gap-1.5">
-                        <XCircle className="w-3.5 h-3.5 text-red-400" /> Missing Skills
+                        <XCircle className="w-3.5 h-3.5 text-destructive" aria-hidden="true" /> Missing Skills
                       </h3>
                       <div className="flex flex-wrap gap-1.5">
                         {a.missingSkills.map((s, i) => (
-                          <Badge key={i} variant="secondary" className="text-xs bg-red-500/10 text-red-400 border-0">{s}</Badge>
+                          <Badge key={i} variant="secondary" className="text-xs bg-destructive/10 text-destructive border-0">{s}</Badge>
                         ))}
                       </div>
                     </div>
@@ -365,24 +367,24 @@ const AIAnalysisPanel = ({ applicant, job, sessionToken, onAnalysisComplete, onE
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <h3 className="text-sm font-medium mb-2 flex items-center gap-1.5">
-                    <TrendingUp className="w-3.5 h-3.5 text-emerald-400" /> Strengths
+                    <TrendingUp className={`w-3.5 h-3.5 ${TONE_TEXT.success}`} aria-hidden="true" /> Strengths
                   </h3>
                   <ul className="space-y-1">
                     {a.strengths.map((s, i) => (
                       <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                        <span className="text-emerald-400 mt-0.5">✓</span> {s}
+                        <span className={`mt-0.5 ${TONE_TEXT.success}`}>✓</span> {s}
                       </li>
                     ))}
                   </ul>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium mb-2 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-yellow-400" /> Gaps
+                    <AlertTriangle className={`w-3.5 h-3.5 ${TONE_TEXT.warning}`} aria-hidden="true" /> Gaps
                   </h3>
                   <ul className="space-y-1">
                     {a.gaps.map((g, i) => (
                       <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                        <span className="text-yellow-400 mt-0.5">!</span> {g}
+                        <span className={`mt-0.5 ${TONE_TEXT.warning}`}>!</span> {g}
                       </li>
                     ))}
                   </ul>

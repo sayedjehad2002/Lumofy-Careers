@@ -46,7 +46,7 @@ function ProgressIndicator({ current }: { current: number }) {
                     : "bg-muted text-muted-foreground"
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4" aria-hidden="true" />
               </div>
               <span className={`mt-1.5 text-[11px] ${isActive ? "font-medium text-primary" : "text-muted-foreground"}`}>
                 {step.label}
@@ -68,11 +68,13 @@ function NationalitySelect({
   onChange,
   error,
   id,
+  errorId,
 }: {
   value: string;
   onChange: (v: string) => void;
   error?: string;
   id?: string;
+  errorId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -91,6 +93,8 @@ function NationalitySelect({
         id={id}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-invalid={!!error}
+        aria-describedby={error && errorId ? errorId : undefined}
         className={`flex h-10 w-full items-center rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
           error ? "border-destructive" : "border-input"
         }`}
@@ -146,7 +150,7 @@ function NationalitySelect({
           </div>
         </>
       )}
-      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+      {error && <p id={errorId} role="alert" className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
   );
 }
@@ -189,10 +193,10 @@ const ApplyPage = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="px-4 pt-32 text-center text-muted-foreground">
+        <main id="main" className="px-4 pt-32 text-center text-muted-foreground">
           <p>Job not found.</p>
           <Link to="/" className="mt-2 inline-block text-primary hover:underline">Back to positions</Link>
-        </div>
+        </main>
       </div>
     );
   }
@@ -232,16 +236,22 @@ const ApplyPage = () => {
     if (!formData.location.trim()) errs.location = "Location is required";
     if (!formData.nationality.trim()) errs.nationality = "Please select your nationality";
     if (!cvFile) errs.cv = "CV/Resume is required";
-    job.screeningQuestions.forEach((q) => {
+    (job.screeningQuestions ?? []).forEach((q) => {
       if (q.required && !screeningAnswers[q.id]?.trim()) errs[`sq_${q.id}`] = "This question is required";
     });
     setErrors(errs);
 
-    // Scroll to first error
+    // Scroll to + focus the first invalid field so keyboard/SR users land on it.
     if (Object.keys(errs).length > 0) {
       const firstKey = Object.keys(errs)[0];
-      const el = document.querySelector(`[data-field="${firstKey}"]`);
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      const container = document.querySelector(`[data-field="${firstKey}"]`);
+      container?.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Prefer a real focusable control inside the field wrapper.
+      const focusable = container?.querySelector<HTMLElement>(
+        "input, textarea, select, button, [tabindex]"
+      );
+      // Defer focus so it doesn't fight the smooth scroll.
+      window.setTimeout(() => focusable?.focus(), 0);
     }
 
     return Object.keys(errs).length === 0;
@@ -300,27 +310,27 @@ const ApplyPage = () => {
         notes: [],
       };
 
-      await addApplicant(newApplicant);
+      const newApplicantId = await addApplicant(newApplicant);
       setSubmitted(true);
       toast.success("Application submitted successfully!");
 
-      // Fire-and-forget: trigger automatic AI analysis
+      // Fire-and-forget: trigger automatic AI analysis (use the server-created id)
       supabase.functions.invoke("auto-analyze-applicant", {
-        body: { applicantId },
+        body: { applicantId: newApplicantId },
       }).catch((err) => {
         import.meta.env.DEV && console.warn("Auto-analyze trigger failed (non-blocking):", err);
       });
     } catch (err: any) {
       import.meta.env.DEV && console.error("Submit error:", err);
       const msg = err?.message || "";
-      if (msg.includes("row-level security") || msg.includes("RLS")) {
-        toast.error("We could not submit your application. Please try again later.");
-      } else if (msg.includes("duplicate")) {
+      if (msg === "already_applied" || msg.includes("duplicate")) {
         toast.error("It looks like you've already applied for this position.");
-      } else if (msg.includes("violates")) {
-        toast.error("Please complete all required fields correctly.");
+      } else if (msg.includes("no longer accepting") || msg.includes("deadline has passed")) {
+        toast.error(msg);
+      } else if (msg === "Job not found") {
+        toast.error("This job is no longer available.");
       } else {
-        toast.error(msg || "We could not submit your application. Please try again later.");
+        toast.error("We could not submit your application. Please try again later.");
       }
     } finally {
       setSubmitting(false);
@@ -331,7 +341,7 @@ const ApplyPage = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <section className="px-4 py-20 pt-32 text-center sm:py-24">
+        <main id="main" className="px-4 py-20 pt-32 text-center sm:py-24">
           <motion.div
             className="mx-auto max-w-md"
             initial={{ opacity: 0, y: 24 }}
@@ -339,7 +349,7 @@ const ApplyPage = () => {
             transition={{ duration: 0.6, ease }}
           >
             <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-              <CheckCircle className="h-8 w-8 text-primary" />
+              <CheckCircle className="h-8 w-8 text-primary" aria-hidden="true" />
             </div>
             <h1 className="mb-3 text-2xl font-extrabold tracking-tight sm:text-3xl">Application submitted</h1>
             <p className="mb-6 text-muted-foreground">
@@ -347,7 +357,7 @@ const ApplyPage = () => {
             </p>
             <Button onClick={() => navigate("/")} size="lg" className="h-12 rounded-xl px-8 text-base">Back to Careers</Button>
           </motion.div>
-        </section>
+        </main>
       </div>
     );
   }
@@ -357,10 +367,10 @@ const ApplyPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="px-4 py-12 pt-24 sm:py-16 sm:pt-28">
+      <main id="main" className="px-4 py-12 pt-24 sm:py-16 sm:pt-28">
         <div className="mx-auto max-w-2xl">
           <Link to={`/jobs/${job.id}`} className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Back to {job.title}
           </Link>
 
@@ -373,7 +383,7 @@ const ApplyPage = () => {
           >
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                <Briefcase className="h-5 w-5 text-primary" />
+                <Briefcase className="h-5 w-5 text-primary" aria-hidden="true" />
               </div>
               <div>
                 <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">Apply for {job.title}</h1>
@@ -399,29 +409,30 @@ const ApplyPage = () => {
               <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
                 <div data-field="fullName">
                   <Label htmlFor="fullName" className="text-sm">Full Name <span className="text-destructive">*</span></Label>
-                  <Input id="fullName" {...field("fullName", formData.fullName)} className="mt-1.5" aria-invalid={!!errors.fullName} />
-                  {errors.fullName && <p className="mt-1 text-xs text-destructive">{errors.fullName}</p>}
+                  <Input id="fullName" {...field("fullName", formData.fullName)} className="mt-1.5" aria-invalid={!!errors.fullName} aria-describedby={errors.fullName ? "fullName-error" : undefined} />
+                  {errors.fullName && <p id="fullName-error" role="alert" className="mt-1 text-xs text-destructive">{errors.fullName}</p>}
                 </div>
                 <div data-field="email">
                   <Label htmlFor="email" className="text-sm">Email <span className="text-destructive">*</span></Label>
-                  <Input id="email" type="email" {...field("email", formData.email)} className="mt-1.5" aria-invalid={!!errors.email} />
-                  {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email}</p>}
+                  <Input id="email" type="email" {...field("email", formData.email)} className="mt-1.5" aria-invalid={!!errors.email} aria-describedby={errors.email ? "email-error" : undefined} />
+                  {errors.email && <p id="email-error" role="alert" className="mt-1 text-xs text-destructive">{errors.email}</p>}
                 </div>
                 <div data-field="phone">
                   <Label htmlFor="phone" className="text-sm">Phone <span className="text-destructive">*</span></Label>
-                  <Input id="phone" {...field("phone", formData.phone)} className="mt-1.5" aria-invalid={!!errors.phone} />
-                  {errors.phone && <p className="mt-1 text-xs text-destructive">{errors.phone}</p>}
+                  <Input id="phone" {...field("phone", formData.phone)} className="mt-1.5" aria-invalid={!!errors.phone} aria-describedby={errors.phone ? "phone-error" : undefined} />
+                  {errors.phone && <p id="phone-error" role="alert" className="mt-1 text-xs text-destructive">{errors.phone}</p>}
                 </div>
                 <div data-field="location">
                   <Label htmlFor="location" className="text-sm">Current Location <span className="text-destructive">*</span></Label>
-                  <Input id="location" {...field("location", formData.location)} className="mt-1.5" aria-invalid={!!errors.location} />
-                  {errors.location && <p className="mt-1 text-xs text-destructive">{errors.location}</p>}
+                  <Input id="location" {...field("location", formData.location)} className="mt-1.5" aria-invalid={!!errors.location} aria-describedby={errors.location ? "location-error" : undefined} />
+                  {errors.location && <p id="location-error" role="alert" className="mt-1 text-xs text-destructive">{errors.location}</p>}
                 </div>
                 <div data-field="nationality">
                   <Label htmlFor="nationality" className="text-sm">Nationality <span className="text-destructive">*</span></Label>
                   <div className="mt-1.5">
                     <NationalitySelect
                       id="nationality"
+                      errorId="nationality-error"
                       value={formData.nationality}
                       onChange={(v) => setFormData({ ...formData, nationality: v })}
                       error={errors.nationality}
@@ -461,7 +472,7 @@ const ApplyPage = () => {
 
               {cvFile ? (
                 <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
-                  <FileText className="h-8 w-8 flex-shrink-0 text-primary" />
+                  <FileText className="h-8 w-8 flex-shrink-0 text-primary" aria-hidden="true" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{cvFile.name}</p>
                     <p className="text-xs text-muted-foreground">{cvFile.size < 1024 * 1024 ? `${(cvFile.size / 1024).toFixed(1)} KB` : `${(cvFile.size / 1024 / 1024).toFixed(2)} MB`}</p>
@@ -474,7 +485,7 @@ const ApplyPage = () => {
                     onClick={() => { setCvFile(null); setCvError(""); if (fileInputRef.current) fileInputRef.current.value = ""; }}
                     className="text-muted-foreground hover:text-destructive"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </div>
               ) : (
@@ -485,20 +496,22 @@ const ApplyPage = () => {
                   }`}
                   onClick={() => fileInputRef.current?.click()}
                   aria-label="Upload your CV"
+                  aria-invalid={!!cvError || !!errors.cv}
+                  aria-describedby={cvError ? "cv-error" : errors.cv ? "cv-error" : undefined}
                 >
                   <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFileChange} />
-                  <Upload className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+                  <Upload className="mx-auto mb-3 h-10 w-10 text-muted-foreground" aria-hidden="true" />
                   <p className="mb-1 text-sm font-medium">Click to upload your CV</p>
                   <p className="text-xs text-muted-foreground">PDF, DOC, DOCX — Max 10MB</p>
                 </button>
               )}
               {/* Inline validation feedback — surfaced immediately on file rejection */}
-              {cvError && <p className="mt-2 text-xs text-destructive" role="alert">{cvError}</p>}
-              {errors.cv && !cvError && <p className="mt-2 text-xs text-destructive">{errors.cv}</p>}
+              {cvError && <p id="cv-error" className="mt-2 text-xs text-destructive" role="alert">{cvError}</p>}
+              {errors.cv && !cvError && <p id="cv-error" role="alert" className="mt-2 text-xs text-destructive">{errors.cv}</p>}
             </motion.div>
 
             {/* ── Card 3: Screening Questions ── */}
-            {job.screeningQuestions.length > 0 && (
+            {(job.screeningQuestions ?? []).length > 0 && (
               <motion.div
                 className="rounded-2xl border border-border bg-card p-6 light-glow sm:p-8"
                 initial="hidden"
@@ -509,7 +522,7 @@ const ApplyPage = () => {
                 <p className="mb-6 mt-1 text-sm text-muted-foreground">Help us understand your fit for this role.</p>
 
                 <div className="space-y-6">
-                  {job.screeningQuestions.map((q, idx) => (
+                  {(job.screeningQuestions ?? []).map((q, idx) => (
                     <div key={q.id} data-field={`sq_${q.id}`} className={idx > 0 ? "border-t border-border pt-6" : ""}>
                       <Label htmlFor={`sq-${q.id}`} className="text-sm font-medium">
                         {q.question} {q.required && <span className="text-destructive">*</span>}
@@ -520,6 +533,8 @@ const ApplyPage = () => {
                           value={screeningAnswers[q.id] || ""}
                           onChange={(e) => setScreeningAnswers({ ...screeningAnswers, [q.id]: e.target.value })}
                           className="mt-2"
+                          aria-invalid={!!errors[`sq_${q.id}`]}
+                          aria-describedby={errors[`sq_${q.id}`] ? `sq-${q.id}-error` : undefined}
                         />
                       )}
                       {q.type === "long_text" && (
@@ -528,6 +543,8 @@ const ApplyPage = () => {
                           value={screeningAnswers[q.id] || ""}
                           onChange={(e) => setScreeningAnswers({ ...screeningAnswers, [q.id]: e.target.value })}
                           className="mt-2 min-h-[100px]"
+                          aria-invalid={!!errors[`sq_${q.id}`]}
+                          aria-describedby={errors[`sq_${q.id}`] ? `sq-${q.id}-error` : undefined}
                         />
                       )}
                       {q.type === "number" && (
@@ -537,6 +554,8 @@ const ApplyPage = () => {
                           value={screeningAnswers[q.id] || ""}
                           onChange={(e) => setScreeningAnswers({ ...screeningAnswers, [q.id]: e.target.value })}
                           className="mt-2"
+                          aria-invalid={!!errors[`sq_${q.id}`]}
+                          aria-describedby={errors[`sq_${q.id}`] ? `sq-${q.id}-error` : undefined}
                         />
                       )}
                       {q.type === "yes_no" && (
@@ -581,7 +600,7 @@ const ApplyPage = () => {
                           ))}
                         </RadioGroup>
                       )}
-                      {errors[`sq_${q.id}`] && <p className="mt-1.5 text-xs text-destructive">{errors[`sq_${q.id}`]}</p>}
+                      {errors[`sq_${q.id}`] && <p id={`sq-${q.id}-error`} role="alert" className="mt-1.5 text-xs text-destructive">{errors[`sq_${q.id}`]}</p>}
                     </div>
                   ))}
                 </div>
@@ -591,13 +610,13 @@ const ApplyPage = () => {
             {/* ── Submit Button ── */}
             <div className="pt-2">
               <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base" disabled={submitting}>
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
                 {submitting ? "Submitting..." : "Submit Application"}
               </Button>
             </div>
           </form>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

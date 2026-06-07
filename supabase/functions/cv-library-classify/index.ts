@@ -1,7 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { validateSession } from "../_shared/validate-session.ts";
-import { chatCompletion } from "../_shared/ai.ts";
+import { chatCompletion, wrapUntrusted, UNTRUSTED_DATA_NOTE } from "../_shared/ai.ts";
 
 const TAXONOMY = {
   "Human Resources": ["HR Manager", "HR Business Partner", "Recruiter", "Talent Acquisition Specialist", "HR Coordinator", "Compensation & Benefits Analyst", "Learning & Development Specialist"],
@@ -94,15 +94,17 @@ Deno.serve(async (req) => {
       .join("\n");
 
     const candidateInfo = `
-Name: ${candidate.name || "Unknown"}
-Skills: ${(candidate.skills || []).join(", ") || "Not extracted"}
-Industries: ${(candidate.industries || []).join(", ") || "Not extracted"}
-Years Experience: ${candidate.years_experience || "Unknown"}
-Roles Summary: ${candidate.roles_summary || "Not available"}
-Extracted Text: ${candidate.extracted_text || "Not available"}
+Name: ${wrapUntrusted("Name", candidate.name || "Unknown")}
+Skills: ${wrapUntrusted("Skills", (candidate.skills || []).join(", ") || "Not extracted")}
+Industries: ${wrapUntrusted("Industries", (candidate.industries || []).join(", ") || "Not extracted")}
+Years Experience: ${wrapUntrusted("Years Experience", candidate.years_experience || "Unknown")}
+Roles Summary: ${wrapUntrusted("Roles Summary", candidate.roles_summary || "Not available")}
+Extracted Text: ${wrapUntrusted("Extracted Text", candidate.extracted_text || "Not available")}
     `.trim();
 
     const systemPrompt = `You are an HR classification AI. Classify the candidate into the TOP 2 most suitable departments and job titles from the taxonomy below. The first match should be the strongest fit, the second should be the next best alternative.
+
+${UNTRUSTED_DATA_NOTE}
 
 TAXONOMY:
 ${taxonomyText}
@@ -215,8 +217,9 @@ Respond with valid JSON only (no markdown):
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    // ERROR HYGIENE (fix #9): log detail, return a generic message.
     console.error("cv-library-classify error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Internal error" }), {
+    return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

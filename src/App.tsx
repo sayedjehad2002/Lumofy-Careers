@@ -6,17 +6,22 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { CareersProvider } from "@/contexts/CareersContext";
 import { AnimatePresence, motion } from "framer-motion";
+import { Suspense, lazy } from "react";
+import { Loader2 } from "lucide-react";
 import MobileBottomNav from "@/components/careers/MobileBottomNav";
-import Index from "./pages/Index";
-import JobsPage from "./pages/JobsPage";
-import JobDetails from "./pages/JobDetails";
-import ApplyPage from "./pages/ApplyPage";
-import Dashboard from "./pages/Dashboard";
-import AboutPage from "./pages/AboutPage";
-import BenefitsPage from "./pages/BenefitsPage";
-import LifeAtLumofy from "./pages/LifeAtLumofy";
-import SurveyRespondPage from "./pages/SurveyRespondPage";
-import NotFound from "./pages/NotFound";
+import ErrorBoundary from "@/components/ErrorBoundary";
+
+// Route-level code splitting: the public site no longer ships the admin
+// dashboard + its heavy libs (recharts/xlsx/jspdf/dnd) in the initial bundle.
+const Index = lazy(() => import("./pages/Index"));
+const JobsPage = lazy(() => import("./pages/JobsPage"));
+const JobDetails = lazy(() => import("./pages/JobDetails"));
+const ApplyPage = lazy(() => import("./pages/ApplyPage"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
+const BenefitsPage = lazy(() => import("./pages/BenefitsPage"));
+const LifeAtLumofy = lazy(() => import("./pages/LifeAtLumofy"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
@@ -32,11 +37,23 @@ const pageTransition = {
   duration: 0.3,
 };
 
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <Loader2 className="w-6 h-6 animate-spin text-primary" aria-label="Loading" />
+  </div>
+);
+
 function AnimatedRoutes() {
   const location = useLocation();
 
   return (
     <>
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-foreground focus:shadow-lg"
+      >
+        Skip to content
+      </a>
       <AnimatePresence mode="wait">
         <motion.div
           key={location.pathname}
@@ -46,18 +63,19 @@ function AnimatedRoutes() {
           variants={pageVariants}
           transition={pageTransition}
         >
-          <Routes location={location}>
-            <Route path="/" element={<Index />} />
-            <Route path="/jobs" element={<JobsPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/life" element={<LifeAtLumofy />} />
-            <Route path="/benefits" element={<BenefitsPage />} />
-            <Route path="/jobs/:id" element={<JobDetails />} />
-            <Route path="/jobs/:id/apply" element={<ApplyPage />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/survey/:id/respond" element={<SurveyRespondPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes location={location}>
+              <Route path="/" element={<Index />} />
+              <Route path="/jobs" element={<JobsPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/life" element={<LifeAtLumofy />} />
+              <Route path="/benefits" element={<BenefitsPage />} />
+              <Route path="/jobs/:id" element={<JobDetails />} />
+              <Route path="/jobs/:id/apply" element={<ApplyPage />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </motion.div>
       </AnimatePresence>
       <MobileBottomNav />
@@ -73,7 +91,9 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <CareersProvider>
-            <AnimatedRoutes />
+            <ErrorBoundary>
+              <AnimatedRoutes />
+            </ErrorBoundary>
           </CareersProvider>
         </BrowserRouter>
       </TooltipProvider>

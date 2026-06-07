@@ -1,5 +1,6 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { validateSession } from "../_shared/validate-session.ts";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = [
@@ -8,15 +9,22 @@ const ALLOWED_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
-// jobId becomes part of the storage key (`<jobId>/jd.<ext>`). Pin it to a UUID
-// shape so a malicious value can't escape its prefix or inject a path.
-const UUID_RE = /^[0-9a-f-]{36}$/i;
+// jobId becomes part of the storage key (`<jobId>/jd.<ext>`). Restrict it to a
+// safe charset (alphanumerics, dash, underscore) so a malicious value can't
+// escape its prefix or inject a path. Matches both the `job_<ts>` ids the app
+// generates and any legacy UUID-shaped ids.
+const SAFE_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // IP rate limit (fix #8 — upload-jd previously had none): 10 uploads/min/IP.
+    const ip = getClientIp(req);
+    const rl = isRateLimited(`upload-jd:${ip}`, { maxRequests: 10, windowMs: 60_000 });
+    if (rl.limited) return rateLimitResponse(corsHeaders, rl.retryAfterMs);
+
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const jobId = formData.get("jobId") as string | null;
@@ -29,37 +37,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Validate jobId as a UUID before it is used in the storage key / job update.
-    if (!UUID_RE.test(jobId)) {
+    // Validate jobId charset before it is used in the storage key / job update.
+    if (!SAFE_ID_RE.test(jobId)) {
       return new Response(JSON.stringify({ error: "Invalid jobId" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    // Validate session
-    if (!sessionToken) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { data: session } = await supabase
-      .from("admin_sessions")
-      .select("id")
-      .eq("token", sessionToken)
-      .gt("expires_at", new Date().toISOString())
-      .single();
-
-    if (!session) {
-      return new Response(JSON.stringify({ error: "Invalid or expired session" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // SESSION CONSISTENCY (fix #8): shared validator + service client.
+    const auth = await validateSession(sessionToken, corsHeaders);
+    if (!auth.valid) return auth.response;
+    const supabase = auth.supabase;
 
     if (file.size > MAX_FILE_SIZE) {
       return new Response(JSON.stringify({ error: "File size must be under 10MB" }), {

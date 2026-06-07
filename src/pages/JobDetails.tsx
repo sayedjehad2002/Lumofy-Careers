@@ -4,9 +4,11 @@ import { ArrowLeft, MapPin, Clock, Calendar, Share2, Copy, Mail, CheckCircle2, D
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useCareers } from "@/contexts/CareersContext";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/careers/Navbar";
+import { SITE } from "@/data/site";
 import { toast } from "sonner";
 
 const JobDetails = () => {
@@ -20,9 +22,42 @@ const JobDetails = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="pt-24 text-center text-muted-foreground">
-          <p>Loading...</p>
-        </div>
+        <main id="main" className="pt-24 pb-20 px-4">
+          <div className="max-w-6xl mx-auto">
+            <Skeleton className="mb-6 h-4 w-40" />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Main column */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Header card */}
+                <div className="rounded-xl bg-card border border-border p-6">
+                  <Skeleton className="mb-3 h-5 w-24" />
+                  <Skeleton className="mb-4 h-8 w-3/4" />
+                  <div className="mb-4 flex flex-wrap gap-4">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                  <Skeleton className="h-11 w-48 rounded-md" />
+                </div>
+                {/* Body card */}
+                <div className="rounded-xl bg-card border border-border p-6">
+                  <Skeleton className="mb-3 h-5 w-40" />
+                  <Skeleton className="mb-2 h-4 w-full" />
+                  <Skeleton className="mb-2 h-4 w-full" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
+              </div>
+              {/* Sidebar */}
+              <div className="space-y-6">
+                <div className="rounded-xl bg-card border border-border p-5">
+                  <Skeleton className="mb-4 h-5 w-32" />
+                  <Skeleton className="mb-4 h-9 w-full rounded-md" />
+                  <Skeleton className="h-9 w-full rounded-md" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
@@ -31,12 +66,12 @@ const JobDetails = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="pt-24 text-center text-muted-foreground">
+        <main id="main" className="pt-24 text-center text-muted-foreground">
           <p>Job not found.</p>
           <Link to="/jobs" className="text-primary hover:underline mt-2 inline-block">
             Back to all positions
           </Link>
-        </div>
+        </main>
       </div>
     );
   }
@@ -67,13 +102,13 @@ const JobDetails = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="pt-24 pb-20 px-4">
+      <main id="main" className="pt-24 pb-20 px-4">
         <div className="max-w-6xl mx-auto">
           <Link
             to="/jobs"
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             Back to all positions
           </Link>
 
@@ -93,13 +128,13 @@ const JobDetails = () => {
                 <h1 className="text-2xl sm:text-3xl font-bold mb-4">{job.title}</h1>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
                   <span className="flex items-center gap-1.5">
-                    <MapPin className="w-4 h-4" /> {job.location}
+                    <MapPin className="w-4 h-4" aria-hidden="true" /> {job.location}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <Clock className="w-4 h-4" /> {job.type}
+                    <Clock className="w-4 h-4" aria-hidden="true" /> {job.type}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <Calendar className="w-4 h-4" /> Posted {new Date(job.postedDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    <Calendar className="w-4 h-4" aria-hidden="true" /> Posted {new Date(job.postedDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                   </span>
                 </div>
                 {job.salaryRange && (
@@ -122,9 +157,9 @@ const JobDetails = () => {
                       disabled={downloading}
                     >
                       {downloading ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
                       ) : (
-                        <Download className="w-4 h-4 mr-2" />
+                        <Download className="w-4 h-4 mr-2" aria-hidden="true" />
                       )}
                       Download Job Description
                     </Button>
@@ -146,7 +181,7 @@ const JobDetails = () => {
               )}
 
               {/* Responsibilities */}
-              {job.responsibilities.length > 0 && job.responsibilities.some(r => r.trim()) && (
+              {(job.responsibilities ?? []).length > 0 && (job.responsibilities ?? []).some(r => r.trim()) && (
                 <motion.div
                   className="rounded-xl bg-card border border-border p-6"
                   initial={{ opacity: 0, y: 15 }}
@@ -155,9 +190,9 @@ const JobDetails = () => {
                 >
                   <h2 className="text-lg font-semibold mb-3">Key Responsibilities</h2>
                   <ul className="space-y-2">
-                    {job.responsibilities.filter(r => r.trim()).map((r, i) => (
+                    {(job.responsibilities ?? []).filter(r => r.trim()).map((r, i) => (
                       <li key={i} className="flex items-start gap-2 text-muted-foreground">
-                        <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                        <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" aria-hidden="true" />
                         {r}
                       </li>
                     ))}
@@ -166,7 +201,7 @@ const JobDetails = () => {
               )}
 
               {/* Requirements */}
-              {job.requirements.length > 0 && job.requirements.some(r => r.trim()) && (
+              {(job.requirements ?? []).length > 0 && (job.requirements ?? []).some(r => r.trim()) && (
                 <motion.div
                   className="rounded-xl bg-card border border-border p-6"
                   initial={{ opacity: 0, y: 15 }}
@@ -175,9 +210,9 @@ const JobDetails = () => {
                 >
                   <h2 className="text-lg font-semibold mb-3">Requirements</h2>
                   <ul className="space-y-2">
-                    {job.requirements.filter(r => r.trim()).map((r, i) => (
+                    {(job.requirements ?? []).filter(r => r.trim()).map((r, i) => (
                       <li key={i} className="flex items-start gap-2 text-muted-foreground">
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" aria-hidden="true" />
                         {r}
                       </li>
                     ))}
@@ -186,7 +221,7 @@ const JobDetails = () => {
               )}
 
               {/* Screening Questions Preview */}
-              {job.screeningQuestions.length > 0 && (
+              {(job.screeningQuestions ?? []).length > 0 && (
                 <motion.div
                   className="rounded-xl bg-card border border-border p-6"
                   initial={{ opacity: 0, y: 15 }}
@@ -198,9 +233,9 @@ const JobDetails = () => {
                     You'll be asked these questions when you apply:
                   </p>
                   <ul className="space-y-2">
-                    {job.screeningQuestions.map((q) => (
+                    {(job.screeningQuestions ?? []).map((q) => (
                       <li key={q.id} className="text-sm text-muted-foreground flex items-start gap-2">
-                        <span className="text-primary">•</span>
+                        <span className="text-primary" aria-hidden="true">•</span>
                         {q.question}
                         {q.required && <span className="text-destructive text-xs">*</span>}
                       </li>
@@ -219,7 +254,7 @@ const JobDetails = () => {
                 transition={{ duration: 0.4, delay: 0.2 }}
               >
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <Share2 className="w-4 h-4 text-primary" />
+                  <Share2 className="w-4 h-4 text-primary" aria-hidden="true" />
                   Share This Job
                 </h3>
                 <Button
@@ -228,7 +263,7 @@ const JobDetails = () => {
                   className="w-full mb-4"
                   onClick={handleCopyLink}
                 >
-                  <Copy className="w-3.5 h-3.5 mr-2" />
+                  <Copy className="w-3.5 h-3.5 mr-2" aria-hidden="true" />
                   Copy Link
                 </Button>
 
@@ -241,9 +276,9 @@ const JobDetails = () => {
                     disabled={downloading}
                   >
                     {downloading ? (
-                      <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" aria-hidden="true" />
                     ) : (
-                      <FileText className="w-3.5 h-3.5 mr-2" />
+                      <FileText className="w-3.5 h-3.5 mr-2" aria-hidden="true" />
                     )}
                     Download JD
                   </Button>
@@ -251,11 +286,11 @@ const JobDetails = () => {
 
                 <div className="border-t border-border pt-4 mt-4">
                   <h3 className="font-semibold mb-2">Questions?</h3>
-                  <p className="text-xs text-muted-foreground mb-1">Talent Acquisition & Onboarding Specialist</p>
-                  <p className="text-xs text-primary mb-3">Jhasan@lumofy.com</p>
+                  <p className="text-xs text-muted-foreground mb-1">{SITE.recruiter.title}</p>
+                  <p className="text-xs text-primary mb-3">{SITE.careersEmail}</p>
                   <Button variant="outline" size="sm" className="w-full" asChild>
-                    <a href="mailto:Jhasan@lumofy.com">
-                      <Mail className="w-3.5 h-3.5 mr-2" />
+                    <a href={`mailto:${SITE.careersEmail}`}>
+                      <Mail className="w-3.5 h-3.5 mr-2" aria-hidden="true" />
                       Contact HR
                     </a>
                   </Button>
@@ -264,7 +299,7 @@ const JobDetails = () => {
             </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

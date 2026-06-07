@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import type { Applicant, Job } from "@/types/careers";
+import { TONE_TEXT, TONE_BG, TONE_SOFT, TONE_SUBTLE, TONE_BORDER } from "@/components/careers/statusColors";
 
 interface SmartRankingRefreshProps {
   applicants: Applicant[];
@@ -39,9 +40,9 @@ function getTier(score: number): string {
 }
 
 const TIER_CONFIG: Record<string, { bg: string; text: string; border: string }> = {
-  "Top Match": { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/30" },
+  "Top Match": { bg: TONE_SUBTLE.success, text: TONE_TEXT.success, border: TONE_BORDER.success },
   "Strong Match": { bg: "bg-primary/10", text: "text-primary", border: "border-primary/30" },
-  "Moderate Match": { bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/30" },
+  "Moderate Match": { bg: TONE_SUBTLE.warning, text: TONE_TEXT.warning, border: TONE_BORDER.warning },
   "Weak Match": { bg: "bg-destructive/10", text: "text-destructive", border: "border-destructive/30" },
 };
 
@@ -283,21 +284,21 @@ function getDeptKeywords(dept: string): string[] {
 
 const RankBadge = ({ rank }: { rank: number }) => {
   if (rank === 1) return (
-    <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30">
-      <Crown className="w-3.5 h-3.5 text-amber-400" />
-      <span className="text-[10px] font-bold text-amber-400">TOP</span>
+    <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full ${TONE_SOFT.warning} ${TONE_BORDER.warning} border`}>
+      <Crown className="w-3.5 h-3.5" aria-hidden="true" />
+      <span className="text-[10px] font-bold">TOP</span>
     </div>
   );
   if (rank === 2) return (
-    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-300/10 border border-slate-400/30">
-      <Medal className="w-3 h-3 text-slate-300" />
-      <span className="text-[10px] font-semibold text-slate-300">#2</span>
+    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted border border-border">
+      <Medal className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
+      <span className="text-[10px] font-semibold text-muted-foreground">#2</span>
     </div>
   );
   if (rank === 3) return (
-    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/30">
-      <Medal className="w-3 h-3 text-orange-400" />
-      <span className="text-[10px] font-semibold text-orange-400">#3</span>
+    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${TONE_SOFT.bronze} ${TONE_BORDER.bronze} border`}>
+      <Medal className="w-3 h-3" aria-hidden="true" />
+      <span className="text-[10px] font-semibold">#3</span>
     </div>
   );
   return <span className="text-[10px] font-bold text-muted-foreground w-8 text-center">#{rank}</span>;
@@ -307,7 +308,7 @@ const ScoreRing = ({ score, size = 40 }: { score: number; size?: number }) => {
   const radius = (size - 6) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
-  const color = score >= 85 ? "stroke-emerald-400" : score >= 70 ? "stroke-primary" : score >= 50 ? "stroke-amber-400" : "stroke-destructive";
+  const color = score >= 85 ? "stroke-[hsl(var(--intel-success))]" : score >= 70 ? "stroke-primary" : score >= 50 ? "stroke-[hsl(var(--intel-warning))]" : "stroke-destructive";
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
@@ -428,7 +429,7 @@ const SmartRankingRefresh = ({ applicants, jobs, job }: SmartRankingRefreshProps
                   {jobs.filter(j => j.status === "open").map(j => (
                     <SelectItem key={j.id} value={j.id} className="text-xs">
                       <div className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--intel-success))] shrink-0" />
                         {j.title} <span className="text-muted-foreground">· {j.department}</span>
                       </div>
                     </SelectItem>
@@ -491,29 +492,29 @@ const SmartRankingRefresh = ({ applicants, jobs, job }: SmartRankingRefreshProps
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="mb-5 p-4 rounded-2xl border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-background to-amber-500/5 relative overflow-hidden"
+                className="mb-5 p-4 rounded-2xl border-2 border-[hsl(var(--chart-5)/0.3)] bg-gradient-to-br from-[hsl(var(--chart-5)/0.05)] via-background to-[hsl(var(--chart-5)/0.05)] relative overflow-hidden"
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl -translate-y-8 translate-x-8" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[hsl(var(--chart-5)/0.05)] rounded-full blur-2xl -translate-y-8 translate-x-8" />
                 <div className="flex items-center gap-4 relative">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
-                    <Crown className="w-6 h-6 text-amber-400" />
+                  <div className="w-12 h-12 rounded-2xl bg-[hsl(var(--chart-5)/0.15)] border border-[hsl(var(--chart-5)/0.3)] flex items-center justify-center">
+                    <Crown className="w-6 h-6 text-[hsl(var(--chart-5))]" aria-hidden="true" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-xs font-medium text-amber-400/80 uppercase tracking-wider">
+                      <span className="text-xs font-medium text-[hsl(var(--chart-5))] uppercase tracking-wider">
                         Best Candidate for {targetJob?.title}
                       </span>
                     </div>
                     <h3 className="text-lg font-bold truncate">{topCandidate.name}</h3>
                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{topCandidate.reasoning}</p>
                     <div className="flex items-center gap-2 mt-2 flex-wrap">
-                      <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px] hover:bg-amber-500/20">
-                        <Sparkles className="w-3 h-3 mr-1" />
+                      <Badge className="bg-[hsl(var(--chart-5)/0.15)] text-[hsl(var(--chart-5))] border-[hsl(var(--chart-5)/0.3)] text-[10px] hover:bg-[hsl(var(--chart-5)/0.2)]">
+                        <Sparkles className="w-3 h-3 mr-1" aria-hidden="true" />
                         Score {topCandidate.newScore}/100
                       </Badge>
                       <Badge variant="outline" className="text-[10px]">{topCandidate.tier}</Badge>
                       {topCandidate.change !== 0 && (
-                        <span className={`text-[10px] font-medium ${topCandidate.change > 0 ? "text-emerald-400" : "text-destructive"}`}>
+                        <span className={`text-[10px] font-medium ${topCandidate.change > 0 ? TONE_TEXT.success : "text-destructive"}`}>
                           {topCandidate.change > 0 ? "↑" : "↓"} {Math.abs(topCandidate.change)} vs original
                         </span>
                       )}
@@ -521,11 +522,11 @@ const SmartRankingRefresh = ({ applicants, jobs, job }: SmartRankingRefreshProps
                   </div>
                   <ScoreRing score={topCandidate.newScore} size={56} />
                 </div>
-                <div className="grid grid-cols-6 gap-2 mt-3 pt-3 border-t border-amber-500/10">
+                <div className="grid grid-cols-6 gap-2 mt-3 pt-3 border-t border-[hsl(var(--chart-5)/0.1)]">
                   {topCandidate.breakdown.map(b => (
                     <div key={b.label} className="text-center">
                       <div className="text-[9px] text-muted-foreground truncate">{b.label}</div>
-                      <div className={`text-xs font-bold ${b.score >= 75 ? "text-emerald-400" : b.score >= 50 ? "text-amber-400" : "text-destructive"}`}>
+                      <div className={`text-xs font-bold ${b.score >= 75 ? TONE_TEXT.success : b.score >= 50 ? TONE_TEXT.warning : "text-destructive"}`}>
                         {b.score}%
                       </div>
                     </div>
@@ -538,8 +539,8 @@ const SmartRankingRefresh = ({ applicants, jobs, job }: SmartRankingRefreshProps
           {/* Summary stats */}
           {changes && !refreshing && (
             <div className="flex gap-3 mb-4 flex-wrap">
-              <Badge variant="secondary" className="text-[10px] py-0.5 border-0 bg-emerald-500/10 text-emerald-400">
-                <ArrowUp className="w-3 h-3 mr-0.5" />
+              <Badge variant="secondary" className={`text-[10px] py-0.5 border-0 ${TONE_SOFT.success}`}>
+                <ArrowUp className="w-3 h-3 mr-0.5" aria-hidden="true" />
                 {changes.filter(c => c.change > 0).length} improved
               </Badge>
               <Badge variant="secondary" className="text-[10px] py-0.5 border-0 bg-destructive/10 text-destructive">
@@ -582,8 +583,8 @@ const SmartRankingRefresh = ({ applicants, jobs, job }: SmartRankingRefreshProps
                       <div className="flex-1 min-w-0">
                         <span className="text-sm font-medium truncate block">{c.name}</span>
                         {c.warnings.length > 0 && (
-                          <span className="text-[9px] text-amber-400 flex items-center gap-0.5 mt-0.5">
-                            <AlertTriangle className="w-2.5 h-2.5" />
+                          <span className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${TONE_TEXT.warning}`}>
+                            <AlertTriangle className="w-2.5 h-2.5" aria-hidden="true" />
                             {c.warnings[0]}
                           </span>
                         )}
@@ -602,7 +603,7 @@ const SmartRankingRefresh = ({ applicants, jobs, job }: SmartRankingRefreshProps
                       <Badge
                         variant="secondary"
                         className={`text-[10px] py-0 border-0 tabular-nums min-w-[36px] justify-center ${
-                          c.change > 0 ? "bg-emerald-500/10 text-emerald-400" :
+                          c.change > 0 ? TONE_SOFT.success :
                           c.change < 0 ? "bg-destructive/10 text-destructive" :
                           "bg-muted text-muted-foreground"
                         }`}
@@ -631,7 +632,7 @@ const SmartRankingRefresh = ({ applicants, jobs, job }: SmartRankingRefreshProps
                                 <div key={b.label} className="space-y-1">
                                   <div className="flex justify-between text-[10px]">
                                     <span className="text-muted-foreground">{b.label} <span className="text-muted-foreground/50">({b.weight}%)</span></span>
-                                    <span className={`font-bold ${b.score >= 75 ? "text-emerald-400" : b.score >= 50 ? "text-amber-400" : "text-destructive"}`}>
+                                    <span className={`font-bold ${b.score >= 75 ? TONE_TEXT.success : b.score >= 50 ? TONE_TEXT.warning : "text-destructive"}`}>
                                       {b.score}
                                     </span>
                                   </div>
@@ -641,7 +642,7 @@ const SmartRankingRefresh = ({ applicants, jobs, job }: SmartRankingRefreshProps
                                       animate={{ width: `${b.score}%` }}
                                       transition={{ duration: 0.5, delay: 0.1 }}
                                       className={`h-full rounded-full ${
-                                        b.score >= 75 ? "bg-emerald-500" : b.score >= 50 ? "bg-amber-500" : "bg-destructive"
+                                        b.score >= 75 ? TONE_BG.success : b.score >= 50 ? TONE_BG.warning : "bg-destructive"
                                       }`}
                                     />
                                   </div>
@@ -653,8 +654,8 @@ const SmartRankingRefresh = ({ applicants, jobs, job }: SmartRankingRefreshProps
                             {c.warnings.length > 0 && (
                               <div className="flex flex-wrap gap-1.5">
                                 {c.warnings.map((w, wi) => (
-                                  <Badge key={wi} variant="outline" className="text-[9px] py-0 text-amber-400 border-amber-500/30 bg-amber-500/5">
-                                    <AlertTriangle className="w-2.5 h-2.5 mr-0.5" />
+                                  <Badge key={wi} variant="outline" className={`text-[9px] py-0 ${TONE_TEXT.warning} ${TONE_BORDER.warning} bg-[hsl(var(--intel-warning)/0.05)]`}>
+                                    <AlertTriangle className="w-2.5 h-2.5 mr-0.5" aria-hidden="true" />
                                     {w}
                                   </Badge>
                                 ))}

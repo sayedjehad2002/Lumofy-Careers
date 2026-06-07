@@ -18,6 +18,7 @@ import {
 } from "recharts";
 import type { Job, Applicant, ApplicantStatus } from "@/types/careers";
 import { APPLICANT_STATUSES } from "@/types/careers";
+import { FUNNEL_FILLS, TONE_SOFT, TONE_TEXT, TONE_BG, TONE_SUBTLE, tierSoft } from "./statusColors";
 
 interface DashboardOverviewProps {
   jobs: Job[];
@@ -34,14 +35,8 @@ const fadeUp = {
   }),
 };
 
-const FUNNEL_COLORS = [
-  "hsl(217, 91%, 60%)",
-  "hsl(45, 93%, 47%)",
-  "hsl(152, 69%, 40%)",
-  "hsl(271, 91%, 65%)",
-  "hsl(142, 71%, 45%)",
-  "hsl(0, 72%, 51%)",
-];
+// Funnel bar colors resolve to the chart/intel design tokens (light + dark safe).
+const FUNNEL_COLORS = FUNNEL_FILLS;
 
 const STAGE_ORDER: ApplicantStatus[] = ["new", "reviewing", "shortlisted", "interview", "hired"];
 
@@ -117,7 +112,7 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
   const attentionItems = useMemo(() => {
     const items: { label: string; count: number; icon: typeof AlertTriangle; color: string }[] = [];
     const newCount = applicants.filter((a) => a.status === "new").length;
-    if (newCount > 0) items.push({ label: "Unreviewed applicants", count: newCount, icon: Eye, color: "text-yellow-400" });
+    if (newCount > 0) items.push({ label: "Unreviewed applicants", count: newCount, icon: Eye, color: TONE_TEXT.warning });
     const staleInterviews = applicants.filter((a) => {
       if (a.status !== "interview") return false;
       const entered = new Date(a.stageEnteredAt || a.appliedDate);
@@ -129,7 +124,7 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
       const days = (new Date(j.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
       return days >= 0 && days <= 7;
     }).length;
-    if (closingSoon > 0) items.push({ label: "Jobs closing this week", count: closingSoon, icon: Calendar, color: "text-orange-400" });
+    if (closingSoon > 0) items.push({ label: "Jobs closing this week", count: closingSoon, icon: Calendar, color: TONE_TEXT.bronze });
     return items;
   }, [applicants, jobs]);
 
@@ -163,16 +158,16 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
 
   const metrics = [
     { label: "Open Positions", value: openJobs, icon: Briefcase, gradient: "from-primary/20 to-primary/5", iconColor: "text-primary" },
-    { label: "Total Applicants", value: applicants.length, icon: Users, gradient: "from-emerald-500/20 to-emerald-500/5", iconColor: "text-emerald-400" },
-    { label: "Avg AI Score", value: avgFitScore !== null ? `${avgFitScore}` : "—", icon: Brain, gradient: "from-purple-500/20 to-purple-500/5", iconColor: "text-purple-400" },
-    { label: "To Interview", value: `${conversionRates.newToInterview}%`, icon: TrendingUp, gradient: "from-yellow-500/20 to-yellow-500/5", iconColor: "text-yellow-400" },
-    { label: "To Hired", value: `${conversionRates.interviewToHired}%`, icon: CheckCircle, gradient: "from-green-500/20 to-green-500/5", iconColor: "text-green-400" },
+    { label: "Total Applicants", value: applicants.length, icon: Users, gradient: "from-[hsl(var(--intel-success)/0.2)] to-[hsl(var(--intel-success)/0.05)]", iconColor: TONE_TEXT.success },
+    { label: "Avg AI Score", value: avgFitScore !== null ? `${avgFitScore}` : "—", icon: Brain, gradient: "from-[hsl(var(--chart-3)/0.2)] to-[hsl(var(--chart-3)/0.05)]", iconColor: TONE_TEXT.ai },
+    { label: "To Interview", value: `${conversionRates.newToInterview}%`, icon: TrendingUp, gradient: "from-[hsl(var(--intel-warning)/0.2)] to-[hsl(var(--intel-warning)/0.05)]", iconColor: TONE_TEXT.warning },
+    { label: "To Hired", value: `${conversionRates.interviewToHired}%`, icon: CheckCircle, gradient: "from-[hsl(var(--intel-success)/0.2)] to-[hsl(var(--intel-success)/0.05)]", iconColor: TONE_TEXT.success },
   ];
 
   const recColorMap: Record<string, { bar: string; text: string }> = {
-    "Fast-Track": { bar: "bg-emerald-500", text: "text-emerald-400" },
+    "Fast-Track": { bar: TONE_BG.success, text: TONE_TEXT.success },
     "Proceed": { bar: "bg-primary", text: "text-primary" },
-    "Hold": { bar: "bg-yellow-500", text: "text-yellow-400" },
+    "Hold": { bar: TONE_BG.warning, text: TONE_TEXT.warning },
     "Not Recommended": { bar: "bg-destructive", text: "text-destructive" },
   };
 
@@ -360,7 +355,7 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
                       variant="secondary"
                       className={`text-[10px] border-0 shrink-0 ${
                         j.status === "open"
-                          ? "bg-emerald-500/15 text-emerald-400"
+                          ? TONE_SOFT.success
                           : "bg-muted text-muted-foreground"
                       }`}
                     >
@@ -381,8 +376,8 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
           <Card className="overflow-hidden">
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                  <Brain className="w-4 h-4 text-purple-400" />
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${TONE_SUBTLE.ai}`}>
+                  <Brain className={`w-4 h-4 ${TONE_TEXT.ai}`} aria-hidden="true" />
                 </div>
                 AI Recommendations
               </CardTitle>
@@ -425,8 +420,8 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
           <Card className="overflow-hidden">
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                  <UserCheck className="w-4 h-4 text-emerald-400" />
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${TONE_SUBTLE.success}`}>
+                  <UserCheck className={`w-4 h-4 ${TONE_TEXT.success}`} aria-hidden="true" />
                 </div>
                 Top AI Matches
               </CardTitle>
@@ -444,9 +439,9 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
                       const job = jobs.find(j => j.id === a.jobId);
                       const score = a.aiAnalysis!.fitScore;
                       const tier = score >= 85 ? "Top" : score >= 70 ? "Strong" : score >= 50 ? "Moderate" : "Weak";
-                      const tierColor = tier === "Top" ? "bg-emerald-500/15 text-emerald-400" : tier === "Strong" ? "bg-primary/15 text-primary" : tier === "Moderate" ? "bg-yellow-500/15 text-yellow-400" : "bg-destructive/10 text-destructive";
+                      const tierColor = tierSoft(tier);
                       return (
-                        <div key={a.id} className={`flex items-center gap-3 p-3 rounded-xl transition-colors hover:bg-secondary/50 ${i === 0 ? "bg-emerald-500/5 border border-emerald-500/10" : ""}`}>
+                        <div key={a.id} className={`flex items-center gap-3 p-3 rounded-xl transition-colors hover:bg-secondary/50 ${i === 0 ? "bg-[hsl(var(--intel-success)/0.05)] border border-[hsl(var(--intel-success)/0.1)]" : ""}`}>
                           <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground">
                             {i + 1}
                           </div>

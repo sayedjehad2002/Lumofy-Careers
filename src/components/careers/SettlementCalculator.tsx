@@ -342,7 +342,7 @@ export default function SettlementCalculator() {
           </FormSection>
 
           {/* Step 2: Annual Leave */}
-          <FormSection icon={Plane} iconColor="bg-emerald-500/15 text-emerald-500" title="Annual Leave Calculation" step={2}>
+          <FormSection icon={Plane} iconColor="bg-[hsl(var(--intel-success)/0.15)] text-[hsl(var(--intel-success))]" title="Annual Leave Calculation" step={2}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label className="text-xs font-medium text-muted-foreground">Basic Monthly Salary</Label>
@@ -370,7 +370,7 @@ export default function SettlementCalculator() {
           </FormSection>
 
           {/* Step 3: Prorated Salary */}
-          <FormSection icon={Calendar} iconColor="bg-amber-500/15 text-amber-500" title="Prorated Salary Calculation" step={3}>
+          <FormSection icon={Calendar} iconColor="bg-[hsl(var(--chart-5)/0.15)] text-[hsl(var(--chart-5))]" title="Prorated Salary Calculation" step={3}>
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -563,7 +563,7 @@ export default function SettlementCalculator() {
                           <span className="text-xs text-muted-foreground">{label}</span>
                           <Badge variant="secondary" className={`text-[10px] border-0 ${
                             status === "Calculated" || status === "Applied"
-                              ? "bg-emerald-500/15 text-emerald-500"
+                              ? "bg-[hsl(var(--intel-success)/0.15)] text-[hsl(var(--intel-success))]"
                               : "bg-secondary text-muted-foreground"
                           }`}>
                             {status}

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, AlertTriangle, Zap, Target } from "lucide-react";
 import type { Applicant, ApplicantStatus } from "@/types/careers";
 import { STAGE_SLA_DAYS } from "@/types/careers";
+import { TONE_TEXT } from "@/components/careers/statusColors";
 
 interface TimeToHireProps {
   applicants: Applicant[];
@@ -70,7 +71,7 @@ const TimeToHire = ({ applicants }: TimeToHireProps) => {
         <Card className="border-border/40">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Zap className="w-4 h-4 text-emerald-400" />
+              <Zap className={`w-4 h-4 ${TONE_TEXT.success}`} aria-hidden="true" />
               <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Weekly Velocity</span>
             </div>
             <p className="text-2xl font-bold">{metrics.processedThisWeek}<span className="text-sm text-muted-foreground ml-1">processed</span></p>
@@ -79,7 +80,7 @@ const TimeToHire = ({ applicants }: TimeToHireProps) => {
         <Card className="border-border/40">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Target className="w-4 h-4 text-amber-400" />
+              <Target className={`w-4 h-4 ${TONE_TEXT.warning}`} aria-hidden="true" />
               <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Bottleneck</span>
             </div>
             <p className="text-lg font-bold truncate">{metrics.bottleneck?.label ?? "—"}</p>
@@ -89,10 +90,10 @@ const TimeToHire = ({ applicants }: TimeToHireProps) => {
         <Card className="border-border/40">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="w-4 h-4 text-destructive" />
+              <AlertTriangle className="w-4 h-4 text-destructive" aria-hidden="true" />
               <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">SLA Breaches</span>
             </div>
-            <p className={`text-2xl font-bold ${metrics.totalBreaches > 0 ? "text-destructive" : "text-emerald-400"}`}>
+            <p className={`text-2xl font-bold ${metrics.totalBreaches > 0 ? "text-destructive" : TONE_TEXT.success}`}>
               {metrics.totalBreaches}
             </p>
           </CardContent>
@@ -128,7 +129,7 @@ const TimeToHire = ({ applicants }: TimeToHireProps) => {
                     <motion.div
                       className={`h-full rounded-lg ${
                         stage.sla && stage.avg > stage.sla ? "bg-destructive/60" :
-                        stage.avg > 5 ? "bg-amber-500/50" : "bg-primary/50"
+                        stage.avg > 5 ? "bg-[hsl(var(--intel-warning)/0.5)]" : "bg-primary/50"
                       }`}
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.min(Math.max((stage.avg / 15) * 100, 5), 100)}%` }}

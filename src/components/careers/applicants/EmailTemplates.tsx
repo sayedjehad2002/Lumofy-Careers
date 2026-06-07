@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Mail, Copy, Send, FileText, CheckCircle2, XCircle, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import type { Applicant, Job } from "@/types/careers";
+import { TONE_SOFT } from "@/components/careers/statusColors";
 
 interface EmailTemplatesProps {
   applicant: Applicant;
@@ -18,10 +19,10 @@ interface EmailTemplatesProps {
 type TemplateType = "rejection" | "interview_invite" | "offer" | "follow_up";
 
 const TEMPLATES: { type: TemplateType; label: string; icon: React.ReactNode; color: string }[] = [
-  { type: "interview_invite", label: "Interview Invite", icon: <Calendar className="w-3.5 h-3.5" />, color: "bg-primary/10 text-primary" },
-  { type: "offer", label: "Offer Letter", icon: <CheckCircle2 className="w-3.5 h-3.5" />, color: "bg-emerald-500/10 text-emerald-400" },
-  { type: "rejection", label: "Rejection", icon: <XCircle className="w-3.5 h-3.5" />, color: "bg-destructive/10 text-destructive" },
-  { type: "follow_up", label: "Follow Up", icon: <Mail className="w-3.5 h-3.5" />, color: "bg-yellow-500/10 text-yellow-400" },
+  { type: "interview_invite", label: "Interview Invite", icon: <Calendar className="w-3.5 h-3.5" aria-hidden="true" />, color: "bg-primary/10 text-primary" },
+  { type: "offer", label: "Offer Letter", icon: <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />, color: TONE_SOFT.success },
+  { type: "rejection", label: "Rejection", icon: <XCircle className="w-3.5 h-3.5" aria-hidden="true" />, color: TONE_SOFT.danger },
+  { type: "follow_up", label: "Follow Up", icon: <Mail className="w-3.5 h-3.5" aria-hidden="true" />, color: TONE_SOFT.warning },
 ];
 
 function generateTemplate(type: TemplateType, applicant: Applicant, job: Job | undefined): { subject: string; body: string } {

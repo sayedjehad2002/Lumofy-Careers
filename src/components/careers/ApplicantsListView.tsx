@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import {
-  Brain, Star, Clock, AlertTriangle, Users, Sparkles, Trophy,
+  Brain, Star, Clock, AlertTriangle, Users, Trophy,
   ArrowUpDown, Trash2, Search, Filter, ChevronRight, Zap, Eye,
   BarChart3, Activity, GitCompareArrows, CheckSquare, ClipboardList,
   Globe, RefreshCw, Pin,
@@ -13,7 +13,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { APPLICANT_STATUSES, STAGE_SLA_DAYS, type ApplicantStatus, type Applicant, type Job } from "@/types/careers";
-import type { CopilotContext } from "@/components/careers/CopilotWidget";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -29,13 +28,7 @@ import ActivityFeed from "@/components/careers/applicants/ActivityFeed";
 import SourceAnalytics from "@/components/careers/applicants/SourceAnalytics";
 import SmartRankingRefresh from "@/components/careers/applicants/SmartRankingRefresh";
 import CandidateCompareView from "@/components/careers/applicants/CandidateCompareView";
-
-const TIER_STYLES: Record<string, string> = {
-  "Top Match": "bg-emerald-500/15 text-emerald-400",
-  "Strong Match": "bg-primary/15 text-primary",
-  "Moderate Match": "bg-yellow-500/15 text-yellow-400",
-  "Weak Match": "bg-destructive/10 text-destructive",
-};
+import { tierSoft, TONE_SOFT, TONE_TEXT } from "@/components/careers/statusColors";
 
 function getRankingTier(score: number): string {
   if (score >= 85) return "Top Match";
@@ -52,7 +45,6 @@ interface ApplicantsListViewProps {
   onSelectApplicant: (a: Applicant) => void;
   onStatusUpdate: (id: string, status: ApplicantStatus) => Promise<void>;
   onDeleteApplicant: (id: string) => Promise<void>;
-  onOpenCopilot: (ctx: CopilotContext) => void;
   getJobTitle: (jobId: string) => string;
   avgRating: (a: Applicant) => string | null;
 }
@@ -70,7 +62,7 @@ const fadeUp = {
 
 export default function ApplicantsListView({
   applicants, jobs, selectedJobId, setSelectedJobId,
-  onSelectApplicant, onStatusUpdate, onDeleteApplicant, onOpenCopilot, getJobTitle, avgRating,
+  onSelectApplicant, onStatusUpdate, onDeleteApplicant, getJobTitle, avgRating,
 }: ApplicantsListViewProps) {
   const [sortBy, setSortBy] = useState<SortOption>("aiRanking");
   const [searchQuery, setSearchQuery] = useState("");
@@ -175,7 +167,7 @@ export default function ApplicantsListView({
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-1">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Users className="w-5 h-5 text-primary" />
+            <Users className="w-5 h-5 text-primary" aria-hidden="true" />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Applicants</h1>
@@ -187,24 +179,24 @@ export default function ApplicantsListView({
       {/* Stat chips */}
       <div className="flex flex-wrap gap-2 mb-5">
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border text-xs font-medium">
-          <Users className="w-3.5 h-3.5 text-primary" />
+          <Users className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
           {applicants.length} total
         </div>
         {stats.avgScore !== null && (
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border text-xs font-medium">
-            <Brain className="w-3.5 h-3.5 text-violet-400" />
+            <Brain className={`w-3.5 h-3.5 ${TONE_TEXT.ai}`} aria-hidden="true" />
             Avg Score: {stats.avgScore}
           </div>
         )}
         {stats.newCount > 0 && (
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-medium text-primary">
-            <Zap className="w-3.5 h-3.5" />
+            <Zap className="w-3.5 h-3.5" aria-hidden="true" />
             {stats.newCount} new
           </div>
         )}
         {stats.overdue > 0 && (
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-destructive/10 border border-destructive/20 text-xs font-medium text-destructive">
-            <AlertTriangle className="w-3.5 h-3.5" />
+            <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
             {stats.overdue} overdue
           </div>
         )}
@@ -412,12 +404,12 @@ export default function ApplicantsListView({
                         {/* Rank */}
                         {rank != null && !batchMode && (
                           <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${
-                            rank === 1 ? "bg-yellow-500/15 text-yellow-400" :
+                            rank === 1 ? TONE_SOFT.warning :
                             rank === 2 ? "bg-muted text-muted-foreground" :
-                            rank === 3 ? "bg-orange-500/15 text-orange-400" :
+                            rank === 3 ? TONE_SOFT.bronze :
                             "bg-secondary text-muted-foreground"
                           }`}>
-                            {rank <= 3 ? <Trophy className="w-3.5 h-3.5" /> : `#${rank}`}
+                            {rank <= 3 ? <Trophy className="w-3.5 h-3.5" aria-hidden="true" /> : `#${rank}`}
                           </div>
                         )}
 
@@ -431,13 +423,13 @@ export default function ApplicantsListView({
                             <h3 className="font-semibold text-sm truncate">{applicant.fullName}</h3>
                             {score != null && (
                               <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-primary/10 flex-shrink-0">
-                                <Brain className="w-3 h-3 text-primary" />
+                                <Brain className="w-3 h-3 text-primary" aria-hidden="true" />
                                 <span className="text-xs font-bold text-primary">{score}</span>
                               </div>
                             )}
                             {avgRating(applicant) && (
-                              <span className="flex items-center gap-0.5 text-[11px] text-yellow-400 flex-shrink-0">
-                                <Star className="w-3 h-3 fill-current" />{avgRating(applicant)}
+                              <span className={`flex items-center gap-0.5 text-[11px] flex-shrink-0 ${TONE_TEXT.warning}`}>
+                                <Star className="w-3 h-3 fill-current" aria-hidden="true" />{avgRating(applicant)}
                               </span>
                             )}
                           </div>
@@ -449,7 +441,7 @@ export default function ApplicantsListView({
                               {statusInfo.label}
                             </Badge>
                             {tier && (
-                              <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 h-[18px] border-0 ${TIER_STYLES[tier]}`}>
+                              <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 h-[18px] border-0 ${tierSoft(tier)}`}>
                                 {tier}
                               </Badge>
                             )}
@@ -461,11 +453,11 @@ export default function ApplicantsListView({
                           <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground mt-1">
                             <span>{new Date(applicant.appliedDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                             <span className="flex items-center gap-0.5">
-                              <Clock className="w-2.5 h-2.5" />{daysInStage}d
+                              <Clock className="w-2.5 h-2.5" aria-hidden="true" />{daysInStage}d
                             </span>
                             {isOverdue && (
                               <span className="flex items-center gap-0.5 text-destructive font-medium">
-                                <AlertTriangle className="w-2.5 h-2.5" />SLA Breach
+                                <AlertTriangle className="w-2.5 h-2.5" aria-hidden="true" />SLA Breach
                               </span>
                             )}
                           </div>
@@ -487,20 +479,6 @@ export default function ApplicantsListView({
                           </Select>
                           <Button
                             size="sm" variant="ghost"
-                            className="h-8 px-2.5 text-[11px] text-primary hover:bg-primary/10 rounded-lg"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onOpenCopilot({
-                                candidateId: applicant.id,
-                                jobId: applicant.jobId,
-                                autoPrompt: `Summarize ${applicant.fullName}'s fit for ${getJobTitle(applicant.jobId)} and explain their AI score.`,
-                              });
-                            }}
-                          >
-                            <Sparkles className="w-3.5 h-3.5 mr-0.5" />AI
-                          </Button>
-                          <Button
-                            size="sm" variant="ghost"
                             className={`h-8 w-8 p-0 rounded-lg transition-colors ${pinnedIds.has(applicant.id) ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary hover:bg-primary/10"}`}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -512,18 +490,20 @@ export default function ApplicantsListView({
                               });
                             }}
                             title="Pin for comparison"
+                            aria-label="Pin for comparison"
                           >
-                            <Pin className="w-3.5 h-3.5" />
+                            <Pin className="w-3.5 h-3.5" aria-hidden="true" />
                           </Button>
                           <Button
                             size="sm" variant="ghost"
                             className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                             onClick={(e) => { e.stopPropagation(); setDeleteTarget(applicant); }}
                             title="Delete applicant"
+                            aria-label="Delete applicant"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                           </Button>
-                          <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                          <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all" aria-hidden="true" />
                         </div>
                       )}
                     </div>

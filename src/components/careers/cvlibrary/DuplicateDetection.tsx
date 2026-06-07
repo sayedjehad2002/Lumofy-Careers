@@ -3,6 +3,7 @@ import { AlertTriangle, Merge, Eye, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { TONE_TEXT, TONE_BORDER } from "@/components/careers/statusColors";
 
 interface CVCandidate {
   id: string;
@@ -95,7 +96,7 @@ export default function DuplicateDetection({ candidates, onView, onDelete }: Pro
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-yellow-400" /> Duplicate Detection
+            <AlertTriangle className={`w-4 h-4 ${TONE_TEXT.warning}`} aria-hidden="true" /> Duplicate Detection
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             {duplicateGroups.length} potential duplicate group{duplicateGroups.length !== 1 ? "s" : ""} found
@@ -105,7 +106,7 @@ export default function DuplicateDetection({ candidates, onView, onDelete }: Pro
 
       {duplicateGroups.length === 0 ? (
         <div className="rounded-xl bg-card border border-border p-8 text-center">
-          <Check className="w-8 h-8 mx-auto mb-2 text-emerald-400" />
+          <Check className={`w-8 h-8 mx-auto mb-2 ${TONE_TEXT.success}`} aria-hidden="true" />
           <p className="font-medium">No duplicates detected</p>
           <p className="text-xs text-muted-foreground mt-1">Your CV library is clean</p>
         </div>
@@ -113,9 +114,9 @@ export default function DuplicateDetection({ candidates, onView, onDelete }: Pro
         <ScrollArea className="max-h-[600px]">
           <div className="space-y-3">
             {duplicateGroups.map((group, gi) => (
-              <div key={gi} className="rounded-xl bg-card border border-yellow-500/20 p-4">
+              <div key={gi} className="rounded-xl bg-card border border-[hsl(var(--intel-warning)/0.2)] p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <Badge variant="outline" className="text-[10px] text-yellow-400 border-yellow-500/30">
+                  <Badge variant="outline" className={`text-[10px] ${TONE_TEXT.warning} ${TONE_BORDER.warning}`}>
                     {group.reason}
                   </Badge>
                   <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => dismiss(group)}>

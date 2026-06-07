@@ -12,7 +12,7 @@ interface CareersContextType {
   addJob: (job: Job) => Promise<void>;
   updateJob: (job: Job) => Promise<void>;
   deleteJob: (jobId: string) => Promise<void>;
-  addApplicant: (applicant: Applicant) => Promise<void>;
+  addApplicant: (applicant: Applicant) => Promise<string>;
   deleteApplicant: (applicantId: string) => Promise<void>;
   updateApplicantStatus: (applicantId: string, status: ApplicantStatus) => Promise<void>;
   addApplicantNote: (applicantId: string, note: string) => Promise<void>;
@@ -35,14 +35,14 @@ function dbRowToJob(row: any): Job {
     status: row.status as "open" | "closed",
     summary: row.summary,
     description: row.description,
-    responsibilities: row.responsibilities as string[],
-    requirements: row.requirements as string[],
-    benefits: row.benefits as string[],
+    responsibilities: (row.responsibilities ?? []) as string[],
+    requirements: (row.requirements ?? []) as string[],
+    benefits: (row.benefits ?? []) as string[],
     salaryRange: row.salary_range || undefined,
     salaryCurrency: row.salary_currency || undefined,
     postedDate: row.posted_date,
     deadline: row.deadline || undefined,
-    screeningQuestions: row.screening_questions as ScreeningQuestion[],
+    screeningQuestions: (row.screening_questions ?? []) as ScreeningQuestion[],
     jdFileName: row.jd_file_name || undefined,
     jdFilePath: row.jd_file_path || undefined,
     jdFileSize: row.jd_file_size || undefined,
@@ -137,18 +137,26 @@ export function CareersProvider({ children }: { children: ReactNode }) {
 
   const fetchData = useCallback(async () => {
     try {
-      // Jobs loaded via secure DB function (only public-safe fields)
-      const jobsRes = await supabase.rpc("get_public_jobs");
-      if (jobsRes.data) setJobs((jobsRes.data as any[]).map(dbRowToJob));
-
-      // Applicants require session token (fetched via edge function)
       if (sessionToken) {
+        // Admin: load ALL jobs (incl. closed/draft) with full columns so the
+        // dashboard can manage them and AI scoring weights are available for
+        // manual analysis (the public RPC intentionally omits both).
+        const { data: allJobs } = await adminQuery<any[]>(sessionToken, "select", "jobs", {
+          order: { column: "created_at", ascending: false },
+        });
+        if (allJobs) setJobs(allJobs.map(dbRowToJob));
+
+        // Applicants require the session token (fetched via edge function).
         const { data, error } = await supabase.functions.invoke("get-applicants", {
           body: { sessionToken },
         });
         if (!error && data?.applicants) {
           setApplicants(data.applicants.map(dbRowToApplicant));
         }
+      } else {
+        // Public: only open jobs, candidate-safe fields, via the secure RPC.
+        const jobsRes = await supabase.rpc("get_public_jobs");
+        if (jobsRes.data) setJobs((jobsRes.data as any[]).map(dbRowToJob));
       }
     } catch (e) {
       import.meta.env.DEV && console.error("Failed to fetch data:", e);
@@ -168,9 +176,14 @@ export function CareersProvider({ children }: { children: ReactNode }) {
 
   const updateJob = useCallback(async (job: Job) => {
     if (!sessionToken) throw new Error("Not authenticated");
-    setJobs(prev => prev.map(j => j.id === job.id ? job : j));
+    let prevJob: Job | undefined;
+    setJobs(prev => { prevJob = prev.find(j => j.id === job.id); return prev.map(j => j.id === job.id ? job : j); });
     const { error } = await adminQuery(sessionToken, "update", "jobs", { data: jobToDbRow(job), eq: { id: job.id } });
-    if (error) { import.meta.env.DEV && console.error("updateJob error:", error); throw new Error(error); }
+    if (error) {
+      import.meta.env.DEV && console.error("updateJob error:", error);
+      if (prevJob) setJobs(prev => prev.map(j => j.id === job.id ? prevJob! : j)); // rollback optimistic update
+      throw new Error(error);
+    }
   }, [sessionToken]);
 
   const deleteJob = useCallback(async (jobId: string) => {
@@ -180,10 +193,36 @@ export function CareersProvider({ children }: { children: ReactNode }) {
     if (error) { import.meta.env.DEV && console.error("deleteJob error:", error); throw new Error(error); }
   }, [sessionToken]);
 
-  const addApplicant = useCallback(async (applicant: Applicant) => {
-    setApplicants(prev => [...prev, applicant]);
-    const { error } = await supabase.from("applicants").insert(applicantToDbRow(applicant) as any);
-    if (error) { import.meta.env.DEV && console.error("addApplicant error:", error); setApplicants(prev => prev.filter(a => a.id !== applicant.id)); throw error; }
+  const addApplicant = useCallback(async (applicant: Applicant): Promise<string> => {
+    // Public applications now go through the secure submit-application edge function:
+    // it validates the job is open + not past deadline, server-sets status/AI/rating/
+    // timestamps, dedups, and rate-limits — instead of a raw anon INSERT.
+    const { data, error } = await supabase.functions.invoke("submit-application", {
+      body: {
+        jobId: applicant.jobId,
+        full_name: applicant.fullName,
+        email: applicant.email,
+        phone: applicant.phone,
+        location: applicant.location,
+        nationality: applicant.nationality,
+        linkedin: applicant.linkedin,
+        portfolio: applicant.portfolio,
+        cover_letter: applicant.coverLetter,
+        cv_file_name: applicant.cvFileName,
+        cv_storage_path: applicant.cvStoragePath,
+        cv_file_type: applicant.cvFileType,
+        cv_file_size: applicant.cvFileSize,
+        screening_answers: applicant.screeningAnswers,
+      },
+    });
+    if (error) {
+      // supabase-js puts the JSON body of a non-2xx response on error.context.
+      let serverError = "";
+      try { serverError = ((await (error as any).context?.json?.()) || {}).error || ""; } catch { /* ignore */ }
+      throw new Error(serverError || error.message || "submit_failed");
+    }
+    if (data?.error) throw new Error(data.error);
+    return (data?.applicantId as string) ?? "";
   }, []);
 
   const deleteApplicant = useCallback(async (applicantId: string) => {

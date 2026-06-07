@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import type { Applicant } from "@/types/careers";
 import { APPLICANT_STATUSES, STAGE_SLA_DAYS } from "@/types/careers";
+import { TONE_TEXT, TONE_BG, TONE_SUBTLE } from "../statusColors";
 
 interface PipelineHealthScorecardProps {
   applicants: Applicant[];
@@ -51,15 +52,15 @@ function computeHealthScore(applicants: Applicant[]) {
 }
 
 function getHealthColor(score: number) {
-  if (score >= 80) return "text-emerald-400";
-  if (score >= 60) return "text-yellow-400";
-  return "text-destructive";
+  if (score >= 80) return TONE_TEXT.success;
+  if (score >= 60) return TONE_TEXT.warning;
+  return TONE_TEXT.danger;
 }
 
 function getHealthBg(score: number) {
-  if (score >= 80) return "bg-emerald-500";
-  if (score >= 60) return "bg-yellow-500";
-  return "bg-destructive";
+  if (score >= 80) return TONE_BG.success;
+  if (score >= 60) return TONE_BG.warning;
+  return TONE_BG.danger;
 }
 
 const PipelineHealthScorecard = ({ applicants }: PipelineHealthScorecardProps) => {
@@ -78,8 +79,8 @@ const PipelineHealthScorecard = ({ applicants }: PipelineHealthScorecardProps) =
           <div className="flex items-center gap-4 flex-wrap">
             {/* Health Score */}
             <div className="flex items-center gap-3">
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${health.score >= 80 ? "bg-emerald-500/10" : health.score >= 60 ? "bg-yellow-500/10" : "bg-destructive/10"}`}>
-                <HeartPulse className={`w-6 h-6 ${getHealthColor(health.score)}`} />
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${health.score >= 80 ? TONE_SUBTLE.success : health.score >= 60 ? TONE_SUBTLE.warning : TONE_SUBTLE.danger}`}>
+                <HeartPulse className={`w-6 h-6 ${getHealthColor(health.score)}`} aria-hidden="true" />
               </div>
               <div>
                 <p className={`text-2xl font-bold ${getHealthColor(health.score)}`}>{health.score}</p>
@@ -92,7 +93,7 @@ const PipelineHealthScorecard = ({ applicants }: PipelineHealthScorecardProps) =
             {/* KPI Mini Cards */}
             {kpis.map((kpi, i) => (
               <div key={kpi.label} className="flex items-center gap-2.5">
-                <kpi.icon className="w-3.5 h-3.5 text-muted-foreground" />
+                <kpi.icon className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
                 <div className="min-w-[80px]">
                   <div className="flex items-center justify-between mb-0.5">
                     <span className="text-[10px] text-muted-foreground">{kpi.label}</span>
@@ -112,7 +113,7 @@ const PipelineHealthScorecard = ({ applicants }: PipelineHealthScorecardProps) =
                 <div className="flex flex-wrap gap-1.5">
                   {health.details.map((d, i) => (
                     <Badge key={i} variant="secondary" className="text-[9px] py-0 border-0 bg-destructive/10 text-destructive">
-                      <AlertTriangle className="w-2.5 h-2.5 mr-0.5" />{d}
+                      <AlertTriangle className="w-2.5 h-2.5 mr-0.5" aria-hidden="true" />{d}
                     </Badge>
                   ))}
                 </div>

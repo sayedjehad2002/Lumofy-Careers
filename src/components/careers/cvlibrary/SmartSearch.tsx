@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TONE_SOFT } from "@/components/careers/statusColors";
 
 interface Props {
   onSearch: (query: string, parsed: ParsedQuery) => void;
@@ -95,12 +96,12 @@ export default function SmartSearch({ onSearch }: Props) {
       {(parsed.include.length > 0 || parsed.exclude.length > 0) && (
         <div className="flex flex-wrap gap-1.5">
           {parsed.include.map((t, i) => (
-            <Badge key={`inc-${i}`} variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-400">
+            <Badge key={`inc-${i}`} variant="secondary" className={`text-[10px] ${TONE_SOFT.success}`}>
               + {t}
             </Badge>
           ))}
           {parsed.exclude.map((t, i) => (
-            <Badge key={`exc-${i}`} variant="secondary" className="text-[10px] bg-red-500/10 text-red-400">
+            <Badge key={`exc-${i}`} variant="secondary" className={`text-[10px] ${TONE_SOFT.danger}`}>
               − {t}
             </Badge>
           ))}
