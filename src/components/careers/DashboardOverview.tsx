@@ -1,11 +1,9 @@
 import { useMemo } from "react";
 import {
-  Briefcase, Users, Brain, Clock, TrendingUp, ArrowRight,
-  CheckCircle, BarChart3, Sparkles, AlertTriangle, Calendar,
-  Zap, Eye, UserCheck, ChevronRight, Activity, Star,
+  Brain, Clock, Eye, Calendar, AlertTriangle,
+  Activity, BarChart3, Star, UserCheck,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   ChartContainer,
@@ -18,25 +16,14 @@ import {
 } from "recharts";
 import type { Job, Applicant, ApplicantStatus } from "@/types/careers";
 import { APPLICANT_STATUSES } from "@/types/careers";
-import { FUNNEL_FILLS, TONE_SOFT, TONE_TEXT, TONE_BG, TONE_SUBTLE, tierSoft } from "./statusColors";
+import { FUNNEL_FILLS, TONE_SOFT, TONE_TEXT, TONE_BG, tierSoft } from "./statusColors";
+import { Panel, StatTile, Meter } from "./dashboard/primitives";
 
 interface DashboardOverviewProps {
   jobs: Job[];
   applicants: Applicant[];
   onNavigate: (tab: string) => void;
 }
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, delay: i * 0.07, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
-  }),
-};
-
-// Funnel bar colors resolve to the chart/intel design tokens (light + dark safe).
-const FUNNEL_COLORS = FUNNEL_FILLS;
 
 const STAGE_ORDER: ApplicantStatus[] = ["new", "reviewing", "shortlisted", "interview", "hired"];
 
@@ -80,7 +67,7 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
     return STAGE_ORDER.map((status, i) => ({
       name: APPLICANT_STATUSES.find((s) => s.value === status)?.label || status,
       value: applicants.filter((a) => a.status === status).length,
-      fill: FUNNEL_COLORS[i],
+      fill: FUNNEL_FILLS[i],
     }));
   }, [applicants]);
 
@@ -124,19 +111,19 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
   const attentionItems = useMemo(() => {
     const items: { label: string; count: number; icon: typeof AlertTriangle; color: string }[] = [];
     const newCount = applicants.filter((a) => a.status === "new").length;
-    if (newCount > 0) items.push({ label: "Unreviewed applicants", count: newCount, icon: Eye, color: TONE_TEXT.warning });
+    if (newCount > 0) items.push({ label: "unreviewed", count: newCount, icon: Eye, color: TONE_TEXT.warning });
     const staleInterviews = applicants.filter((a) => {
       if (a.status !== "interview") return false;
       const entered = new Date(a.stageEnteredAt || a.appliedDate);
       return (Date.now() - entered.getTime()) > 7 * 24 * 60 * 60 * 1000;
     }).length;
-    if (staleInterviews > 0) items.push({ label: "Interviews stalled >7 days", count: staleInterviews, icon: Clock, color: "text-destructive" });
+    if (staleInterviews > 0) items.push({ label: "interviews stalled >7d", count: staleInterviews, icon: Clock, color: "text-destructive" });
     const closingSoon = jobs.filter((j) => {
       if (j.status !== "open" || !j.deadline) return false;
       const days = (new Date(j.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
       return days >= 0 && days <= 7;
     }).length;
-    if (closingSoon > 0) items.push({ label: "Jobs closing this week", count: closingSoon, icon: Calendar, color: TONE_TEXT.bronze });
+    if (closingSoon > 0) items.push({ label: "jobs closing this week", count: closingSoon, icon: Calendar, color: TONE_TEXT.bronze });
     return items;
   }, [applicants, jobs]);
 
@@ -169,386 +156,195 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
   });
 
   const metrics = [
-    { label: "Open Positions", value: openJobs, icon: Briefcase, gradient: "from-primary/20 to-primary/5", iconColor: "text-primary", tab: "jobs" },
-    { label: "Total Applicants", value: applicants.length, icon: Users, gradient: "from-[hsl(var(--intel-success)/0.2)] to-[hsl(var(--intel-success)/0.05)]", iconColor: TONE_TEXT.success, tab: "applicants" },
-    { label: "Avg AI Score", value: avgFitScore !== null ? `${avgFitScore}` : "—", icon: Brain, gradient: "from-[hsl(var(--chart-3)/0.2)] to-[hsl(var(--chart-3)/0.05)]", iconColor: TONE_TEXT.ai, tab: "applicants" },
-    { label: "Avg Time-to-Hire", value: avgTimeToHire !== null ? `${avgTimeToHire}d` : "—", icon: Clock, gradient: "from-primary/20 to-primary/5", iconColor: "text-primary", tab: "pipeline" },
-    { label: "To Interview", value: `${conversionRates.newToInterview}%`, icon: TrendingUp, gradient: "from-[hsl(var(--intel-warning)/0.2)] to-[hsl(var(--intel-warning)/0.05)]", iconColor: TONE_TEXT.warning, tab: "pipeline" },
-    { label: "To Hired", value: `${conversionRates.interviewToHired}%`, icon: CheckCircle, gradient: "from-[hsl(var(--intel-success)/0.2)] to-[hsl(var(--intel-success)/0.05)]", iconColor: TONE_TEXT.success, tab: "pipeline" },
+    { label: "Open Positions", value: openJobs, tab: "jobs" },
+    { label: "Total Applicants", value: applicants.length, tab: "applicants" },
+    { label: "Avg AI Score", value: avgFitScore !== null ? `${avgFitScore}` : "—", tab: "applicants" },
+    { label: "Avg Time-to-Hire", value: avgTimeToHire !== null ? `${avgTimeToHire}d` : "—", tab: "pipeline" },
+    { label: "To Interview", value: `${conversionRates.newToInterview}%`, tab: "pipeline" },
+    { label: "To Hired", value: `${conversionRates.interviewToHired}%`, tab: "pipeline" },
   ];
 
-  const recColorMap: Record<string, { bar: string; text: string }> = {
-    "Fast-Track": { bar: TONE_BG.success, text: TONE_TEXT.success },
-    "Proceed": { bar: "bg-primary", text: "text-primary" },
-    "Hold": { bar: TONE_BG.warning, text: TONE_TEXT.warning },
-    "Not Recommended": { bar: "bg-destructive", text: "text-destructive" },
+  const recColorMap: Record<string, string> = {
+    "Fast-Track": TONE_BG.success,
+    "Proceed": "bg-primary",
+    "Hold": TONE_BG.warning,
+    "Not Recommended": "bg-destructive",
+  };
+  const recTextMap: Record<string, string> = {
+    "Fast-Track": TONE_TEXT.success,
+    "Proceed": "text-primary",
+    "Hold": TONE_TEXT.warning,
+    "Not Recommended": "text-destructive",
   };
 
   return (
-    <div className="space-y-6">
-      {/* ── Hero Welcome Banner ── */}
-      <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={0}>
-        <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-card to-card p-6 md:p-8">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,hsl(var(--primary)/0.15),transparent_60%)]" />
-          <div className="absolute top-4 right-4 w-32 h-32 rounded-full bg-primary/5 blur-3xl" />
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="w-5 h-5 text-primary" />
-                <span className="text-xs font-medium text-primary tracking-wider uppercase">
-                  Recruitment Command Center
-                </span>
-              </div>
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-                {greeting}, Team 👋
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">{todayStr}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { label: `${openJobs} open roles`, icon: Briefcase },
-                { label: `${applicants.filter(a => a.status === "new").length} new today`, icon: Zap },
-              ].map((chip) => (
-                <div
-                  key={chip.label}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/80 backdrop-blur-sm border border-border text-xs font-medium"
-                >
-                  <chip.icon className="w-3.5 h-3.5 text-primary" />
-                  {chip.label}
-                </div>
-              ))}
-            </div>
-          </div>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="space-y-5">
+      {/* ── Header ── */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Overview</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">{greeting} · {todayStr}</p>
         </div>
-      </motion.div>
-
-      {/* ── Attention Alerts ── */}
-      {attentionItems.length > 0 && (
-        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={1}>
+        {attentionItems.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {attentionItems.map((item, i) => (
-              <div
+              <span
                 key={i}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card hover:bg-secondary/50 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-card/50 px-2.5 py-1.5 text-xs text-muted-foreground"
               >
-                <item.icon className={`w-4 h-4 ${item.color}`} />
-                <span className="text-sm font-medium">{item.count}</span>
-                <span className="text-xs text-muted-foreground">{item.label}</span>
-              </div>
+                <item.icon className={`h-3.5 w-3.5 ${item.color}`} aria-hidden="true" />
+                <span className="font-semibold tabular-nums text-foreground">{item.count}</span>
+                {item.label}
+              </span>
             ))}
           </div>
-        </motion.div>
-      )}
+        )}
+      </div>
 
-      {/* ── KPI Metric Cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {metrics.map((m, i) => (
-          <motion.div key={m.label} variants={fadeUp} initial="hidden" animate="visible" custom={i + 2}>
-            <Card onClick={() => onNavigate(m.tab)} className="group relative overflow-hidden hover:border-primary/30 transition-all duration-300 hover:shadow-lg cursor-pointer">
-              <div className={`absolute inset-0 bg-gradient-to-br ${m.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-              <CardContent className="relative p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                    <m.icon className={`w-5 h-5 ${m.iconColor}`} />
-                  </div>
-                </div>
-                <p className="text-3xl font-bold tracking-tight">{m.value}</p>
-                <p className="text-[11px] text-muted-foreground mt-1 tracking-wide uppercase font-medium">{m.label}</p>
-              </CardContent>
-            </Card>
-          </motion.div>
+      {/* ── KPI tiles ── */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+        {metrics.map((m) => (
+          <StatTile key={m.label} label={m.label} value={m.value} onClick={() => onNavigate(m.tab)} />
         ))}
       </div>
 
-      {/* ── Pipeline Funnel + Candidates by Stage ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={7}>
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Activity className="w-4 h-4 text-primary" />
+      {/* ── Pipeline + Candidates by stage ── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Panel title="Recruitment pipeline" icon={Activity}>
+          <div className="space-y-3">
+            {funnelData.map((stage) => {
+              const maxVal = Math.max(...funnelData.map((s) => s.value), 1);
+              const pct = (stage.value / maxVal) * 100;
+              const total = funnelData.reduce((a, b) => a + b.value, 0);
+              const share = total > 0 ? Math.round((stage.value / total) * 100) : 0;
+              return (
+                <div key={stage.name}>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">{stage.name}</span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {share}% · <span className="font-semibold text-foreground">{stage.value}</span>
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-secondary/60">
+                    <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: stage.fill }} />
+                  </div>
                 </div>
-                Recruitment Pipeline
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {funnelData.map((stage, i) => {
-                  const maxVal = Math.max(...funnelData.map((s) => s.value), 1);
-                  const pct = (stage.value / maxVal) * 100;
-                  const total = funnelData.reduce((a, b) => a + b.value, 0);
-                  const share = total > 0 ? Math.round((stage.value / total) * 100) : 0;
+              );
+            })}
+          </div>
+        </Panel>
+
+        <Panel title="Candidates by stage" icon={BarChart3}>
+          <ChartContainer config={stageChartConfig} className="h-[220px] w-full">
+            <BarChart data={stageBarData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" vertical={false} />
+              <XAxis dataKey="stage" tick={{ fontSize: 11 }} className="fill-muted-foreground" tickLine={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" allowDecimals={false} tickLine={false} axisLine={false} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ChartContainer>
+        </Panel>
+      </div>
+
+      {/* ── Top jobs + AI recommendations ── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Panel title="Top jobs by applicants" icon={Star}>
+          <div className="space-y-1">
+            {topJobs.map((j, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-secondary/40">
+                <span className="w-5 text-center text-xs font-semibold tabular-nums text-muted-foreground/50">{i + 1}</span>
+                <p className="min-w-0 flex-1 truncate text-sm text-foreground">{j.title}</p>
+                <Badge variant="secondary" className={`shrink-0 border-0 text-[10px] ${j.status === "open" ? TONE_SOFT.success : "bg-muted text-muted-foreground"}`}>
+                  {j.status}
+                </Badge>
+                <span className="w-7 text-right text-sm font-semibold tabular-nums text-foreground">{j.count}</span>
+              </div>
+            ))}
+            {topJobs.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">No jobs yet</p>}
+          </div>
+        </Panel>
+
+        <Panel title="AI recommendations" icon={Brain}>
+          <div className="space-y-3.5">
+            {Object.entries(recommendations).map(([label, count]) => {
+              const total = Object.values(recommendations).reduce((a, b) => a + b, 0);
+              const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+              return (
+                <Meter
+                  key={label}
+                  label={label}
+                  value={`${count} · ${pct}%`}
+                  pct={pct}
+                  barColor={recColorMap[label] || "bg-muted"}
+                  labelColor={recTextMap[label] || "text-muted-foreground"}
+                />
+              );
+            })}
+            {Object.values(recommendations).every((v) => v === 0) && (
+              <p className="py-6 text-center text-sm text-muted-foreground">No AI analyses yet</p>
+            )}
+          </div>
+        </Panel>
+      </div>
+
+      {/* ── Top AI matches + Recent activity ── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Panel title="Top AI matches" icon={UserCheck}>
+          {(() => {
+            const topMatches = applicants
+              .filter((a) => a.aiAnalysis?.fitScore != null)
+              .sort((a, b) => (b.aiAnalysis?.fitScore ?? 0) - (a.aiAnalysis?.fitScore ?? 0))
+              .slice(0, 5);
+            if (topMatches.length === 0) return <p className="py-6 text-center text-sm text-muted-foreground">No AI analyses yet</p>;
+            return (
+              <div className="space-y-1">
+                {topMatches.map((a, i) => {
+                  const job = jobs.find((j) => j.id === a.jobId);
+                  const score = a.aiAnalysis!.fitScore;
+                  const tier = score >= 85 ? "Top" : score >= 70 ? "Strong" : score >= 50 ? "Moderate" : "Weak";
                   return (
-                    <div key={stage.name} className="group/bar">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-muted-foreground">{stage.name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">{share}%</span>
-                          <span className="text-sm font-bold">{stage.value}</span>
-                        </div>
+                    <div key={a.id} className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-secondary/40">
+                      <span className="w-5 text-center text-xs font-semibold tabular-nums text-muted-foreground/50">{i + 1}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-foreground">{a.fullName}</p>
+                        <p className="truncate text-[11px] text-muted-foreground">{job?.title || "Unknown"}</p>
                       </div>
-                      <div className="h-8 bg-secondary/50 rounded-lg overflow-hidden relative">
-                        <motion.div
-                          className="h-full rounded-lg relative"
-                          style={{ backgroundColor: stage.fill }}
-                          initial={{ width: 0 }}
-                          animate={{ width: `${pct}%` }}
-                          transition={{ duration: 0.7, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] }}
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/10" />
-                        </motion.div>
-                      </div>
-                      {i < funnelData.length - 1 && funnelData[i].value > 0 && (
-                        <div className="flex justify-end mt-0.5">
-                          <span className="text-[10px] text-muted-foreground/60">
-                            ↓ {funnelData[i + 1].value > 0
-                              ? `${Math.round((funnelData[i + 1].value / funnelData[i].value) * 100)}% pass`
-                              : "0% pass"}
-                          </span>
-                        </div>
-                      )}
+                      <Badge variant="secondary" className={`shrink-0 border-0 text-[10px] ${tierSoft(tier)}`}>{tier}</Badge>
+                      <span className="w-8 text-right text-sm font-semibold tabular-nums text-primary">{score}</span>
                     </div>
                   );
                 })}
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+            );
+          })()}
+        </Panel>
 
-        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={8}>
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <BarChart3 className="w-4 h-4 text-primary" />
-                </div>
-                Candidates by Stage
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={stageChartConfig} className="h-[240px] w-full">
-                <BarChart data={stageBarData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
-                  <XAxis dataKey="stage" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-                  <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" allowDecimals={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-
-      {/* ── Top Jobs + AI Recommendations ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={9}>
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Star className="w-4 h-4 text-primary" />
-                </div>
-                Top Jobs by Applicants
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {topJobs.map((j, i) => (
-                  <div
-                    key={i}
-                    className={`flex items-center gap-3 p-3 rounded-xl transition-colors hover:bg-secondary/50 ${i === 0 ? "bg-primary/5 border border-primary/10" : ""}`}
-                  >
-                    <span className="text-lg font-bold text-muted-foreground/40 w-6 text-center">{i + 1}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{j.title}</p>
-                    </div>
-                    <Badge
-                      variant="secondary"
-                      className={`text-[10px] border-0 shrink-0 ${
-                        j.status === "open"
-                          ? TONE_SOFT.success
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {j.status}
-                    </Badge>
-                    <span className="text-base font-bold tabular-nums">{j.count}</span>
+        <Panel title="Recent activity" icon={Clock}>
+          {recentActivity.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">No activity yet</p>
+          ) : (
+            <div className="space-y-3">
+              {recentActivity.map((item) => (
+                <div key={item.id} className="flex items-start gap-2.5">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm">
+                      <span className="font-medium text-foreground">{item.name}</span>
+                      <span className="text-muted-foreground"> {item.action}</span>
+                    </p>
+                    <p className="truncate text-[11px] text-muted-foreground">{item.job}</p>
                   </div>
-                ))}
-                {topJobs.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-6">No jobs yet</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={10}>
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${TONE_SUBTLE.ai}`}>
-                  <Brain className={`w-4 h-4 ${TONE_TEXT.ai}`} aria-hidden="true" />
+                  <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                    {new Date(item.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </span>
                 </div>
-                AI Recommendations
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {Object.entries(recommendations).map(([label, count]) => {
-                  const total = Object.values(recommendations).reduce((a, b) => a + b, 0);
-                  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-                  const colors = recColorMap[label] || { bar: "bg-muted", text: "text-muted-foreground" };
-                  return (
-                    <div key={label}>
-                      <div className="flex items-center justify-between text-sm mb-1.5">
-                        <span className={`font-medium ${colors.text}`}>{label}</span>
-                        <span className="text-xs text-muted-foreground tabular-nums">{count} · {pct}%</span>
-                      </div>
-                      <div className="h-2.5 bg-secondary rounded-full overflow-hidden">
-                        <motion.div
-                          className={`h-full rounded-full ${colors.bar}`}
-                          initial={{ width: 0 }}
-                          animate={{ width: `${pct}%` }}
-                          transition={{ duration: 0.6 }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-                {Object.values(recommendations).every((v) => v === 0) && (
-                  <p className="text-sm text-muted-foreground text-center py-6">No AI analyses yet</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-
-      {/* ── Top AI Matches + Recent Activity ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={11}>
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${TONE_SUBTLE.success}`}>
-                  <UserCheck className={`w-4 h-4 ${TONE_TEXT.success}`} aria-hidden="true" />
-                </div>
-                Top AI Matches
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {(() => {
-                const topMatches = applicants
-                  .filter(a => a.aiAnalysis?.fitScore != null)
-                  .sort((a, b) => (b.aiAnalysis?.fitScore ?? 0) - (a.aiAnalysis?.fitScore ?? 0))
-                  .slice(0, 5);
-                if (topMatches.length === 0) return <p className="text-sm text-muted-foreground text-center py-6">No AI analyses yet</p>;
-                return (
-                  <div className="space-y-2">
-                    {topMatches.map((a, i) => {
-                      const job = jobs.find(j => j.id === a.jobId);
-                      const score = a.aiAnalysis!.fitScore;
-                      const tier = score >= 85 ? "Top" : score >= 70 ? "Strong" : score >= 50 ? "Moderate" : "Weak";
-                      const tierColor = tierSoft(tier);
-                      return (
-                        <div key={a.id} className={`flex items-center gap-3 p-3 rounded-xl transition-colors hover:bg-secondary/50 ${i === 0 ? "bg-[hsl(var(--intel-success)/0.05)] border border-[hsl(var(--intel-success)/0.1)]" : ""}`}>
-                          <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground">
-                            {i + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{a.fullName}</p>
-                            <p className="text-[11px] text-muted-foreground truncate">{job?.title || "Unknown"}</p>
-                          </div>
-                          <Badge variant="secondary" className={`text-[10px] border-0 ${tierColor}`}>{tier}</Badge>
-                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                            <span className="text-sm font-bold text-primary">{score}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={12}>
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Activity className="w-4 h-4 text-primary" />
-                </div>
-                Recent Activity
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {recentActivity.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No activity yet</p>
-              ) : (
-                <div className="relative">
-                  <div className="absolute left-4 top-2 bottom-2 w-px bg-border" />
-                  <div className="space-y-4">
-                    {recentActivity.map((item, i) => (
-                      <motion.div
-                        key={item.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.05 + 0.3 }}
-                        className="flex items-start gap-3 pl-1"
-                      >
-                        <div className="w-7 h-7 rounded-full bg-secondary border-2 border-card flex items-center justify-center shrink-0 z-10">
-                          <div className="w-2 h-2 rounded-full bg-primary" />
-                        </div>
-                        <div className="flex-1 min-w-0 pt-0.5">
-                          <p className="text-sm">
-                            <span className="font-medium">{item.name}</span>
-                            <span className="text-muted-foreground"> {item.action} </span>
-                          </p>
-                          <p className="text-[11px] text-muted-foreground truncate">{item.job}</p>
-                        </div>
-                        <span className="text-[10px] text-muted-foreground shrink-0 pt-1 tabular-nums">
-                          {new Date(item.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                        </span>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-
-      {/* ── Quick Actions ── */}
-      <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={13}>
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex flex-wrap gap-2">
-              {[
-                { label: "View Pipeline", tab: "pipeline", icon: BarChart3 },
-                { label: "Manage Jobs", tab: "jobs", icon: Briefcase },
-                { label: "All Applicants", tab: "applicants", icon: Users },
-              ].map((action) => (
-                <button
-                  key={action.tab}
-                  onClick={() => onNavigate(action.tab)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-secondary hover:bg-primary/10 border border-transparent hover:border-primary/20 text-sm font-medium transition-all duration-200 group"
-                >
-                  <action.icon className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                  {action.label}
-                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-                </button>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </div>
+          )}
+        </Panel>
+      </div>
+    </motion.div>
   );
 };
 
