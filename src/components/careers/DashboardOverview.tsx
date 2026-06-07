@@ -64,6 +64,18 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
     };
   }, [applicants]);
 
+  // Average days from application to hire (approx: applied_date -> stage_entered_at of hired).
+  const avgTimeToHire = useMemo(() => {
+    const hired = applicants.filter((a) => a.status === "hired");
+    if (!hired.length) return null;
+    const days = hired.map((a) => {
+      const start = new Date(a.appliedDate).getTime();
+      const end = new Date(a.stageEnteredAt || a.appliedDate).getTime();
+      return Math.max(0, (end - start) / (1000 * 60 * 60 * 24));
+    });
+    return Math.round(days.reduce((s, d) => s + d, 0) / days.length);
+  }, [applicants]);
+
   const funnelData = useMemo(() => {
     return STAGE_ORDER.map((status, i) => ({
       name: APPLICANT_STATUSES.find((s) => s.value === status)?.label || status,
@@ -157,11 +169,12 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
   });
 
   const metrics = [
-    { label: "Open Positions", value: openJobs, icon: Briefcase, gradient: "from-primary/20 to-primary/5", iconColor: "text-primary" },
-    { label: "Total Applicants", value: applicants.length, icon: Users, gradient: "from-[hsl(var(--intel-success)/0.2)] to-[hsl(var(--intel-success)/0.05)]", iconColor: TONE_TEXT.success },
-    { label: "Avg AI Score", value: avgFitScore !== null ? `${avgFitScore}` : "—", icon: Brain, gradient: "from-[hsl(var(--chart-3)/0.2)] to-[hsl(var(--chart-3)/0.05)]", iconColor: TONE_TEXT.ai },
-    { label: "To Interview", value: `${conversionRates.newToInterview}%`, icon: TrendingUp, gradient: "from-[hsl(var(--intel-warning)/0.2)] to-[hsl(var(--intel-warning)/0.05)]", iconColor: TONE_TEXT.warning },
-    { label: "To Hired", value: `${conversionRates.interviewToHired}%`, icon: CheckCircle, gradient: "from-[hsl(var(--intel-success)/0.2)] to-[hsl(var(--intel-success)/0.05)]", iconColor: TONE_TEXT.success },
+    { label: "Open Positions", value: openJobs, icon: Briefcase, gradient: "from-primary/20 to-primary/5", iconColor: "text-primary", tab: "jobs" },
+    { label: "Total Applicants", value: applicants.length, icon: Users, gradient: "from-[hsl(var(--intel-success)/0.2)] to-[hsl(var(--intel-success)/0.05)]", iconColor: TONE_TEXT.success, tab: "applicants" },
+    { label: "Avg AI Score", value: avgFitScore !== null ? `${avgFitScore}` : "—", icon: Brain, gradient: "from-[hsl(var(--chart-3)/0.2)] to-[hsl(var(--chart-3)/0.05)]", iconColor: TONE_TEXT.ai, tab: "applicants" },
+    { label: "Avg Time-to-Hire", value: avgTimeToHire !== null ? `${avgTimeToHire}d` : "—", icon: Clock, gradient: "from-primary/20 to-primary/5", iconColor: "text-primary", tab: "pipeline" },
+    { label: "To Interview", value: `${conversionRates.newToInterview}%`, icon: TrendingUp, gradient: "from-[hsl(var(--intel-warning)/0.2)] to-[hsl(var(--intel-warning)/0.05)]", iconColor: TONE_TEXT.warning, tab: "pipeline" },
+    { label: "To Hired", value: `${conversionRates.interviewToHired}%`, icon: CheckCircle, gradient: "from-[hsl(var(--intel-success)/0.2)] to-[hsl(var(--intel-success)/0.05)]", iconColor: TONE_TEXT.success, tab: "pipeline" },
   ];
 
   const recColorMap: Record<string, { bar: string; text: string }> = {
@@ -228,10 +241,10 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
       )}
 
       {/* ── KPI Metric Cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {metrics.map((m, i) => (
           <motion.div key={m.label} variants={fadeUp} initial="hidden" animate="visible" custom={i + 2}>
-            <Card className="group relative overflow-hidden hover:border-primary/30 transition-all duration-300 hover:shadow-lg cursor-default">
+            <Card onClick={() => onNavigate(m.tab)} className="group relative overflow-hidden hover:border-primary/30 transition-all duration-300 hover:shadow-lg cursor-pointer">
               <div className={`absolute inset-0 bg-gradient-to-br ${m.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
               <CardContent className="relative p-4">
                 <div className="flex items-center justify-between mb-3">
