@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { CareersProvider } from "@/contexts/CareersContext";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { Suspense, lazy } from "react";
 import { Loader2 } from "lucide-react";
 import MobileBottomNav from "@/components/careers/MobileBottomNav";
@@ -92,7 +92,10 @@ const App = () => (
         <BrowserRouter>
           <CareersProvider>
             <ErrorBoundary>
-              <AnimatedRoutes />
+              {/* reducedMotion="user": every motion.* respects the OS prefers-reduced-motion setting */}
+              <MotionConfig reducedMotion="user">
+                <AnimatedRoutes />
+              </MotionConfig>
             </ErrorBoundary>
           </CareersProvider>
         </BrowserRouter>
