@@ -101,7 +101,9 @@ const AboutSection = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: i * 0.1 }}
             >
-              <div className="text-4xl mb-4">{item.emoji}</div>
+              <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                <item.icon className="h-6 w-6 text-primary" aria-hidden="true" />
+              </div>
               <h3 className="text-lg font-semibold mb-3">{item.title}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {item.description}
