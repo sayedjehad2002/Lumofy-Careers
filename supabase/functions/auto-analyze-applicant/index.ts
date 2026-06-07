@@ -9,6 +9,7 @@ import {
   wrapUntrusted,
   UNTRUSTED_DATA_NOTE,
 } from "../_shared/ai.ts";
+import { inferSeniority, analysisCalibration } from "../_shared/seniority.ts";
 
 // CV downloads are base64-encoded into the AI request; cap raw size before encode.
 const MAX_CV_BYTES = 10 * 1024 * 1024; // 10MB
@@ -121,6 +122,9 @@ serve(async (req) => {
       });
     }
 
+    // Infer the role's seniority so scoring strictness matches the level.
+    const seniority = inferSeniority(job.title, job.requirements, job.type);
+
     // AI calls now route through the shared OpenRouter helper (../_shared/ai.ts).
 
     const weights = job.ai_scoring_weights || { skills: 35, tools: 25, experience: 20, industry: 10, education: 5, stability: 5 };
@@ -163,6 +167,8 @@ serve(async (req) => {
     const systemPrompt = `You are a STRICT, calibrated HR AI analyst for Lumofy. You produce structured, evidence-based candidate evaluations with WEIGHTED SCORING.
 
 ${UNTRUSTED_DATA_NOTE}
+
+${analysisCalibration(seniority)}
 
 CRITICAL SCORING RULES:
 - Be STRICT and CALIBRATED. Do NOT inflate scores.

@@ -3,6 +3,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { validateSession } from "../_shared/validate-session.ts";
 import { chatCompletion, parseJsonResponse, wrapUntrusted, UNTRUSTED_DATA_NOTE } from "../_shared/ai.ts";
+import { inferSeniority, generationCalibration } from "../_shared/seniority.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -11,6 +12,11 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const { type, sessionToken, jobTitle, department, location, employmentType, summary, description, responsibilities, requirements, jdFilePath, seniority, count, questionTypes, focusAreas } = body;
+
+    // SENIORITY CALIBRATION: derive one effective level for all generated content.
+    // Prefer an explicit seniority string when provided, else fall back to the title;
+    // inferSeniority normalizes both.
+    const level = inferSeniority(seniority || jobTitle, requirements, employmentType);
 
     // SESSION CONSISTENCY (fix #8): shared validator + service client.
     const auth = await validateSession(sessionToken, corsHeaders);
@@ -73,7 +79,9 @@ RULES:
 - No buzzwords or fluff
 - Do NOT mention AI or machine learning
 - Do NOT fabricate information
-- Base content ONLY on provided job data`;
+- Base content ONLY on provided job data
+
+${generationCalibration(level)}`;
 
       userPrompt = `Write a job summary for this role:\n${jobContext}`;
 
@@ -104,7 +112,9 @@ RULES:
 - Do NOT mention AI or machine learning unless the role is specifically about it
 - Do NOT fabricate information
 - Base content ONLY on provided job data
-- Do NOT include responsibilities or requirements (those are separate sections)`;
+- Do NOT include responsibilities or requirements (those are separate sections)
+
+${generationCalibration(level)}`;
 
       userPrompt = `Write an "About the Role" description for this position:\n${jobContext}`;
 
@@ -139,7 +149,9 @@ RULES:
 - Do NOT invent specific tools, certifications, or years of experience unless directly implied by the job data
 - Do NOT fabricate company benefits
 - Keep requirements realistic and relevant
-- Base content ONLY on provided job data`;
+- Base content ONLY on provided job data
+
+${generationCalibration(level)}`;
 
       userPrompt = `Generate requirements for this role:\n${jobContext}`;
 
@@ -171,7 +183,9 @@ RULES:
 - Each should start with an action verb
 - Keep each to 1 clear sentence
 - Do NOT fabricate tools or technologies not implied by the role
-- Base content ONLY on provided job data`;
+- Base content ONLY on provided job data
+
+${generationCalibration(level)}`;
 
       userPrompt = `Generate responsibilities for this role:\n${jobContext}`;
 
@@ -209,7 +223,9 @@ RULES:
 - Do NOT ask about information not relevant to the role
 - Include internal assessment notes for each question
 - For multiple_choice type, provide 3-5 options
-- Questions should help identify the best candidates efficiently`;
+- Questions should help identify the best candidates efficiently
+
+${generationCalibration(level)}`;
 
       userPrompt = `Generate screening questions for this role:\n${jobContext}`;
 

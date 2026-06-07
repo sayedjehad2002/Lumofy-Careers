@@ -1,6 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { validateSession } from "../_shared/validate-session.ts";
+import { inferSeniority, analysisCalibration } from "../_shared/seniority.ts";
 import {
   chatCompletion,
   parseJsonResponse,
@@ -36,6 +37,8 @@ Deno.serve(async (req) => {
       sessionToken,
       aiScoringWeights,
     } = await req.json();
+
+    const seniority = inferSeniority(jobTitle, requirements);
 
     // SESSION CONSISTENCY (fix #8): use the shared validator + service client
     // instead of hand-rolling the admin_sessions lookup.
@@ -138,6 +141,8 @@ Deno.serve(async (req) => {
     const systemPrompt = `You are a STRICT, calibrated HR AI analyst for Lumofy. You produce structured, evidence-based candidate evaluations with WEIGHTED SCORING.
 
 ${UNTRUSTED_DATA_NOTE}
+
+${analysisCalibration(seniority)}
 
 CRITICAL SCORING RULES:
 - Be STRICT and CALIBRATED. Do NOT inflate scores.
