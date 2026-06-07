@@ -56,3 +56,12 @@ verify_jwt = false
 
 [functions.submit-application]
 verify_jwt = false
+
+[functions.hr-me]
+verify_jwt = false
+
+[functions.hr-team]
+verify_jwt = false
+
+[functions.hr-invite-accept]
+verify_jwt = false
