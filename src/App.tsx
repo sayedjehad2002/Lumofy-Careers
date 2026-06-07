@@ -23,7 +23,19 @@ const BenefitsPage = lazy(() => import("./pages/BenefitsPage"));
 const LifeAtLumofy = lazy(() => import("./pages/LifeAtLumofy"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-const queryClient = new QueryClient();
+// Sensible production defaults for any React Query usage. (The careers data layer
+// currently lives in CareersContext with optimistic updates; this readies the
+// already-mounted provider with cache/retry policy suited to a careers site.)
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000, // careers content changes slowly — treat as fresh for 1 min
+      gcTime: 5 * 60_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
