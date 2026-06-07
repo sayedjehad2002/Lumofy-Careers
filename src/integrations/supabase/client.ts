@@ -2,8 +2,15 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+// Strip any stray non-ASCII characters (e.g. a leading BOM / zero-width no-break
+// space, U+FEFF) that can slip into the Vercel/.env value on copy-paste. Such a
+// character corrupts the `apikey` and `Authorization` headers and makes EVERY
+// Supabase request throw: "Failed to read the 'headers' property from 'RequestInit':
+// String contains non ISO-8859-1 code point." A Supabase URL and anon key are always
+// plain ASCII, so this is safe.
+const cleanEnv = (v: string | undefined) => (v ?? "").replace(/[^\x20-\x7E]/g, "").trim();
+const SUPABASE_URL = cleanEnv(import.meta.env.VITE_SUPABASE_URL);
+const SUPABASE_PUBLISHABLE_KEY = cleanEnv(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
