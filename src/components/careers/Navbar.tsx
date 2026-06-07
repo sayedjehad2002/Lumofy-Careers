@@ -3,7 +3,6 @@ import { Menu, X } from "lucide-react";
 import { useState, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import ThemeToggle from "@/components/ThemeToggle";
 import lumofyLogo from "@/assets/lumofy-mark.png";
 
 const Navbar = forwardRef<HTMLElement>((_, ref) => {
@@ -58,7 +57,6 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
                 </Link>
               </motion.div>
             ))}
-            <ThemeToggle />
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -73,7 +71,6 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
           </div>
 
           <div className="flex items-center gap-2 md:hidden">
-            <ThemeToggle />
             <motion.button
               className="text-foreground"
               onClick={() => setMobileOpen(!mobileOpen)}

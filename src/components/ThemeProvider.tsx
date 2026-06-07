@@ -1,6 +1,9 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect } from "react";
 
-type Theme = "dark" | "light";
+// Lumofy ships a single, dark-only brand theme. This provider + hook are kept so
+// existing `useTheme()` callers keep compiling, but the theme is permanently "dark"
+// — there is no light mode and no toggle.
+type Theme = "dark";
 
 interface ThemeContextType {
   theme: Theme;
@@ -12,22 +15,14 @@ const ThemeContext = createContext<ThemeContextType>({ theme: "dark", toggleThem
 export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const stored = localStorage.getItem("lumofy-theme");
-    return (stored === "light" || stored === "dark") ? stored : "light";
-  });
-
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(theme);
-    localStorage.setItem("lumofy-theme", theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+    root.classList.remove("light");
+    root.classList.add("dark");
+  }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme: "dark", toggleTheme: () => {} }}>
       {children}
     </ThemeContext.Provider>
   );
