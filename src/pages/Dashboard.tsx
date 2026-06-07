@@ -619,7 +619,7 @@ const Dashboard = () => {
                                         >
                                           <PipelineCandidateCard
                                             applicant={applicant}
-                                            jobTitle={getJobTitle(applicant.jobId)}
+                                            jobTitle={applicant.jobTitle || getJobTitle(applicant.jobId)}
                                             avgRating={avgRating(applicant)}
                                             isDragging={snapshot.isDragging}
                                             onClick={() => { setSelectedApplicant(applicant); setActiveTab("applicants"); }}

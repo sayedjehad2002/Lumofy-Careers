@@ -82,6 +82,7 @@ export function dbRowToApplicant(row: any): Applicant {
   return {
     id: row.id,
     jobId: row.job_id,
+    jobTitle: row.job_title || undefined,
     fullName: row.full_name,
     email: row.email,
     phone: row.phone,
@@ -108,6 +109,7 @@ function applicantToDbRow(a: Applicant) {
   return {
     id: a.id,
     job_id: a.jobId,
+    job_title: a.jobTitle || null,
     full_name: a.fullName,
     email: a.email,
     phone: a.phone,

@@ -53,6 +53,8 @@ export type ApplicantStatus = "new" | "reviewing" | "shortlisted" | "interview" 
 export interface Applicant {
   id: string;
   jobId: string;
+  /** Title of the job at apply time — survives job edits/deletes. */
+  jobTitle?: string;
   fullName: string;
   email: string;
   phone: string;

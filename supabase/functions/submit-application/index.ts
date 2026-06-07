@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
     // --- look up the job with the service role and gate on its state ---
     const { data: job, error: jobErr } = await supabase
       .from("jobs")
-      .select("id, status, deadline")
+      .select("id, status, deadline, title")
       .eq("id", jobId)
       .single();
 
@@ -243,6 +243,9 @@ Deno.serve(async (req) => {
       created_at: nowIso,
       // client-supplied (validated)
       job_id: jobId,
+      // snapshot the title so the application keeps its position even if the job
+      // is later edited or deleted.
+      job_title: job.title ?? null,
       full_name: fullName,
       email: emailVal,
       phone: phoneVal,
