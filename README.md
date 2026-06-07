@@ -1,73 +1,92 @@
-# Welcome to your Lovable project
+# Lumofy Careers
 
-## Project info
+AI-powered careers site **+** HR hiring dashboard for [Lumofy](https://lumofy.ai).
+Candidates browse and apply to roles; HR reviews applicants with AI-assisted CV
+analysis, candidate scoring, and a searchable CV library.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+🔗 Live: **https://careers.lumofy.ai**
 
-## How can I edit this code?
+## Tech stack
 
-There are several ways of editing your application.
+- **Frontend:** Vite + React + TypeScript, Tailwind CSS, shadcn/ui
+- **Backend:** Supabase — Postgres + Row Level Security, Storage, Deno Edge Functions
+- **AI:** Google **Gemini 2.5 Flash** (via Gemini's OpenAI-compatible API)
+- **Hosting:** Vercel (frontend) + Supabase (backend); source on GitHub
 
-**Use Lovable**
+## Getting started (local dev)
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Requires Node.js 18+ and npm.
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+git clone https://github.com/sayedjehad2002/Lumofy-Careers.git
+cd Lumofy-Careers
+npm install
+cp .env.example .env      # then fill in your Supabase values
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The dev server runs at **http://localhost:3005**.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Scripts
 
-**Use GitHub Codespaces**
+| Command | Description |
+|---|---|
+| `npm run dev` | Start the dev server (port 3005) |
+| `npm run build` | Production build |
+| `npm run preview` | Preview the production build |
+| `npm run lint` | Run ESLint |
+| `npm run test` | Run the Vitest test suite |
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Environment variables
 
-## What technologies are used for this project?
+Frontend config lives in `.env` (gitignored). See [`.env.example`](.env.example):
 
-This project is built with:
+| Variable | Purpose |
+|---|---|
+| `VITE_SUPABASE_URL` | Your Supabase project URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase anon / publishable key (public; protected by RLS) |
+| `VITE_SUPABASE_PROJECT_ID` | Supabase project ref |
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+> ⚠️ **Secrets never go in `.env`.** Server-side keys (e.g. `GEMINI_API_KEY`) live as
+> Supabase Edge Function secrets — anything in a Vite `.env` ships to the browser.
 
-## How can I deploy this project?
+## AI features
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+All AI runs server-side in Supabase Edge Functions, through one shared helper:
+[`supabase/functions/_shared/ai.ts`](supabase/functions/_shared/ai.ts). It calls
+Google Gemini's OpenAI-compatible endpoint and is the **single source of truth** for
+model selection (the `MODELS` map).
 
-## Can I connect a custom domain to my Lovable project?
+- **Model:** `gemini-2.5-flash` for every tier — fast, low-cost, and multimodal
+  (text, images, PDF CVs, and audio). Bump a tier to `gemini-2.5-pro` for higher quality.
+- **Key:** the `GEMINI_API_KEY` Edge Function secret (Supabase dashboard →
+  Project → Edge Functions → Secrets).
+- **Functions using AI:** `analyze-cv`, `auto-analyze-applicant`, `cv-library-parse`,
+  `cv-library-classify`, `cv-library-analyze`, `ai-job-assist`, `transcribe-audio`.
 
-Yes, you can!
+> 📄 Gemini reads PDFs and images, but **not** Word `.doc/.docx` files — CVs should be
+> PDFs for analysis.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Deployment
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- **Frontend → Vercel:** auto-deploys on push to `main`.
+- **Edge functions → Supabase:** **not** automatic. Deploy with the Supabase CLI:
+
+  ```sh
+  supabase functions deploy <function-name> --project-ref <your-project-ref>
+  ```
+
+  (or edit/deploy them in the Supabase dashboard). After changing the shared
+  `_shared/ai.ts`, redeploy **every** function that imports it.
+
+## Project structure
+
+```
+src/                       # React app (careers site + HR dashboard)
+  components/careers/       # feature components
+  integrations/supabase/    # generated Supabase client + types
+supabase/
+  functions/                # Deno edge functions
+    _shared/ai.ts           # shared Gemini AI helper (model config lives here)
+  migrations/               # database migrations
+```
