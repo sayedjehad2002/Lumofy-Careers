@@ -1,18 +1,18 @@
-// Shared OpenRouter chat-completions helper for all AI edge functions.
+// Shared Google Gemini chat-completions helper for all AI edge functions.
 //
-// Migrated off the Lovable AI Gateway. OpenRouter is OpenAI-compatible, so the
-// request/response shapes match what every caller already builds and parses.
-// Each caller keeps its own response handling (streaming, tool-calls, JSON
-// parsing, 429/402 branches) — this helper only centralizes the endpoint, auth,
-// attribution headers, and the model-name mapping.
+// Uses Gemini's OpenAI-compatible endpoint, so the request/response shapes match
+// what every caller already builds and parses (the same shapes used by the prior
+// OpenRouter / Lovable gateways). Each caller keeps its own response handling
+// (streaming, tool-calls, JSON parsing, 429/402 branches) — this helper only
+// centralizes the endpoint, auth, and the model-name mapping.
+//
+// Endpoint, auth, and multimodal details: https://ai.google.dev/gemini-api/docs/openai
+// PDFs are sent as a base64 `image_url` data URL with mime `application/pdf`
+// (<20MB) — the documented OpenAI-compat workaround — exactly as callers already do.
 
-const OPENROUTER_BASE = "https://openrouter.ai/api/v1/chat/completions";
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
-// OpenRouter attribution headers (shown on openrouter.ai dashboards). Optional.
-const HTTP_REFERER = "https://careers.lumofy.ai";
-const X_TITLE = "Lumofy Careers";
-
-// Hard ceiling on how long we wait for OpenRouter. Without this, a hung upstream
+// Hard ceiling on how long we wait for Gemini. Without this, a hung upstream
 // connection could keep an edge function (and the client request) open until the
 // platform's own wall-clock limit, wasting resources. 45s comfortably covers a
 // multimodal CV/PDF analysis while still bounding the worst case.
@@ -23,29 +23,31 @@ const REQUEST_TIMEOUT_MS = 45_000;
 // burn the full context window. 2048 is generous for our structured outputs.
 const DEFAULT_MAX_TOKENS = 2048;
 
-export function getOpenRouterKey(): string {
-  const key = Deno.env.get("OPENROUTER_API_KEY");
-  if (!key) throw new Error("OPENROUTER_API_KEY not configured");
+export function getGeminiKey(): string {
+  const key = Deno.env.get("GEMINI_API_KEY");
+  if (!key) throw new Error("GEMINI_API_KEY not configured");
   return key;
 }
 
-// Concrete OpenRouter model IDs. The legacy Lovable gateway used names like
-// `google/gemini-3-flash-preview` and `openai/gpt-5.2` that may not exist on
-// OpenRouter. VERIFY these against https://openrouter.ai/models and adjust here —
-// this map is the single source of truth for model selection across all functions.
-// All tiers use a free OpenRouter model (zero cost). Gemma 4 is multimodal, so it
-// covers both text and vision (CV/PDF) use cases. Swap to paid tiers here later if
-// rate limits or quality become an issue — this map is the single source of truth.
+// Concrete Gemini model IDs (Gemini 2.5 family). This map is the single source of
+// truth for model selection across all functions. We standardize on
+// `gemini-2.5-flash` — it is fast, low-cost, and multimodal (handles text, images,
+// PDF CVs, and audio), which covers every use case here. To raise quality on a
+// specific tier later, point it at `gemini-2.5-pro`; to cut cost on lightweight
+// text, point it at `gemini-2.5-flash-lite`. Available 2.5 IDs:
+//   gemini-2.5-pro · gemini-2.5-flash · gemini-2.5-flash-lite
 export const MODELS = {
-  visionStrong: "google/gemma-4-31b-it:free",   // multimodal (copilot vision)
-  vision: "google/gemma-4-31b-it:free",         // multimodal (CV / PDF parsing, audio)
-  textFast: "google/gemma-4-31b-it:free",       // text default
-  textLite: "google/gemma-4-31b-it:free",       // lightweight text (survey-ai-improve)
-  textStrong: "google/gemma-4-31b-it:free",     // strong text (copilot text fallback)
+  visionStrong: "gemini-2.5-flash",   // multimodal (copilot vision) — bump to -pro for max quality
+  vision: "gemini-2.5-flash",         // multimodal (CV / PDF parsing, audio)
+  textFast: "gemini-2.5-flash",       // text default
+  textLite: "gemini-2.5-flash",       // lightweight text (-flash-lite is cheaper if needed)
+  textStrong: "gemini-2.5-flash",     // strong text fallback — bump to -pro for max quality
 } as const;
 
-// Translate a legacy gateway model name to a real OpenRouter model ID.
-// `hasImages` lets the shared "flash-preview" name resolve to a vision vs text tier.
+// Translate a legacy gateway model name to a concrete Gemini model ID (via the
+// MODELS tiers above). `hasImages` lets the shared "flash-preview" name resolve to
+// a vision vs text tier. Unknown names pass through unchanged, so callers may also
+// pass a real Gemini id (e.g. "gemini-2.5-pro") directly.
 export function mapModel(legacy: string, hasImages = false): string {
   switch (legacy) {
     case "google/gemini-3-flash-preview":
@@ -59,7 +61,7 @@ export function mapModel(legacy: string, hasImages = false): string {
     case "openai/gpt-5.2":
       return MODELS.textStrong;
     default:
-      return legacy; // assume already a valid OpenRouter id
+      return legacy; // assume already a valid Gemini model id
   }
 }
 
@@ -74,7 +76,7 @@ export interface ChatOpts {
   hasImages?: boolean;       // drives vision-vs-text model selection in mapModel
 }
 
-// POST to OpenRouter's OpenAI-compatible chat-completions endpoint.
+// POST to Gemini's OpenAI-compatible chat-completions endpoint.
 // Returns the raw Response so callers keep their existing streaming / parsing /
 // status-code handling unchanged.
 export async function chatCompletion(opts: ChatOpts): Promise<Response> {
@@ -90,20 +92,18 @@ export async function chatCompletion(opts: ChatOpts): Promise<Response> {
   if (opts.tools) body.tools = opts.tools;
   if (opts.tool_choice) body.tool_choice = opts.tool_choice;
 
-  // Abort the request if OpenRouter takes too long. We translate the resulting
+  // Abort the request if Gemini takes too long. We translate the resulting
   // AbortError into a clean 504 Response so callers' existing `if (!response.ok)`
   // branches handle it uniformly instead of throwing an opaque network error.
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    return await fetch(OPENROUTER_BASE, {
+    return await fetch(GEMINI_BASE, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${getOpenRouterKey()}`,
+        Authorization: `Bearer ${getGeminiKey()}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": HTTP_REFERER,
-        "X-Title": X_TITLE,
       },
       body: JSON.stringify(body),
       signal: controller.signal,
