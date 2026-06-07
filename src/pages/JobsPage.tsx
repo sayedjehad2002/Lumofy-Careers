@@ -3,12 +3,13 @@ import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Briefcase, RotateCcw, Search, SlidersHorizontal, X, MapPin,
-  Building2, Clock, ChevronDown, Share2, Filter, Compass, ArrowRight,
+  Building2, Clock, ChevronDown, Share2, Filter, Compass, ArrowRight, Bookmark, BookmarkCheck,
 } from "lucide-react";
 import Navbar from "@/components/careers/Navbar";
 import Footer from "@/components/careers/Footer";
 import JobCard from "@/components/careers/JobCard";
 import { useCareers } from "@/contexts/CareersContext";
+import { useSavedJobs } from "@/hooks/use-saved-jobs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -223,6 +224,8 @@ const JobsPage = () => {
   const { jobs, loading } = useCareers();
   const [searchParams, setSearchParams] = useSearchParams();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [savedOnly, setSavedOnly] = useState(false);
+  const { savedIds, count: savedCount } = useSavedJobs();
 
   // Read filters from URL
   const search = searchParams.get("q") || "";
@@ -259,13 +262,14 @@ const JobsPage = () => {
   // Filtered jobs
   const filteredJobs = useMemo(() => {
     return openJobs.filter(job => {
+      if (savedOnly && !savedIds.includes(job.id)) return false;
       if (search && !job.title.toLowerCase().includes(search.toLowerCase()) && !job.summary.toLowerCase().includes(search.toLowerCase())) return false;
       if (selectedDepartments.length > 0 && !selectedDepartments.includes(job.department)) return false;
       if (selectedLocations.length > 0 && !selectedLocations.includes(job.location)) return false;
       if (selectedTypes.length > 0 && !selectedTypes.includes(job.type)) return false;
       return true;
     });
-  }, [openJobs, search, selectedDepartments, selectedLocations, selectedTypes]);
+  }, [openJobs, search, selectedDepartments, selectedLocations, selectedTypes, savedOnly, savedIds]);
 
   // URL setters
   const setSearch = useCallback((val: string) => {
@@ -290,9 +294,10 @@ const JobsPage = () => {
   const onToggleType = useCallback((v: string) => toggleFilter("type", v), [toggleFilter]);
 
   const totalActiveFilters = selectedDepartments.length + selectedLocations.length + selectedTypes.length;
-  const hasActiveFilters = search.length > 0 || totalActiveFilters > 0;
+  const hasActiveFilters = search.length > 0 || totalActiveFilters > 0 || savedOnly;
 
   const resetFilters = useCallback(() => {
+    setSavedOnly(false);
     setSearchParams({}, { replace: true });
   }, [setSearchParams]);
 
@@ -432,7 +437,7 @@ const JobsPage = () => {
             {/* Job Listings */}
             <div className="min-w-0 flex-1">
               {/* Results header */}
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-4 flex items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground" aria-live="polite">
                   <span className="font-semibold text-foreground">{filteredJobs.length}</span>{" "}
                   {filteredJobs.length === 1 ? "role" : "roles"}
@@ -440,6 +445,23 @@ const JobsPage = () => {
                     <span className="text-muted-foreground"> · filtered from {openJobs.length}</span>
                   )}
                 </p>
+                {(savedCount > 0 || savedOnly) && (
+                  <button
+                    type="button"
+                    onClick={() => setSavedOnly(v => !v)}
+                    aria-pressed={savedOnly}
+                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+                      savedOnly
+                        ? "border-primary/40 bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                    }`}
+                  >
+                    {savedOnly
+                      ? <BookmarkCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                      : <Bookmark className="h-3.5 w-3.5" aria-hidden="true" />}
+                    Saved{savedCount > 0 ? ` (${savedCount})` : ""}
+                  </button>
+                )}
               </div>
 
               {/* Job Cards */}

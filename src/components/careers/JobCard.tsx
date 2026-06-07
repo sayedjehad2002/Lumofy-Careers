@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
-import { MapPin, Clock, ArrowRight } from "lucide-react";
+import { MapPin, Clock, ArrowRight, Bookmark, BookmarkCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
+import { useSavedJobs } from "@/hooks/use-saved-jobs";
 import type { Job } from "@/types/careers";
 
 const ease = [0.22, 1, 0.36, 1] as [number, number, number, number];
@@ -12,6 +13,9 @@ interface JobCardProps {
 }
 
 const JobCard = ({ job, index }: JobCardProps) => {
+  const { isSaved, toggle } = useSavedJobs();
+  const saved = isSaved(job.id);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
@@ -20,7 +24,20 @@ const JobCard = ({ job, index }: JobCardProps) => {
       transition={{ duration: 0.6, delay: Math.min(index, 6) * 0.06, ease }}
     >
       <Link to={`/jobs/${job.id}`} className="group block">
-        <div className="flex rounded-2xl border border-border bg-card p-5 light-glow transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 sm:p-6">
+        <div className="relative flex rounded-2xl border border-border bg-card p-5 light-glow transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 sm:p-6">
+          {/* Save / bookmark toggle (does not navigate) */}
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggle(job.id); }}
+            aria-label={saved ? `Remove ${job.title} from saved jobs` : `Save ${job.title}`}
+            aria-pressed={saved}
+            className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+          >
+            {saved
+              ? <BookmarkCheck className="h-[18px] w-[18px] text-primary" aria-hidden="true" />
+              : <Bookmark className="h-[18px] w-[18px]" aria-hidden="true" />}
+          </button>
+
           {/* Left accent line */}
           <div className="w-[3px] shrink-0 rounded-full bg-primary/15 transition-colors duration-300 group-hover:bg-primary" />
 
