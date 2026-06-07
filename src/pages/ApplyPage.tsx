@@ -201,6 +201,24 @@ const ApplyPage = () => {
     );
   }
 
+  // Guard against applying to a role that is closed or past its deadline — the
+  // server also enforces this (410), but blocking here avoids a wasted CV upload
+  // and shows the candidate a clear message up front.
+  const deadlineRaw = (job as { deadline?: string }).deadline;
+  const deadlineMs = deadlineRaw ? Date.parse(deadlineRaw) : NaN;
+  const deadlinePassed = !Number.isNaN(deadlineMs) && Date.now() > deadlineMs + 24 * 60 * 60 * 1000 - 1;
+  if (job.status !== "open" || deadlinePassed) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main id="main" className="px-4 pt-32 text-center text-muted-foreground">
+          <p>This role is no longer accepting applications.</p>
+          <Link to="/jobs" className="mt-2 inline-block text-primary hover:underline">Browse open roles</Link>
+        </main>
+      </div>
+    );
+  }
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     setCvError("");
