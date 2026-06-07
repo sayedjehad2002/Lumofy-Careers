@@ -5,7 +5,7 @@ import {
   Briefcase, Users, BarChart3, ChevronDown,
   Eye, EyeOff, MapPin, Clock, FileText, Star, MessageSquare,
   ArrowLeft, ExternalLink, LogOut, Plus, Pencil, Trash2, Copy, Brain,
-  Download, Loader2, AlertCircle, GripVertical, LayoutDashboard, AlertTriangle, Sparkles, Library, TrendingUp, Calculator, Search, ClipboardList, BookOpen, Zap, UsersRound
+  Download, Loader2, AlertCircle, GripVertical, LayoutDashboard, AlertTriangle, Sparkles, Library, TrendingUp, Calculator, Search, ClipboardList, BookOpen, Zap, UsersRound, Archive, ArchiveRestore
 } from "lucide-react";
 import CommandPalette from "@/components/careers/CommandPalette";
 import PipelineCandidateCard from "@/components/careers/PipelineCandidateCard";
@@ -69,7 +69,7 @@ const ALLOWED_TRANSITIONS: Record<ApplicantStatus, ApplicantStatus[]> = {
 };
 
 const Dashboard = () => {
-  const { jobs, applicants, loading, sessionToken, authReady, addJob, updateJob, deleteJob, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI } = useCareers();
+  const { jobs, applicants, loading, sessionToken, authReady, addJob, updateJob, archiveJob, restoreJob, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI } = useCareers();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [selectedJobId, setSelectedJobId] = useState<string>("all");
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
@@ -116,6 +116,8 @@ const Dashboard = () => {
 
   const getJobTitle = (jobId: string) => jobs.find((j) => j.id === jobId)?.title || "Unknown";
   const getApplicantCount = (jobId: string) => applicants.filter((a) => a.jobId === jobId).length;
+  const activeJobs = jobs.filter((j) => !j.archivedAt);
+  const archivedJobs = jobs.filter((j) => j.archivedAt);
   const getStatusInfo = (status: ApplicantStatus) =>
     APPLICANT_STATUSES.find((s) => s.value === status) || APPLICANT_STATUSES[0];
 
@@ -145,11 +147,11 @@ const Dashboard = () => {
     if (!deleteJobTarget) return;
     setDeletingJob(true);
     try {
-      await deleteJob(deleteJobTarget.id);
-      toast.success("Job deleted");
+      await archiveJob(deleteJobTarget.id);
+      toast.success("Job archived — applicants are kept. Restore it anytime.");
       setDeleteJobTarget(null);
     } catch {
-      toast.error("Failed to delete job");
+      toast.error("Failed to archive job");
     } finally {
       setDeletingJob(false);
     }
@@ -394,7 +396,7 @@ const Dashboard = () => {
                   </div>
                   <div>
                     <h1 className="text-2xl font-bold tracking-tight">Manage Jobs</h1>
-                    <p className="text-sm text-muted-foreground">{jobs.length} vacancies · {jobs.filter(j => j.status === "open").length} open</p>
+                    <p className="text-sm text-muted-foreground">{activeJobs.length} vacancies · {activeJobs.filter(j => j.status === "open").length} open</p>
                   </div>
                 </div>
                 <Button onClick={() => { setEditingJob(null); setJobFormOpen(true); }} className="rounded-xl shadow-lg shadow-primary/20">
@@ -407,10 +409,10 @@ const Dashboard = () => {
               <div className="flex flex-wrap gap-2 mb-5">
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[hsl(var(--intel-success)/0.1)] border border-[hsl(var(--intel-success)/0.2)] text-xs font-medium text-[hsl(var(--intel-success))]">
                   <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--intel-success))] opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-[hsl(var(--intel-success))]" /></span>
-                  {jobs.filter(j => j.status === "open").length} open
+                  {activeJobs.filter(j => j.status === "open").length} open
                 </div>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border text-xs font-medium text-muted-foreground">
-                  {jobs.filter(j => j.status === "closed").length} closed
+                  {activeJobs.filter(j => j.status === "closed").length} closed
                 </div>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border text-xs font-medium text-muted-foreground">
                   <Users className="w-3.5 h-3.5" />
@@ -420,7 +422,7 @@ const Dashboard = () => {
 
               {/* Job cards */}
               <div className="space-y-3">
-                {jobs.map((job, idx) => {
+                {activeJobs.map((job, idx) => {
                   const appCount = getApplicantCount(job.id);
                   return (
                     <motion.div
@@ -477,8 +479,8 @@ const Dashboard = () => {
                         <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => handleDuplicateJob(job)} aria-label={`Duplicate ${job.title}`}>
                           <Copy className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => setDeleteJobTarget(job)} aria-label={`Delete ${job.title}`}>
-                          <Trash2 className="w-3.5 h-3.5 text-destructive" aria-hidden="true" />
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => setDeleteJobTarget(job)} aria-label={`Archive ${job.title}`}>
+                          <Archive className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
                         <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={async () => { await updateJob({ ...job, status: job.status === "open" ? "closed" : "open" }); toast.success("Status updated"); }} aria-label={job.status === "open" ? `Close ${job.title}` : `Reopen ${job.title}`}>
                           {job.status === "open" ? <EyeOff className="w-3.5 h-3.5" aria-hidden="true" /> : <Eye className="w-3.5 h-3.5" aria-hidden="true" />}
@@ -487,7 +489,7 @@ const Dashboard = () => {
                     </motion.div>
                   );
                 })}
-                {jobs.length === 0 && (
+                {activeJobs.length === 0 && (
                   <div className="text-center py-20 text-muted-foreground">
                     <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-4">
                       <Briefcase className="w-8 h-8 opacity-30" />
@@ -497,6 +499,28 @@ const Dashboard = () => {
                   </div>
                 )}
               </div>
+
+              {archivedJobs.length > 0 && (
+                <div className="mt-8">
+                  <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Archived ({archivedJobs.length})</h2>
+                  <div className="space-y-2">
+                    {archivedJobs.map((job) => {
+                      const cnt = getApplicantCount(job.id);
+                      return (
+                        <div key={job.id} className="flex items-center justify-between gap-4 rounded-xl border border-border/60 bg-card/60 px-4 py-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground/80">{job.title}</p>
+                            <p className="text-xs text-muted-foreground">{job.department} · {cnt} applicant{cnt !== 1 ? "s" : ""} kept</p>
+                          </div>
+                          <Button size="sm" variant="outline" className="h-8 rounded-lg text-xs" onClick={async () => { try { await restoreJob(job.id); toast.success("Job restored"); } catch { toast.error("Could not restore the job."); } }}>
+                            <ArchiveRestore className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />Restore
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -699,22 +723,21 @@ const Dashboard = () => {
       <AlertDialog open={!!deleteJobTarget} onOpenChange={(open) => !open && !deletingJob && setDeleteJobTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this job?</AlertDialogTitle>
+            <AlertDialogTitle>Archive this job?</AlertDialogTitle>
             <AlertDialogDescription>
               {(() => {
                 const count = deleteJobTarget ? getApplicantCount(deleteJobTarget.id) : 0;
                 return (
                   <>
-                    You're about to permanently delete <strong>{deleteJobTarget?.title}</strong>.
+                    You're about to archive <strong>{deleteJobTarget?.title}</strong> — it will be removed from the public careers site.
                     {count > 0 ? (
                       <>
-                        {" "}This will also delete its{" "}
-                        <strong>{count} applicant{count !== 1 ? "s" : ""}</strong> and their CVs.
+                        {" "}Its <strong>{count} applicant{count !== 1 ? "s" : ""}</strong> are kept and stay in the dashboard.
                       </>
                     ) : (
                       " This job has no applicants."
                     )}
-                    {" "}This action cannot be undone.
+                    {" "}You can restore it anytime from the Archived list.
                   </>
                 );
               })()}
@@ -723,11 +746,10 @@ const Dashboard = () => {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deletingJob}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={deletingJob}
               onClick={(e) => { e.preventDefault(); handleConfirmDeleteJob(); }}
             >
-              {deletingJob ? "Deleting..." : "Delete Job"}
+              {deletingJob ? "Archiving..." : "Archive Job"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -38,6 +38,8 @@ export interface Job {
   jdFileSize?: number;
   jdFileUploadedAt?: string;
   aiScoringWeights?: AIScoringWeights;
+  /** Set when the job is archived (soft-deleted) — hidden from the public site, kept in the dashboard. */
+  archivedAt?: string;
 }
 
 export interface ScreeningQuestion {

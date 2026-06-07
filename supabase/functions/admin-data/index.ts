@@ -31,7 +31,7 @@ const SELECT_COLUMNS: Record<string, readonly string[]> = {
     "description", "responsibilities", "requirements", "benefits",
     "salary_range", "salary_currency", "posted_date", "deadline",
     "screening_questions", "jd_file_name", "jd_file_path", "jd_file_size",
-    "jd_file_uploaded_at", "ai_scoring_weights", "created_at", "updated_at",
+    "jd_file_uploaded_at", "ai_scoring_weights", "archived_at", "created_at", "updated_at",
   ],
   // applicants: every column the dashboard renders (dbRowToApplicant).
   applicants: [
@@ -62,7 +62,7 @@ const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "description", "responsibilities", "requirements", "benefits",
     "salary_range", "salary_currency", "posted_date", "deadline",
     "screening_questions", "jd_file_name", "jd_file_path", "jd_file_size",
-    "jd_file_uploaded_at", "ai_scoring_weights",
+    "jd_file_uploaded_at", "ai_scoring_weights", "archived_at",
   ],
 };
 

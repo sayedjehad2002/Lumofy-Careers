@@ -13,6 +13,8 @@ interface CareersContextType {
   addJob: (job: Job) => Promise<void>;
   updateJob: (job: Job) => Promise<void>;
   deleteJob: (jobId: string) => Promise<void>;
+  archiveJob: (jobId: string) => Promise<void>;
+  restoreJob: (jobId: string) => Promise<void>;
   addApplicant: (applicant: Applicant) => Promise<string>;
   deleteApplicant: (applicantId: string) => Promise<void>;
   updateApplicantStatus: (applicantId: string, status: ApplicantStatus) => Promise<void>;
@@ -49,6 +51,7 @@ function dbRowToJob(row: any): Job {
     jdFileSize: row.jd_file_size || undefined,
     jdFileUploadedAt: row.jd_file_uploaded_at || undefined,
     aiScoringWeights: row.ai_scoring_weights || undefined,
+    archivedAt: row.archived_at || undefined,
   };
 }
 
@@ -75,6 +78,7 @@ function jobToDbRow(job: Job) {
     jd_file_size: job.jdFileSize || null,
     jd_file_uploaded_at: job.jdFileUploadedAt || null,
     ai_scoring_weights: job.aiScoringWeights || null,
+    archived_at: job.archivedAt || null,
   };
 }
 
@@ -215,6 +219,25 @@ export function CareersProvider({ children }: { children: ReactNode }) {
     if (error) { import.meta.env.DEV && console.error("deleteJob error:", error); throw new Error(error); }
   }, [sessionToken]);
 
+  // Soft-delete: archiving keeps the job + its applicants (hidden from the public
+  // site, kept in the dashboard) instead of a hard delete that CASCADE-wipes applicants.
+  const archiveJob = useCallback(async (jobId: string) => {
+    if (!sessionToken) throw new Error("Not authenticated");
+    const nowIso = new Date().toISOString();
+    let prev: Job | undefined;
+    setJobs(p => { prev = p.find(j => j.id === jobId); return p.map(j => j.id === jobId ? { ...j, archivedAt: nowIso } : j); });
+    const { error } = await adminQuery(sessionToken, "update", "jobs", { data: { archived_at: nowIso }, eq: { id: jobId } });
+    if (error) { if (prev) { const pj = prev; setJobs(p => p.map(j => j.id === jobId ? pj : j)); } import.meta.env.DEV && console.error("archiveJob error:", error); throw new Error(error); }
+  }, [sessionToken]);
+
+  const restoreJob = useCallback(async (jobId: string) => {
+    if (!sessionToken) throw new Error("Not authenticated");
+    let prev: Job | undefined;
+    setJobs(p => { prev = p.find(j => j.id === jobId); return p.map(j => j.id === jobId ? { ...j, archivedAt: undefined } : j); });
+    const { error } = await adminQuery(sessionToken, "update", "jobs", { data: { archived_at: null }, eq: { id: jobId } });
+    if (error) { if (prev) { const pj = prev; setJobs(p => p.map(j => j.id === jobId ? pj : j)); } import.meta.env.DEV && console.error("restoreJob error:", error); throw new Error(error); }
+  }, [sessionToken]);
+
   const addApplicant = useCallback(async (applicant: Applicant): Promise<string> => {
     // Public applications now go through the secure submit-application edge function:
     // it validates the job is open + not past deadline, server-sets status/AI/rating/
@@ -310,7 +333,7 @@ export function CareersProvider({ children }: { children: ReactNode }) {
   const getJobById = useCallback((id: string) => jobs.find(j => j.id === id), [jobs]);
 
   return (
-    <CareersContext.Provider value={{ jobs, applicants, loading, sessionToken, setSessionToken, authReady, addJob, updateJob, deleteJob, addApplicant, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, getJobById, refreshData: fetchData }}>
+    <CareersContext.Provider value={{ jobs, applicants, loading, sessionToken, setSessionToken, authReady, addJob, updateJob, deleteJob, archiveJob, restoreJob, addApplicant, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, getJobById, refreshData: fetchData }}>
       {children}
     </CareersContext.Provider>
   );
