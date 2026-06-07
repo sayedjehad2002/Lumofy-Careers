@@ -6,74 +6,55 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-interface DashboardAuthProps {
-  onAuthenticated: (sessionToken: string) => void;
-}
-
-// Pre-filled so the operator never has to remember/mistype the admin address. The
-// password — verified server-side against the hash in admin_passwords — is the real
-// secret; the email is NOT a client-side gate (it's sent along but the server decides),
-// so a blank/edited email can never lock someone out.
-const DEFAULT_ADMIN_EMAIL = "jhasan@lumofy.com";
-
-const DashboardAuth = ({ onAuthenticated }: DashboardAuthProps) => {
+// Real email+password sign-in via Supabase Auth. On success, the session is
+// persisted by supabase-js and CareersContext's auth listener flips the dashboard
+// into the authenticated view — so this component just triggers the sign-in.
+const DashboardAuth = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  // Uncontrolled fields read via ref at submit time.
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const email = (emailRef.current?.value ?? "").trim() || DEFAULT_ADMIN_EMAIL;
+    const email = (emailRef.current?.value ?? "").trim();
     const password = (passwordRef.current?.value ?? "").trim();
 
-    if (!password) {
-      toast.error("Please enter your password.");
-      passwordRef.current?.focus();
+    if (!email || !password) {
+      toast.error("Enter your email and password.");
       return;
     }
 
     setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("verify-password", {
-        body: { email, password },
-      });
-
-      // On a non-2xx reply, supabase-js sets `error` to a FunctionsHttpError whose
-      // .message is GENERIC (no status number) and leaves `data` null — the real status
-      // and JSON body live on error.context (the underlying Response). Read those so a
-      // rate-limit (429) isn't mislabeled as a bad password.
-      const res = (error as { context?: Response } | null)?.context;
-      let serverError = "";
-      if (res) {
-        try {
-          serverError = ((await res.clone().json()) as { error?: string })?.error ?? "";
-        } catch {
-          /* body wasn't JSON — ignore */
-        }
-      }
-      const tooMany = res?.status === 429 || serverError.toLowerCase().includes("too many");
-
-      if (data?.success && data?.sessionToken) {
-        onAuthenticated(data.sessionToken);
-        toast.success("Welcome to the HR Dashboard");
-      } else if (tooMany) {
-        toast.error("Too many attempts — please wait a few minutes and try again.");
-      } else {
-        toast.error("Incorrect password. Please try again.");
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("429")) {
-        toast.error("Too many attempts. Please wait a few minutes and try again.");
-      } else {
-        toast.error("Sign-in failed. Please check your connection and try again.");
-      }
-    }
-
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
+
+    if (error) {
+      const msg = error.message || "";
+      if (/invalid login credentials/i.test(msg)) {
+        toast.error("Incorrect email or password.");
+      } else if (/email not confirmed/i.test(msg)) {
+        toast.error("This account isn't confirmed yet — contact your admin.");
+      } else {
+        toast.error(msg || "Sign-in failed. Please try again.");
+      }
+      return;
+    }
+    toast.success("Welcome to the HR Dashboard");
+  };
+
+  const handleForgotPassword = async () => {
+    const email = (emailRef.current?.value ?? "").trim();
+    if (!email) {
+      toast.error("Enter your email first, then tap “Forgot password?”.");
+      emailRef.current?.focus();
+      return;
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/dashboard`,
+    });
+    if (error) toast.error(error.message || "Couldn't send the reset email.");
+    else toast.success("Password reset link sent — check your email.");
   };
 
   return (
@@ -89,37 +70,42 @@ const DashboardAuth = ({ onAuthenticated }: DashboardAuthProps) => {
               Sign in with your admin email and password
             </p>
           </div>
-          {/* autocomplete="off" + a non-standard field name stop Chrome from injecting a
-              stale saved password (e.g. an old/rotated one) behind the user's back. */}
-          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="admin-email">Email</Label>
               <div className="mt-1">
                 <Input
                   ref={emailRef}
                   id="admin-email"
-                  name="lumofy-admin-email"
+                  name="email"
                   type="email"
-                  defaultValue={DEFAULT_ADMIN_EMAIL}
                   placeholder="you@lumofy.com"
                   className="bg-secondary border-border"
-                  autoComplete="off"
+                  autoComplete="username"
+                  autoFocus
                 />
               </div>
             </div>
             <div>
-              <Label htmlFor="admin-access-key">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="admin-password">Password</Label>
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-[11px] text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Forgot password?
+                </button>
+              </div>
               <div className="relative mt-1">
                 <Input
                   ref={passwordRef}
-                  id="admin-access-key"
-                  name="lumofy-admin-key"
+                  id="admin-password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
-                  defaultValue=""
                   placeholder="Enter your password"
                   className="bg-secondary border-border pr-10"
-                  autoComplete="new-password"
-                  autoFocus
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"

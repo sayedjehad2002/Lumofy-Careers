@@ -9,6 +9,7 @@ interface CareersContextType {
   loading: boolean;
   sessionToken: string | null;
   setSessionToken: (token: string | null) => void;
+  authReady: boolean;
   addJob: (job: Job) => Promise<void>;
   updateJob: (job: Job) => Promise<void>;
   deleteJob: (jobId: string) => Promise<void>;
@@ -134,6 +135,7 @@ export function CareersProvider({ children }: { children: ReactNode }) {
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -166,6 +168,24 @@ export function CareersProvider({ children }: { children: ReactNode }) {
   }, [sessionToken]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // --- Auth: drive sessionToken from the Supabase Auth session ---
+  // Login is supabase.auth.signInWithPassword (see DashboardAuth). supabase-js
+  // persists + auto-refreshes the session in localStorage, so we restore it on
+  // load and keep `sessionToken` pointed at the CURRENT access token — which is
+  // what every admin edge function validates (see _shared/validate-session).
+  useEffect(() => {
+    let mounted = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      setSessionToken(data.session?.access_token ?? null);
+      setAuthReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSessionToken(session?.access_token ?? null);
+    });
+    return () => { mounted = false; sub.subscription.unsubscribe(); };
+  }, []);
 
   const addJob = useCallback(async (job: Job) => {
     if (!sessionToken) throw new Error("Not authenticated");
@@ -288,7 +308,7 @@ export function CareersProvider({ children }: { children: ReactNode }) {
   const getJobById = useCallback((id: string) => jobs.find(j => j.id === id), [jobs]);
 
   return (
-    <CareersContext.Provider value={{ jobs, applicants, loading, sessionToken, setSessionToken, addJob, updateJob, deleteJob, addApplicant, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, getJobById, refreshData: fetchData }}>
+    <CareersContext.Provider value={{ jobs, applicants, loading, sessionToken, setSessionToken, authReady, addJob, updateJob, deleteJob, addApplicant, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, getJobById, refreshData: fetchData }}>
       {children}
     </CareersContext.Provider>
   );

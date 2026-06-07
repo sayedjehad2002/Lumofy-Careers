@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import {
   Briefcase, Users, BarChart3, ChevronDown,
   Eye, EyeOff, MapPin, Clock, FileText, Star, MessageSquare,
-  ArrowLeft, ExternalLink, Plus, Pencil, Trash2, Copy, Brain,
+  ArrowLeft, ExternalLink, LogOut, Plus, Pencil, Trash2, Copy, Brain,
   Download, Loader2, AlertCircle, GripVertical, LayoutDashboard, AlertTriangle, Sparkles, Library, TrendingUp, Calculator, Search, ClipboardList, BookOpen, Zap, UsersRound
 } from "lucide-react";
 import CommandPalette from "@/components/careers/CommandPalette";
@@ -69,8 +69,7 @@ const ALLOWED_TRANSITIONS: Record<ApplicantStatus, ApplicantStatus[]> = {
 };
 
 const Dashboard = () => {
-  const { jobs, applicants, loading, sessionToken, setSessionToken, addJob, updateJob, deleteJob, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, refreshData } = useCareers();
-  const [authenticated, setAuthenticated] = useState(!!sessionToken);
+  const { jobs, applicants, loading, sessionToken, authReady, addJob, updateJob, deleteJob, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI } = useCareers();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [selectedJobId, setSelectedJobId] = useState<string>("all");
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
@@ -204,20 +203,26 @@ const Dashboard = () => {
     await handleStatusUpdate(applicantId, targetStatus);
   };
 
-  const handleSessionExpired = useCallback(() => {
-    setSessionToken(null);
-    setAuthenticated(false);
+  const handleSessionExpired = useCallback(async () => {
+    await supabase.auth.signOut();
     toast.error("Session expired. Please log in again.");
-  }, [setSessionToken]);
+  }, []);
 
-  const handleAuthenticated = useCallback(async (token: string) => {
-    setSessionToken(token);
-    setAuthenticated(true);
-    setTimeout(() => refreshData(), 100);
-  }, [setSessionToken, refreshData]);
+  const handleSignOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    toast.success("Signed out.");
+  }, []);
 
-  if (!authenticated) {
-    return <DashboardAuth onAuthenticated={handleAuthenticated} />;
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!sessionToken) {
+    return <DashboardAuth />;
   }
 
   if (loading) {
@@ -313,11 +318,15 @@ const Dashboard = () => {
 
           </LayoutGroup>
         </nav>
-        <div className="p-3 border-t border-border relative z-10">
+        <div className="p-3 border-t border-border relative z-10 space-y-1">
           <Link to="/" className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ExternalLink className="w-4 h-4" />
             View Careers Page
           </Link>
+          <button onClick={handleSignOut} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-destructive transition-colors">
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </button>
         </div>
       </aside>
 
