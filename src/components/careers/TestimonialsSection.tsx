@@ -22,7 +22,7 @@ const differentiators = [
   {
     icon: ShieldCheck,
     title: "Enterprise Trust",
-    desc: "Our platform is trusted by governments and Fortune 500 companies to manage mission-critical talent data.",
+    desc: "Trusted by leading government and enterprise organizations across MENA to manage critical talent data.",
     gradient: "from-emerald-500/10 to-teal-500/5",
   },
 ];
