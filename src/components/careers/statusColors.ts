@@ -132,3 +132,16 @@ export const FUNNEL_FILLS = [
   "hsl(var(--chart-2))",
   "hsl(var(--destructive))",
 ];
+
+/**
+ * Ordered, theme-aware color VALUES (not classes) for categorical chart series
+ * (recharts `fill`/`stroke`, inline `backgroundColor`). Single source of truth —
+ * replaces hardcoded hex like "#3b82f6" that break in dark mode.
+ */
+export const CHART_SERIES = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+];
