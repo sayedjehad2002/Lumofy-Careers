@@ -36,7 +36,7 @@ const HiringProcess = () => (
       >
         {steps.map((s) => (
           <motion.div key={s.n} variants={fadeUp} className="rounded-2xl border border-border bg-card p-6 light-glow">
-            <span className="font-['Urbanist'] text-3xl font-extrabold text-primary/30">{s.n}</span>
+            <span className="text-3xl font-extrabold text-primary/30">{s.n}</span>
             <h3 className="mt-2 text-lg font-bold">{s.title}</h3>
             <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{s.desc}</p>
           </motion.div>

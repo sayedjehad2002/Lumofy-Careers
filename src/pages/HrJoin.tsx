@@ -58,7 +58,7 @@ const HrJoin = () => {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center justify-center gap-2">
           <img src={lumofyLogo} alt="Lumofy" className="h-8 w-8 object-contain" />
-          <span className="font-['Urbanist'] text-xl font-extrabold tracking-tight">Lumofy</span>
+          <span className="text-xl font-extrabold tracking-tight">Lumofy</span>
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">

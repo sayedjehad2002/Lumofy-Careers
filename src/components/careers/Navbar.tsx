@@ -34,7 +34,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
               alt="Lumofy"
               className="w-8 h-8 object-contain transition-transform duration-300 group-hover:scale-105"
             />
-            <span className="font-['Urbanist'] text-xl font-extrabold tracking-tight text-foreground">
+            <span className="text-xl font-extrabold tracking-tight text-foreground">
               Lumofy
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded">

@@ -1,5 +1,5 @@
-/* Lumofy brand fonts: Urbanist (display/headings) + Source Sans 3 (body) — matches lumofy.ai */
-@import url('https://fonts.googleapis.com/css2?family=Urbanist:wght@500;600;700;800;900&family=Source+Sans+3:wght@400;500;600;700&display=swap');
+/* Lumofy brand type: Source Sans 3 (= Source Sans Pro, the brand primary typeface) sitewide */
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -77,7 +77,7 @@
     --intel-tab-active: 0 0% 100%;
     --intel-gauge-track: 220 14% 90%;
     --font-sans: 'Source Sans 3', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    --font-display: 'Urbanist', 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
     --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
@@ -92,79 +92,87 @@
     --spacing: 0.25rem;
   }
   .dark {
-    --background: 222 30% 8%;
-    --foreground: 220 12% 95%;
+    /* Cosmos — deep-space neutral base (brand #0C0C0C) with a whisper of Sirius tint */
+    --background: 222 16% 7%;
+    --foreground: 220 9% 94%;
 
-    --card: 222 26% 11%;
-    --card-foreground: 220 12% 95%;
+    --card: 222 16% 10%;
+    --card-foreground: 220 9% 94%;
 
-    --popover: 222 26% 11%;
-    --popover-foreground: 220 12% 95%;
+    --popover: 222 16% 10%;
+    --popover-foreground: 220 9% 94%;
 
-    /* Darkened from 223 90% 62% (only 3.97:1 vs white) to meet WCAG AA (~4.5:1). */
-    --primary: 223 83% 54%;
+    /* Sirius — Lumofy brand primary #215BEA (hsl 223 83% 52%; ~5.8:1 on white = AA) */
+    --primary: 223 83% 52%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 222 22% 15%;
-    --secondary-foreground: 220 12% 90%;
+    --secondary: 222 14% 14%;
+    --secondary-foreground: 220 9% 90%;
 
-    --muted: 222 20% 16%;
-    --muted-foreground: 220 12% 64%;
+    --muted: 222 13% 15%;
+    --muted-foreground: 220 10% 64%;
 
-    --accent: 222 22% 15%;
-    --accent-foreground: 220 12% 90%;
+    --accent: 222 14% 14%;
+    --accent-foreground: 220 9% 90%;
 
-    --border: 222 18% 18%;
-    --input: 222 18% 18%;
-    --ring: 223 83% 54%;
+    --border: 222 13% 18%;
+    --input: 222 13% 18%;
+    --ring: 223 83% 52%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --lumofy-blue: 223 90% 62%;
-    --lumofy-glow: 223 90% 72%;
-    --surface: 222 24% 12%;
-    --surface-hover: 222 22% 16%;
+    --lumofy-blue: 223 83% 60%;
+    --lumofy-glow: 223 83% 70%;
+    --surface: 222 15% 11%;
+    --surface-hover: 222 14% 15%;
 
-    --neon-blue: 223 90% 65%;
-    --neon-purple: 270 90% 65%;
-    --neon-cyan: 185 90% 55%;
+    /* Cosmic accent palette (brand) — Sirius leads; the rest for data / status / graphics */
+    --brand-sirius: 223 83% 52%;   /* blue   #215BEA */
+    --brand-eclipse: 264 100% 70%; /* purple #A366FF */
+    --brand-aurora: 149 70% 62%;   /* green  #5AE29C */
+    --brand-stellar: 59 70% 62%;   /* yellow #E2E05A */
+    --brand-nova: 336 68% 62%;     /* pink   #E05A90 */
 
-    --chart-1: 223 90% 64%;
-    --chart-2: 149 60% 52%;
-    --chart-3: 264 80% 70%;
-    --chart-4: 336 70% 64%;
-    --chart-5: 38 92% 58%;
-    --sidebar: 222 28% 9%;
+    --neon-blue: 223 83% 64%;
+    --neon-purple: 264 100% 70%;
+    --neon-cyan: 149 70% 62%;
 
-    /* Intelligence dashboard tokens – dark */
-    --intel-surface: 222 28% 9%;
-    --intel-card: 222 24% 12%;
-    --intel-card-hover: 222 22% 15%;
-    --intel-border: 222 18% 20%;
-    --intel-text-primary: 220 12% 95%;
+    --chart-1: 223 83% 60%;   /* Sirius  */
+    --chart-2: 149 70% 56%;   /* Aurora  */
+    --chart-3: 264 90% 72%;   /* Eclipse */
+    --chart-4: 336 68% 64%;   /* Nova    */
+    --chart-5: 59 70% 60%;    /* Stellar */
+    --sidebar: 222 16% 8%;
+
+    /* Intelligence dashboard tokens – dark (Cosmos-neutral) */
+    --intel-surface: 222 16% 8%;
+    --intel-card: 222 15% 11%;
+    --intel-card-hover: 222 14% 14%;
+    --intel-border: 222 13% 19%;
+    --intel-text-primary: 220 9% 94%;
     --intel-text-secondary: 220 10% 65%;
     --intel-text-muted: 220 8% 50%;
-    --intel-success: 152 62% 48%;
-    --intel-success-subtle: 152 35% 14%;
+    --intel-success: 149 62% 50%;
+    --intel-success-subtle: 149 35% 14%;
     --intel-warning: 38 88% 52%;
     --intel-warning-subtle: 38 40% 14%;
     --intel-danger: 0 75% 55%;
     --intel-danger-subtle: 0 40% 14%;
-    --intel-accent: 223 90% 65%;
-    --intel-accent-subtle: 217 50% 16%;
-    --intel-tab-bg: 222 22% 13%;
-    --intel-tab-active: 222 22% 17%;
-    --intel-gauge-track: 222 18% 16%;
+    --intel-accent: 223 83% 60%;
+    --intel-accent-subtle: 223 50% 16%;
+    --intel-tab-bg: 222 14% 13%;
+    --intel-tab-active: 222 14% 17%;
+    --intel-gauge-track: 222 13% 16%;
 
-    --sidebar-background: 222 28% 9%;
-    --sidebar-foreground: 220 12% 95%;
-    --sidebar-primary: 223 90% 62%;
+    --sidebar-background: 222 16% 8%;
+    --sidebar-foreground: 220 9% 94%;
+    --sidebar-primary: 223 83% 56%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 22% 15%;
-    --sidebar-accent-foreground: 220 12% 90%;
-    --sidebar-border: 222 18% 18%;
-    --sidebar-ring: 223 90% 62%;
+    --sidebar-accent: 222 14% 14%;
+    --sidebar-accent-foreground: 220 9% 90%;
+    --sidebar-border: 222 13% 18%;
+    --sidebar-ring: 223 83% 56%;
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.12);
     --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.12);
     --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.2), 0 1px 2px -1px hsl(0 0% 0% / 0.2);
@@ -187,10 +195,10 @@
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
-  /* Headings use Urbanist (Lumofy display font) */
+  /* Headings use Source Sans 3 (Lumofy brand primary), heavy weight for display */
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Urbanist', 'Source Sans 3', system-ui, sans-serif;
-    font-weight: 700;
+    font-family: 'Source Sans 3', system-ui, sans-serif;
+    font-weight: 800;
     letter-spacing: -0.02em;
   }
 
