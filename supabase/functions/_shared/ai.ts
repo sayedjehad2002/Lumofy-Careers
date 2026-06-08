@@ -82,15 +82,15 @@ export interface ChatOpts {
 // (400 bad request, 401/403 auth, 402 credits) are NOT retried — retrying can't
 // help and would just add latency.
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
-// Attempts PER MODEL: 1 initial + 2 retries, exponential backoff with jitter so a
-// brief demand spike self-heals.
-const MAX_ATTEMPTS = 3;
+// Attempts PER MODEL: 1 initial + 3 retries, exponential backoff with jitter so a
+// brief demand spike self-heals. Higher on the free tier where 503s are common.
+const MAX_ATTEMPTS = 4;
 // When the requested model stays overloaded (503) through all its retries, fall
 // back to these other Gemini models in order. They sit in separate capacity
 // pools, so a 503 on one frequently clears on another, and all are multimodal
 // (handle the PDF/image CV inputs). This is the free-tier resilience path; a
 // billed key rarely 503s and simply succeeds on the first model.
-const FALLBACK_MODELS = ["gemini-2.0-flash", "gemini-2.5-flash-lite"];
+const FALLBACK_MODELS = ["gemini-2.0-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash-lite"];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const backoff = (attempt: number) =>
