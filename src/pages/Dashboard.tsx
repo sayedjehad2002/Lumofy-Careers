@@ -272,13 +272,13 @@ const Dashboard = () => {
       <CommandPalette isDashboard onNavigateDashboard={handleTabNavigate} />
 
       {/* Sidebar */}
-      <aside className="w-64 bg-card border-r border-border flex-shrink-0 hidden lg:flex flex-col dark:particles-bg">
+      <aside className="w-64 bg-[hsl(var(--intel-card))] border-r border-[hsl(var(--intel-border))] flex-shrink-0 hidden lg:flex flex-col">
         <div className="p-5 border-b border-border flex items-center justify-between relative z-10">
           <Link to="/" className="flex items-center gap-2.5">
             <img src={lumofyLogo} alt="Lumofy logo" className="w-8 h-8 object-contain rounded-md bg-white/90 p-0.5" />
             <div>
               <span className="font-semibold text-sm tracking-tight">Lumofy</span>
-              <p className="text-[10px] text-muted-foreground tracking-wide uppercase font-medium">HR Dashboard</p>
+              <p className="font-mono text-[10px] text-muted-foreground tracking-[0.14em] uppercase font-medium">HR Dashboard</p>
             </div>
           </Link>        </div>
 
@@ -298,7 +298,7 @@ const Dashboard = () => {
           <LayoutGroup id="sidebar-nav">
             {navGroups.map((group) => (
               <div key={group} className="space-y-0.5">
-                <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">{group}</p>
+                <p className="px-3 pb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/50">{group}</p>
                 {mainTabs.filter((t) => t.group === group).map((tab) => (
                   <motion.button
                     key={tab.id}
@@ -409,7 +409,7 @@ const Dashboard = () => {
                   </div>
                   <div>
                     <h1 className="text-2xl font-bold tracking-tight">Manage Jobs</h1>
-                    <p className="text-sm text-muted-foreground">{activeJobs.length} vacancies · {activeJobs.filter(j => j.status === "open").length} open</p>
+                    <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{activeJobs.length} vacancies · {activeJobs.filter(j => j.status === "open").length} open</p>
                   </div>
                 </div>
                 <Button onClick={() => { setEditingJob(null); setJobFormOpen(true); }} className="rounded-xl shadow-lg shadow-primary/20">
@@ -464,11 +464,11 @@ const Dashboard = () => {
                               {job.status === "open" ? "Open" : "Closed"}
                             </Badge>
                           </div>
-                          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                          <div className="flex flex-wrap items-center gap-3 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
                             <span className="flex items-center gap-1.5"><MapPin className="w-3 h-3" /> {job.location}</span>
                             <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {job.type}</span>
                             <span className="flex items-center gap-1.5"><Users className="w-3 h-3" /> {appCount} applicant{appCount !== 1 ? "s" : ""}</span>
-                            <Badge variant="secondary" className="text-[10px] border-0 bg-secondary">{job.department}</Badge>
+                            <Badge variant="secondary" className="text-[10px] border-0 bg-secondary normal-case">{job.department}</Badge>
                           </div>
                           {job.deadline && (
                             <div className="mt-2">
