@@ -45,8 +45,8 @@ export function Panel({
   );
 }
 
-/** Tiny inline-SVG trend line. Color via currentColor (pass a text-* className). */
-export function Sparkline({ data, className = "text-primary" }: { data: number[]; className?: string }) {
+/** Tiny inline-SVG trend line. Size + color via className (e.g. "h-6 w-20 text-primary"). */
+export function Sparkline({ data, className = "h-6 w-20 text-primary" }: { data: number[]; className?: string }) {
   if (!data.length) return null;
   const w = 80;
   const h = 24;
@@ -62,7 +62,7 @@ export function Sparkline({ data, className = "text-primary" }: { data: number[]
   const line = pts.map((pt, i) => `${i ? "L" : "M"}${pt[0].toFixed(1)},${pt[1].toFixed(1)}`).join(" ");
   const area = `${line} L${pts[pts.length - 1][0].toFixed(1)},${h} L${pts[0][0].toFixed(1)},${h} Z`;
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true" className={`h-6 w-20 ${className}`}>
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true" className={className}>
       <path d={area} className="fill-current opacity-[0.08]" stroke="none" />
       <motion.path
         d={line}
@@ -155,7 +155,7 @@ export function MetricTile({
       </div>
       <span className="text-2xl font-semibold tabular-nums leading-none text-foreground">{value}</span>
       {series && series.length > 0 ? (
-        <Sparkline data={series} className={seriesClassName || "text-primary"} />
+        <Sparkline data={series} className={`h-6 w-20 ${seriesClassName || "text-primary"}`} />
       ) : hint ? (
         <span className="font-mono text-[11px] text-muted-foreground">{hint}</span>
       ) : null}
