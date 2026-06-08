@@ -64,6 +64,14 @@ interface CVAIAnalysis {
   interviewQuestions: string[];
   feedback: string;
   analyzedAt: string;
+  // Recruiter-grade fields (Phase 2) — optional; older analyses won't have them.
+  professionalIdentity?: { primary: string; primaryConfidence: number; secondary: string; secondaryConfidence: number; keyIdentity: string };
+  careerTrackAnalysis?: string;
+  evidenceFor?: string[];
+  evidenceAgainst?: string[];
+  alternativesConsidered?: { role: string; confidence: number }[];
+  departmentMatches?: { department: string; confidence: number; reason: string }[];
+  recruiterVerdict?: { shortlistFor: string; reasoning: string };
 }
 
 interface CVCandidate {
@@ -654,6 +662,80 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
               </div>
             ) : ai ? (
               <div className="space-y-4">
+                {/* ===== Professional Identity & Recruiter Verdict (recruiter-grade) ===== */}
+                {(ai.professionalIdentity || ai.recruiterVerdict) && (
+                  <div className="rounded-xl bg-card border border-border p-6 space-y-4">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <UserPlus className="w-4 h-4 text-primary" /> Professional Identity
+                    </h3>
+                    {ai.professionalIdentity?.keyIdentity && (
+                      <p className="text-sm italic text-foreground/90 border-l-2 border-primary/40 pl-3">"{ai.professionalIdentity.keyIdentity}"</p>
+                    )}
+                    {ai.professionalIdentity && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="rounded-lg bg-secondary/40 p-3">
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Primary identity</p>
+                          <p className="font-semibold text-sm">{ai.professionalIdentity.primary}</p>
+                          {typeof ai.professionalIdentity.primaryConfidence === "number" && (
+                            <p className="text-xs text-primary mt-0.5">{ai.professionalIdentity.primaryConfidence}% confidence</p>
+                          )}
+                        </div>
+                        <div className="rounded-lg bg-secondary/40 p-3">
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Secondary identity</p>
+                          <p className="font-semibold text-sm">{ai.professionalIdentity.secondary}</p>
+                          {typeof ai.professionalIdentity.secondaryConfidence === "number" && (
+                            <p className="text-xs text-muted-foreground mt-0.5">{ai.professionalIdentity.secondaryConfidence}% confidence</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {ai.careerTrackAnalysis && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Career track analysis</p>
+                        <p className="text-sm">{ai.careerTrackAnalysis}</p>
+                      </div>
+                    )}
+                    {(ai.evidenceFor?.length || ai.evidenceAgainst?.length) ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <p className={`text-xs font-medium mb-2 ${TONE_TEXT.success}`}>Evidence for</p>
+                          <ul className="space-y-1.5">
+                            {(ai.evidenceFor || []).map((e, i) => (
+                              <li key={i} className="text-sm flex items-start gap-1.5"><Check className={`w-3 h-3 mt-0.5 flex-shrink-0 ${TONE_TEXT.success}`} aria-hidden="true" />{e}</li>
+                            ))}
+                            {!ai.evidenceFor?.length && <li className="text-xs text-muted-foreground">None noted</li>}
+                          </ul>
+                        </div>
+                        <div>
+                          <p className={`text-xs font-medium mb-2 ${TONE_TEXT.warning}`}>Evidence against</p>
+                          <ul className="space-y-1.5">
+                            {(ai.evidenceAgainst || []).map((e, i) => (
+                              <li key={i} className="text-sm flex items-start gap-1.5"><AlertCircle className={`w-3 h-3 mt-0.5 flex-shrink-0 ${TONE_TEXT.warning}`} aria-hidden="true" />{e}</li>
+                            ))}
+                            {!ai.evidenceAgainst?.length && <li className="text-xs text-muted-foreground">None noted</li>}
+                          </ul>
+                        </div>
+                      </div>
+                    ) : null}
+                    {ai.alternativesConsidered?.length ? (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-2">Alternatives considered</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {ai.alternativesConsidered.map((a, i) => (
+                            <Badge key={i} variant="outline" className="text-[11px]">{a.role} · {a.confidence}%</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {ai.recruiterVerdict && (
+                      <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
+                        <p className="text-xs font-semibold text-primary mb-1 flex items-center gap-1.5"><Target className="w-3.5 h-3.5" /> Recruiter verdict — shortlist for: {ai.recruiterVerdict.shortlistFor}</p>
+                        <p className="text-sm">{ai.recruiterVerdict.reasoning}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* AI Rating & Recommendation Header */}
                 <div className="rounded-xl bg-card border border-border p-6">
                   <h3 className="font-semibold mb-4 flex items-center gap-2">

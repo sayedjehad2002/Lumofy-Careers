@@ -235,6 +235,32 @@ const AIAnalysisPanel = ({ applicant, job, sessionToken, onAnalysisComplete, onE
                 <p className="text-sm text-muted-foreground italic">{a.summary}</p>
               </div>
 
+              {/* Professional Identity & Recruiter Verdict */}
+              {(a.professionalIdentity || a.recruiterVerdict) && (
+                <div className="rounded-lg bg-secondary/30 p-4 space-y-3">
+                  <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                    <Target className="w-3.5 h-3.5 text-primary" /> Professional Identity
+                  </h3>
+                  {a.professionalIdentity?.keyIdentity && (
+                    <p className="text-sm italic text-foreground/90 border-l-2 border-primary/40 pl-3">"{a.professionalIdentity.keyIdentity}"</p>
+                  )}
+                  {a.professionalIdentity && (
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline" className="text-xs">Primary: {a.professionalIdentity.primary}{typeof a.professionalIdentity.primaryConfidence === "number" ? ` · ${a.professionalIdentity.primaryConfidence}%` : ""}</Badge>
+                      {a.professionalIdentity.secondary && (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">Secondary: {a.professionalIdentity.secondary}{typeof a.professionalIdentity.secondaryConfidence === "number" ? ` · ${a.professionalIdentity.secondaryConfidence}%` : ""}</Badge>
+                      )}
+                    </div>
+                  )}
+                  {a.recruiterVerdict && (
+                    <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
+                      <p className="text-xs font-semibold text-primary mb-1">Recruiter verdict — shortlist for: {a.recruiterVerdict.shortlistFor}</p>
+                      <p className="text-sm text-muted-foreground">{a.recruiterVerdict.reasoning}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Recommendation */}
               {a.recommendation && (
                 <div className="rounded-lg bg-secondary/50 p-4">

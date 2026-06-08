@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const systemPrompt = `You are a STRICT, calibrated HR AI analyst for Lumofy. You produce structured, evidence-based candidate evaluations with WEIGHTED SCORING.
+    const systemPrompt = `You are a STRICT, calibrated talent-evaluation AI analyst for Lumofy, fair across ALL job functions (not just HR). You produce structured, evidence-based candidate evaluations with WEIGHTED SCORING and a recruiter-grade verdict.
 
 ${UNTRUSTED_DATA_NOTE}
 
@@ -177,6 +177,7 @@ RED FLAGS to detect:
 
 EVIDENCE RULES:
 - ONLY analyze real content from the uploaded CV and application data.
+- Judge fit from what the candidate ACTUALLY DID — core responsibilities, outcomes, KPIs owned, stakeholder ownership, and measurable achievements — NOT from job titles or repeated keywords. When a title conflicts with the responsibilities, prioritize the responsibilities.
 - Do NOT generate assumptions, fictional experience, or imaginary qualifications.
 - All findings must reference actual CV content with evidence citations.
 - Focus ONLY on job-relevant qualifications.
@@ -187,6 +188,8 @@ You MUST respond with a valid JSON object (no markdown, no code blocks) using th
   "fitScore": <number 0-100 - STRICT weighted average>,
   "fitLevel": "<Strong Fit|Moderate Fit|Low Fit>",
   "summary": "<1-2 sentence evidence-based summary>",
+  "professionalIdentity": {"primary": "<candidate's TRUE primary role from evidence>", "primaryConfidence": <0-100>, "secondary": "<a genuinely different secondary role>", "secondaryConfidence": <0-100>, "keyIdentity": "<one sentence: who they really are>"},
+  "recruiterVerdict": {"shortlistFor": "<the single role you would shortlist them for>", "reasoning": "<evidence-based reasoning from responsibilities, impact, and trajectory>"},
   "strengths": ["<evidence-based strength>"],
   "gaps": ["<evidence-based gap>"],
   "interviewQuestions": ["<targeted question>"],
@@ -263,6 +266,7 @@ Provide your structured evidence-based analysis as JSON.`;
       model: "google/gemini-3-flash-preview",
       messages,
       hasImages: cvBase64 != null && cvParsingStatus === "success",
+      max_tokens: 4000, // richer recruiter-grade output (identity + verdict + scoring)
     });
 
     if (!response.ok) {

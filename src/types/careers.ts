@@ -145,6 +145,13 @@ export interface AIAnalysis {
   offerAcceptanceProbability?: number;
   earlyTurnoverRisk?: number;
   growthPotentialScore?: number;
+  // Recruiter-grade fields (Phase 3) — optional; older analyses won't have them.
+  professionalIdentity?: { primary: string; primaryConfidence: number; secondary: string; secondaryConfidence: number; keyIdentity: string };
+  recruiterVerdict?: { shortlistFor: string; reasoning: string };
+  careerTrackAnalysis?: string;
+  evidenceFor?: string[];
+  evidenceAgainst?: string[];
+  alternativesConsidered?: { role: string; confidence: number }[];
 }
 
 export const APPLICANT_STATUSES: { value: ApplicantStatus; label: string; color: string }[] = [
