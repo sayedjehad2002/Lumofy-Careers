@@ -203,6 +203,12 @@
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
+  /* Smooth in-page anchor scrolling for the single-page careers experience.
+     The prefers-reduced-motion block below forces scroll-behavior: auto. */
+  html {
+    scroll-behavior: smooth;
+  }
+
   /* Headings use Source Sans 3 (Lumofy brand primary), heavy weight for display */
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Source Sans 3', system-ui, sans-serif;
