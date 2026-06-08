@@ -232,7 +232,9 @@ export default function SettlementCalculator() {
 
     let annualLeave = 0, annualLeaveStatus = "Not calculated";
     if (salary > 0 && leaveBalance > 0) {
-      annualLeave = Math.round(((salary / 22) * leaveBalance) * 100) / 100;
+      // Use the configured working-days/month (consistent with the prorated calc);
+      // fall back to 22 when not set so existing behaviour is preserved.
+      annualLeave = Math.round(((salary / (daysInMonth || 22)) * leaveBalance) * 100) / 100;
       annualLeaveStatus = "Calculated";
     }
 
