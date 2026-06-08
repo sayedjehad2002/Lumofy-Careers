@@ -608,10 +608,10 @@ const Dashboard = () => {
                       const cap = stageCapacities[status.value] || 0;
                       const isOver = cap > 0 && count > cap;
                       return (
-                        <div key={status.value} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium ${isOver ? "bg-destructive/10 border-destructive/20 text-destructive" : "bg-card border-border"}`}>
+                        <div key={status.value} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium ${isOver ? "bg-destructive/10 border-destructive/20 text-destructive" : "bg-[hsl(var(--intel-card))] border-[hsl(var(--intel-border))]"}`}>
                           <div className={`w-2 h-2 rounded-full ${status.color.split(" ")[0]}`} />
                           {status.label}
-                          <span className={isOver ? "text-destructive" : "text-muted-foreground"}>{count}{cap > 0 ? `/${cap}` : ""}</span>
+                          <span className={`font-mono tabular-nums ${isOver ? "text-destructive" : "text-muted-foreground"}`}>{count}{cap > 0 ? `/${cap}` : ""}</span>
                         </div>
                       );
                     })}
@@ -640,9 +640,9 @@ const Dashboard = () => {
                                 <div className="flex items-center justify-between mb-3 px-1">
                                   <div className="flex items-center gap-2">
                                     <div className={`w-2.5 h-2.5 rounded-full ${status.color.split(" ")[0]}`} />
-                                    <span className="text-xs font-semibold uppercase tracking-wider text-foreground">{status.label}</span>
+                                    <span className="font-mono text-xs font-semibold uppercase tracking-wider text-foreground">{status.label}</span>
                                   </div>
-                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isOver ? "bg-destructive/20 text-destructive" : "bg-secondary text-muted-foreground"}`}>
+                                  <span className={`font-mono tabular-nums text-[10px] font-bold px-2 py-0.5 rounded-full ${isOver ? "bg-destructive/20 text-destructive" : "bg-secondary text-muted-foreground"}`}>
                                     {columnApplicants.length}{cap > 0 ? `/${cap}` : ""}
                                   </span>
                                 </div>

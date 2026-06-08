@@ -43,12 +43,12 @@ export default function PipelineCandidateCard({
 
   return (
     <div
-      className={`rounded-xl bg-card border p-3 cursor-grab active:cursor-grabbing transition-all duration-200 group relative overflow-hidden ${
+      className={`rounded-xl bg-[hsl(var(--intel-card))] border p-3 cursor-grab active:cursor-grabbing transition-all duration-200 group relative overflow-hidden ${
         isDragging
           ? "shadow-xl ring-2 ring-primary/40 border-primary/50 scale-[1.02]"
           : isOverdue
           ? "border-destructive/40 hover:border-destructive/60"
-          : "border-border hover:border-primary/30 hover:shadow-md"
+          : "border-[hsl(var(--intel-border))] hover:border-primary/30 hover:shadow-md"
       }`}
     >
       {/* Subtle top gradient for scored candidates */}
@@ -82,7 +82,7 @@ export default function PipelineCandidateCard({
           <>
             <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10">
               <Brain className="w-3 h-3 text-primary" aria-hidden="true" />
-              <span className="text-[10px] font-bold text-primary">{score}</span>
+              <span className="font-mono text-[10px] font-bold tabular-nums text-primary">{score}</span>
             </div>
             {tier && (
               <Badge variant="secondary" className={`text-[9px] px-1.5 py-0 h-[16px] border-0 ${tierSoft(tier)}`}>
@@ -99,7 +99,7 @@ export default function PipelineCandidateCard({
 
       {/* Bottom meta row */}
       <div className="flex items-center gap-2 mt-2 ml-[42px]">
-        <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+        <span className="flex items-center gap-0.5 font-mono text-[10px] tabular-nums text-muted-foreground">
           <Clock className="w-2.5 h-2.5" aria-hidden="true" />
           {daysInStage}d
         </span>
