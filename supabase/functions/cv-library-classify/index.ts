@@ -141,7 +141,7 @@ Respond with valid JSON only (no markdown):
 }`;
 
     const response = await chatCompletion({
-      model: "google/gemini-3-flash-preview",
+      model: "google/gemini-2.5-pro",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Classify this candidate:\n\n${candidateInfo}` },

@@ -143,7 +143,7 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
     ];
 
     const response = await chatCompletion({
-      model: "google/gemini-3-flash-preview",
+      model: "google/gemini-2.5-pro",
       messages,
       hasImages: true,
       max_tokens: 4000, // richer recruiter-grade output (identity + evidence + verdict)

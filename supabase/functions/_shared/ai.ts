@@ -37,11 +37,11 @@ export function getGeminiKey(): string {
 // text, point it at `gemini-2.5-flash-lite`. Available 2.5 IDs:
 //   gemini-2.5-pro · gemini-2.5-flash · gemini-2.5-flash-lite
 export const MODELS = {
-  visionStrong: "gemini-2.5-flash",   // multimodal (copilot vision) — bump to -pro for max quality
-  vision: "gemini-2.5-flash",         // multimodal (CV / PDF parsing, audio)
+  visionStrong: "gemini-2.5-pro",     // multimodal, MAX quality (paid tier) — deep classification/analysis
+  vision: "gemini-2.5-flash",         // multimodal (CV / PDF parsing, audio) — fast extraction
   textFast: "gemini-2.5-flash",       // text default
   textLite: "gemini-2.5-flash",       // lightweight text (-flash-lite is cheaper if needed)
-  textStrong: "gemini-2.5-flash",     // strong text fallback — bump to -pro for max quality
+  textStrong: "gemini-2.5-pro",       // strong text reasoning, MAX quality (paid tier)
 } as const;
 
 // Translate a legacy gateway model name to a concrete Gemini model ID (via the
@@ -90,7 +90,7 @@ const MAX_ATTEMPTS = 4;
 // pools, so a 503 on one frequently clears on another, and all are multimodal
 // (handle the PDF/image CV inputs). This is the free-tier resilience path; a
 // billed key rarely 503s and simply succeeds on the first model.
-const FALLBACK_MODELS = ["gemini-2.0-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash-lite"];
+const FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite"];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const backoff = (attempt: number) =>
