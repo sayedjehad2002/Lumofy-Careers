@@ -266,7 +266,7 @@ Provide your structured evidence-based analysis as JSON.`;
       model: "google/gemini-2.5-pro",
       messages,
       hasImages: cvBase64 != null && cvParsingStatus === "success",
-      max_tokens: 4000, // richer recruiter-grade output (identity + verdict + scoring)
+      max_tokens: 8000, // full recruiter-grade output (identity + verdict + scoring) — avoid truncation
     });
 
     if (!response.ok) {

@@ -146,7 +146,7 @@ You MUST respond with a single valid JSON object (no markdown, no code blocks). 
       model: "google/gemini-2.5-pro",
       messages,
       hasImages: true,
-      max_tokens: 4000, // richer recruiter-grade output (identity + evidence + verdict)
+      max_tokens: 8000, // full recruiter-grade output (identity + evidence + verdict + skills) — avoid truncation
     });
 
     if (!response.ok) {
