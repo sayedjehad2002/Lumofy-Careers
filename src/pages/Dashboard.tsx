@@ -274,11 +274,11 @@ const Dashboard = () => {
       {/* Sidebar */}
       <aside className="w-64 bg-[hsl(var(--intel-card))] border-r border-[hsl(var(--intel-border))] flex-shrink-0 hidden lg:flex flex-col">
         <div className="p-5 border-b border-border flex items-center justify-between relative z-10">
-          <Link to="/" className="flex items-center gap-2.5">
-            <img src={lumofyLogo} alt="Lumofy logo" className="w-8 h-8 object-contain rounded-md bg-white/90 p-0.5" />
+          <Link to="/" className="group flex items-center gap-2.5" aria-label="Lumofy HR Dashboard — home">
+            <img src={lumofyLogo} alt="" aria-hidden="true" className="h-9 w-9 shrink-0 object-contain transition-transform duration-300 group-hover:scale-105" />
             <div>
-              <span className="font-semibold text-sm tracking-tight">Lumofy</span>
-              <p className="font-mono text-[10px] text-muted-foreground tracking-[0.14em] uppercase font-medium">HR Dashboard</p>
+              <span className="block text-base font-extrabold leading-none tracking-tight text-foreground">Lumofy</span>
+              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">HR Dashboard</p>
             </div>
           </Link>        </div>
 
@@ -350,9 +350,11 @@ const Dashboard = () => {
       {/* Mobile header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 glass border-b border-border">
         <div className="flex items-center justify-between px-4 h-14">
-          <Link to="/" className="flex items-center gap-2">
-            <img src={lumofyLogo} alt="Lumofy logo" className="w-7 h-7 object-contain rounded-md bg-white/90 p-0.5" />
-            <span className="font-bold text-sm">Lumofy HR</span>
+          <Link to="/" className="flex items-center gap-2" aria-label="Lumofy HR Dashboard — home">
+            <img src={lumofyLogo} alt="" aria-hidden="true" className="h-7 w-7 shrink-0 object-contain" />
+            <span className="text-sm font-extrabold tracking-tight text-foreground">
+              Lumofy <span className="font-semibold text-muted-foreground">HR</span>
+            </span>
           </Link>        </div>
         {/* Horizontally scrollable tab strip — keeps all tabs reachable with
             ≥44px tap targets instead of cramming them into the header row. */}
