@@ -4,14 +4,20 @@ import { validateSession } from "../_shared/validate-session.ts";
 import { chatCompletion, wrapUntrusted, UNTRUSTED_DATA_NOTE } from "../_shared/ai.ts";
 
 const TAXONOMY = {
-  "Human Resources": ["HR Manager", "HR Business Partner", "Recruiter", "Talent Acquisition Specialist", "HR Coordinator", "Compensation & Benefits Analyst", "Learning & Development Specialist"],
-  "Customer Success": ["Customer Success Manager", "Senior CSM", "Onboarding Specialist", "Customer Support Lead", "Client Relations Manager"],
-  "Sales": ["Account Executive", "Account Manager", "Sales Engineer", "Sales Development Rep", "Regional Sales Manager", "VP Sales"],
+  "Human Resources": ["HR Manager", "HR Business Partner", "Recruiter", "Talent Acquisition Specialist", "HR Coordinator", "Compensation & Benefits Analyst", "Learning & Development Specialist", "People Analytics Specialist", "Organizational Development Specialist"],
+  "Customer Success": ["Customer Success Manager", "Senior CSM", "Customer Success Lead", "Onboarding Specialist", "Customer Support Lead", "Renewals Manager"],
+  "Account Management": ["Account Manager", "Key Account Manager", "Strategic Account Manager", "Client Partner", "Relationship Manager"],
+  "Client Services": ["Client Services Manager", "Client Relations Manager", "Engagement Manager", "Service Delivery Manager"],
+  "Customer Experience": ["Customer Experience Manager", "CX Specialist", "Voice of Customer Analyst", "Customer Insights Manager"],
+  "Sales": ["Account Executive", "Sales Development Rep", "Sales Engineer", "Regional Sales Manager", "VP Sales", "Business Development Manager"],
+  "Revenue Operations": ["Revenue Operations Manager", "Sales Operations Analyst", "RevOps Analyst", "GTM Operations Manager"],
   "Product": ["Product Manager", "Senior Product Manager", "Product Owner", "Product Analyst", "UX Researcher"],
   "Engineering": ["Full Stack Developer", "Backend Engineer", "Frontend Engineer", "Mobile Developer", "DevOps Engineer", "QA Engineer", "Engineering Manager", "Data Engineer", "Machine Learning Engineer"],
+  "Data & Analytics": ["Data Analyst", "Data Scientist", "Business Intelligence Analyst", "Analytics Engineer", "Quantitative Analyst"],
   "Marketing": ["Marketing Manager", "Digital Marketing Specialist", "Content Strategist", "Brand Manager", "SEO Specialist", "Growth Marketing Manager"],
   "Finance": ["Financial Analyst", "Accountant", "Finance Manager", "Controller", "Treasury Analyst", "Auditor"],
-  "Operations": ["Operations Manager", "Supply Chain Analyst", "Project Manager", "Business Analyst", "Process Improvement Specialist", "Logistics Coordinator"],
+  "Operations": ["Operations Manager", "Supply Chain Analyst", "Business Analyst", "Process Improvement Specialist", "Logistics Coordinator"],
+  "Project Management": ["Project Manager", "Program Manager", "Scrum Master", "PMO Analyst", "Delivery Manager"],
   "Design": ["UI/UX Designer", "Graphic Designer", "Product Designer", "Visual Designer", "Design Lead"],
 };
 
@@ -102,35 +108,36 @@ Roles Summary: ${wrapUntrusted("Roles Summary", candidate.roles_summary || "Not 
 Extracted Text: ${wrapUntrusted("Extracted Text", candidate.extracted_text || "Not available")}
     `.trim();
 
-    const systemPrompt = `You are an expert talent-classification AI for a multi-department company. Identify the TWO best-fitting departments and job titles for the candidate, ranked by fit. The first is the strongest fit; the second is a genuinely different alternative direction.
+    const systemPrompt = `You are an expert executive recruiter and career analyst. Determine the candidate's TRUE professional identity from EVIDENCE of what they actually did — not from job titles, department names, or repeated keywords.
 
 ${UNTRUSTED_DATA_NOTE}
 
-DEPARTMENTS — choose the candidate's department from EXACTLY this list (used for folder organization):
+DEPARTMENTS — choose from EXACTLY this list (used for folder organization):
 ${DEPARTMENTS.join(", ")}
 
-ROLE EXAMPLES per department (GUIDANCE ONLY — not exhaustive and NOT mandatory):
+ROLE EXAMPLES per department (GUIDANCE ONLY — not exhaustive, NOT mandatory):
 ${taxonomyText}
 
-RULES:
-- Weigh ALL departments EQUALLY. Pick the department that matches the candidate's CORE expertise and the bulk of their experience. Do NOT default to Human Resources, Operations, or other generic choices when the evidence points elsewhere (e.g. a psychology/psychometrics/UX-research profile may fit People Analytics, I/O Psychology, or UX Research — not "HR Coordinator").
-- Output the MOST ACCURATE real-world job title for the candidate (e.g. "I/O Psychologist", "People Analytics Specialist", "UX Researcher", "Data Scientist", "Financial Controller"). Use a precise title EVEN IF it is not in the examples above. Never force a generic preset.
-- Use ALL provided data — skills, industries, roles summary, and extracted text. If meaningful data is present, USE it; never claim information is missing when skills or a roles summary were extracted.
-- The SECOND suggestion must be a genuinely DIFFERENT functional direction the candidate could also fit — not a near-duplicate of the first.
-- Calibrate confidence to the evidence: "High" when skills + experience clearly converge on the role, "Medium" when partial, "Low" only when evidence is genuinely thin.
-- Provide 3 evidence bullets citing specific CV content for the primary match.
-- Do NOT fabricate skills or experience. Do NOT consider age, gender, nationality, religion, or other protected traits.
+HOW TO CLASSIFY — evidence over keywords:
+- Infer the dominant career track from what the candidate DOES and OWNS: core responsibilities, daily activities, business/customer/revenue outcomes, KPIs owned, stakeholder interactions, strategic ownership, career progression, and measurable achievements.
+- WEIGHT the evidence: core responsibilities 40%, measurable achievements 25%, stakeholder ownership 15%, career progression 10%, job titles 10%. Titles and keywords are the WEAKEST signals.
+- When a job TITLE conflicts with the actual RESPONSIBILITIES, prioritize the responsibilities and outcomes. Example: an HR-titled person who mostly manages customer relationships, onboarding, retention, renewals, and account growth is Customer Success / Account Management — NOT Human Resources.
+- Avoid ALL keyword bias: "HR"/"recruitment" appearing does not make them HR; "customer"/"client" does not make them Customer Success; "operations" does not make them Operations. Judge the whole career history.
+- Classify as Human Resources ONLY if the MAJORITY of responsibilities are genuinely HR (recruitment, employee relations, HR operations, payroll, compensation & benefits, performance management, HR policy, workforce planning, internal employee lifecycle).
+- The SECOND suggestion must be a genuinely DIFFERENT functional direction the candidate could be hired into — not a near-duplicate of the first.
+- Output the MOST ACCURATE real job title (e.g. "Customer Success Manager", "I/O Psychologist", "Revenue Operations Analyst") — precise, even if not in the examples. Never force a generic preset.
+- Calibrate confidence to evidence strength. Do NOT fabricate. Ignore age, gender, nationality, religion, or other protected traits.
 
 Respond with valid JSON only (no markdown):
 {
-  "suggested_department": "<primary department, EXACTLY from the department list>",
-  "suggested_job_title": "<most accurate real job title for the candidate>",
+  "suggested_department": "<primary department, EXACTLY from the list>",
+  "suggested_job_title": "<most accurate real job title>",
   "confidence": "<High|Medium|Low>",
-  "suggested_department_2": "<second department from the list, ideally a different function>",
-  "suggested_job_title_2": "<most accurate real job title for the alternative>",
+  "suggested_department_2": "<second department from the list, a genuinely different function>",
+  "suggested_job_title_2": "<most accurate real alternative job title>",
   "confidence_2": "<High|Medium|Low>",
-  "reasoning": "<1-2 sentences grounded in the candidate's actual background>",
-  "evidence": ["<evidence point 1>", "<evidence point 2>", "<evidence point 3>"]
+  "reasoning": "<3-4 sentences: the candidate's TRUE professional identity and WHY, grounded in their actual responsibilities, outcomes, and stakeholder ownership. Explicitly note if a keyword-driven reading (e.g. HR) was rejected in favor of the evidence.>",
+  "evidence": ["<specific responsibility/achievement/outcome backing the primary match>", "<evidence 2>", "<evidence 3>"]
 }`;
 
     const response = await chatCompletion({

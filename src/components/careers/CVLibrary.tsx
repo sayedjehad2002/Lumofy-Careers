@@ -102,8 +102,9 @@ interface CVCandidate {
 }
 
 const DEPARTMENTS = [
-  "Human Resources", "Customer Success", "Sales", "Product",
-  "Engineering", "Marketing", "Finance", "Operations", "Design",
+  "Human Resources", "Customer Success", "Account Management", "Client Services",
+  "Customer Experience", "Sales", "Revenue Operations", "Product", "Engineering",
+  "Data & Analytics", "Marketing", "Finance", "Operations", "Project Management", "Design",
 ];
 
 const CV_STATUSES = [
@@ -1432,8 +1433,9 @@ function EditCandidateDialog({
   });
 
   const DEPARTMENTS_LIST = [
-    "Human Resources", "Customer Success", "Sales", "Product",
-    "Engineering", "Marketing", "Finance", "Operations", "Design",
+    "Human Resources", "Customer Success", "Account Management", "Client Services",
+    "Customer Experience", "Sales", "Revenue Operations", "Product", "Engineering",
+    "Data & Analytics", "Marketing", "Finance", "Operations", "Project Management", "Design",
   ];
 
   const handleSubmit = async () => {
