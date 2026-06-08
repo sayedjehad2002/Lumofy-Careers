@@ -102,30 +102,34 @@ Roles Summary: ${wrapUntrusted("Roles Summary", candidate.roles_summary || "Not 
 Extracted Text: ${wrapUntrusted("Extracted Text", candidate.extracted_text || "Not available")}
     `.trim();
 
-    const systemPrompt = `You are an HR classification AI. Classify the candidate into the TOP 2 most suitable departments and job titles from the taxonomy below. The first match should be the strongest fit, the second should be the next best alternative.
+    const systemPrompt = `You are an expert talent-classification AI for a multi-department company. Identify the TWO best-fitting departments and job titles for the candidate, ranked by fit. The first is the strongest fit; the second is a genuinely different alternative direction.
 
 ${UNTRUSTED_DATA_NOTE}
 
-TAXONOMY:
+DEPARTMENTS — choose the candidate's department from EXACTLY this list (used for folder organization):
+${DEPARTMENTS.join(", ")}
+
+ROLE EXAMPLES per department (GUIDANCE ONLY — not exhaustive and NOT mandatory):
 ${taxonomyText}
 
 RULES:
-- Use ONLY information from the candidate data provided.
-- Select the TWO best department + job title matches, ranked by fit.
-- If only one clear match exists, still provide a second best guess but set its confidence to "Low".
-- For each match, assign confidence: "High", "Medium", or "Low".
-- Provide 3 evidence bullets referencing specific CV content for the primary match.
-- Do NOT fabricate skills or experience.
+- Weigh ALL departments EQUALLY. Pick the department that matches the candidate's CORE expertise and the bulk of their experience. Do NOT default to Human Resources, Operations, or other generic choices when the evidence points elsewhere (e.g. a psychology/psychometrics/UX-research profile may fit People Analytics, I/O Psychology, or UX Research — not "HR Coordinator").
+- Output the MOST ACCURATE real-world job title for the candidate (e.g. "I/O Psychologist", "People Analytics Specialist", "UX Researcher", "Data Scientist", "Financial Controller"). Use a precise title EVEN IF it is not in the examples above. Never force a generic preset.
+- Use ALL provided data — skills, industries, roles summary, and extracted text. If meaningful data is present, USE it; never claim information is missing when skills or a roles summary were extracted.
+- The SECOND suggestion must be a genuinely DIFFERENT functional direction the candidate could also fit — not a near-duplicate of the first.
+- Calibrate confidence to the evidence: "High" when skills + experience clearly converge on the role, "Medium" when partial, "Low" only when evidence is genuinely thin.
+- Provide 3 evidence bullets citing specific CV content for the primary match.
+- Do NOT fabricate skills or experience. Do NOT consider age, gender, nationality, religion, or other protected traits.
 
 Respond with valid JSON only (no markdown):
 {
-  "suggested_department": "<best department from taxonomy>",
-  "suggested_job_title": "<best job title from taxonomy>",
+  "suggested_department": "<primary department, EXACTLY from the department list>",
+  "suggested_job_title": "<most accurate real job title for the candidate>",
   "confidence": "<High|Medium|Low>",
-  "suggested_department_2": "<second best department from taxonomy>",
-  "suggested_job_title_2": "<second best job title from taxonomy>",
+  "suggested_department_2": "<second department from the list, ideally a different function>",
+  "suggested_job_title_2": "<most accurate real job title for the alternative>",
   "confidence_2": "<High|Medium|Low>",
-  "reasoning": "<1-2 sentence internal reasoning covering both suggestions>",
+  "reasoning": "<1-2 sentences grounded in the candidate's actual background>",
   "evidence": ["<evidence point 1>", "<evidence point 2>", "<evidence point 3>"]
 }`;
 
@@ -163,32 +167,31 @@ Respond with valid JSON only (no markdown):
       throw new Error("Failed to parse classification");
     }
 
+    // Keep the model's ACCURATE job title — only sanitize it (trim + length cap),
+    // never overwrite it with a generic preset. Departments still snap to the 9
+    // (the folder taxonomy); titles stay precise (e.g. "I/O Psychologist").
+    const sanitizeTitle = (t: unknown, dept: string): string | null => {
+      const s = typeof t === "string" ? t.trim() : "";
+      return s && s.length <= 80 ? s : pickRoleForDepartment(dept);
+    };
+
     const primaryDept = DEPARTMENTS.includes(classification.suggested_department)
       ? classification.suggested_department
       : pickFallbackDepartment(null);
 
-    const primaryRole = TAXONOMY[primaryDept as keyof typeof TAXONOMY]?.includes(classification.suggested_job_title)
-      ? classification.suggested_job_title
-      : pickRoleForDepartment(primaryDept);
-
     const secondaryDeptRaw = DEPARTMENTS.includes(classification.suggested_department_2)
       ? classification.suggested_department_2
       : pickFallbackDepartment(primaryDept);
-
     const secondaryDept = secondaryDeptRaw === primaryDept
       ? pickFallbackDepartment(primaryDept)
       : secondaryDeptRaw;
 
-    const secondaryRole = TAXONOMY[secondaryDept as keyof typeof TAXONOMY]?.includes(classification.suggested_job_title_2)
-      ? classification.suggested_job_title_2
-      : pickRoleForDepartment(secondaryDept);
-
     const finalClassification = {
       suggested_department: primaryDept || null,
-      suggested_job_title: primaryRole || null,
+      suggested_job_title: sanitizeTitle(classification.suggested_job_title, primaryDept),
       confidence: normalizeConfidence(classification.confidence),
       suggested_department_2: secondaryDept || null,
-      suggested_job_title_2: secondaryRole || null,
+      suggested_job_title_2: sanitizeTitle(classification.suggested_job_title_2, secondaryDept),
       confidence_2: normalizeConfidence(classification.confidence_2),
       reasoning: classification.reasoning || null,
       evidence: Array.isArray(classification.evidence) ? classification.evidence.slice(0, 3) : [],

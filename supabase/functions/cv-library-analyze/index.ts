@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     const suggestedTitle = candidate.manual_job_title || candidate.suggested_job_title || "Unknown";
     const seniority = inferSeniority(suggestedTitle);
 
-    const systemPrompt = `You are an expert HR AI analyst. You produce structured, evidence-based candidate evaluations from CVs.
+    const systemPrompt = `You are an expert talent-evaluation AI analyst who fairly assesses candidates across ALL job functions (engineering, product, design, data, research, sales, marketing, finance, operations, HR, and more) — never assume an HR lens by default. You produce structured, evidence-based candidate evaluations from CVs.
 
 ${analysisCalibration(seniority)}
 
@@ -92,7 +92,7 @@ CRITICAL RULES:
 - Do NOT consider age, gender, nationality, religion, or any protected traits.
 
 The candidate has been classified as: Department="${suggestedDept}", Role="${suggestedTitle}".
-Evaluate them against this suggested role.
+Evaluate their fit for THIS role using CV evidence. If the candidate's core strengths actually point to a different function or role, say so clearly in the summary and feedback (cross-functional fit) rather than forcing an HR or generic framing.
 
 You MUST respond with a valid JSON object (no markdown, no code blocks):
 {
