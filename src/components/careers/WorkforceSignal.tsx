@@ -63,8 +63,9 @@ function SignalRow({ metric, reduced, active }: { metric: Metric; reduced: boole
     <div>
       <div className="mb-1.5 flex items-center justify-between">
         <span className="text-sm font-medium text-foreground">{metric.label}</span>
-        <span ref={numRef} className={`font-mono text-xs tabular-nums ${c.text}`}>
-          {Math.round(metric.base)}
+        <span className={`font-mono text-xs tabular-nums ${c.text}`}>
+          <span ref={numRef}>{Math.round(metric.base)}</span>
+          <span className="opacity-60">%</span>
         </span>
       </div>
       <div className="relative h-1.5">
