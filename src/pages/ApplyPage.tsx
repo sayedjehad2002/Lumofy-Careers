@@ -244,7 +244,10 @@ const ApplyPage = () => {
 
   // Shared CV validation used by BOTH click-to-pick and drag-and-drop so the
   // rules can never drift apart. Returns nothing; sets state directly.
-  const acceptFile = useCallback((file: File | null | undefined) => {
+  // NOTE: a plain function (not useCallback) — it lives after the early-return
+  // guards above, so it must not be a hook, or React throws "rendered more
+  // hooks than during the previous render" (#310) once the job loads.
+  const acceptFile = (file: File | null | undefined) => {
     setCvError("");
     if (!file) return;
     const validTypes = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
@@ -268,7 +271,7 @@ const ApplyPage = () => {
       delete next.cv;
       return next;
     });
-  }, []);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     acceptFile(e.target.files?.[0]);
