@@ -14,7 +14,7 @@ export const SITE = {
   stats: {
     employees: "30+",
     offices: "Bahrain & Saudi Arabia",
-    countries: "10+",
+    countries: "7+",
     founded: 2020,
   },
 } as const;

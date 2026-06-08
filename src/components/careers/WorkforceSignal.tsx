@@ -149,9 +149,9 @@ const WorkforceSignal = ({ openCount }: { openCount: number }) => {
           )}
         </div>
         <p className="text-right font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          {SITE.stats.employees} people
+          {SITE.stats.employees} employees
           <br />
-          {SITE.stats.countries} countries
+          from {SITE.stats.countries} countries
         </p>
       </div>
     </motion.div>

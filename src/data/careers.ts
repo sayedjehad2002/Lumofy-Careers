@@ -105,7 +105,7 @@ export const hiringSteps = [
 // FAQs — real, moved verbatim from FAQ.tsx.
 export const faqs = [
   { q: "How long does the hiring process take?", a: "Most processes wrap up in two to three weeks, and you'll hear back from us within five business days of applying." },
-  { q: "Do you support remote work?", a: "Yes. We support flexible, hybrid working (many roles can be fully remote) with team members across 10+ countries and offices in Bahrain and Saudi Arabia." },
+  { q: "Do you support remote work?", a: "Yes. We support flexible, hybrid working (many roles can be fully remote) with team members across 7+ countries and offices in Bahrain and Saudi Arabia." },
   { q: "What is your interview process like?", a: "A short intro call with our talent team, then interviews with the people you'll actually work with. We focus on real problems, not trick questions." },
   { q: "What growth and learning opportunities will I have?", a: "Plenty. Lumofy is built around capability-building, so you'll get real ownership early, continuous learning, and clear paths to grow your skills and your career as we scale." },
   { q: "What do you look for in candidates?", a: "Curiosity, ownership, and a genuine drive to build. We care more about how you think and what you've built than about a perfect CV." },
