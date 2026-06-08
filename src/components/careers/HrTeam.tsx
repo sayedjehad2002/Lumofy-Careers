@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Panel } from "./dashboard/primitives";
+import { TONE_SOFT } from "./statusColors";
 import { Loader2, UserPlus, Copy, Check, Link2, ShieldCheck, Ban, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
@@ -111,11 +112,11 @@ const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
           <form onSubmit={createInvite} className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex-1 space-y-1.5">
               <label className="text-xs text-muted-foreground">Email</label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teammate@company.com" />
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teammate@company.com" disabled={creating} />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Role</label>
-              <Select value={role} onValueChange={(v) => setRole(v as "admin" | "viewer")}>
+              <Select value={role} onValueChange={(v) => setRole(v as "admin" | "viewer")} disabled={creating}>
                 <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
@@ -131,8 +132,8 @@ const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
             <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-secondary/40 p-2">
               <Link2 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
               <code className="flex-1 truncate text-xs text-muted-foreground">{lastLink}</code>
-              <Button size="sm" variant="outline" onClick={copyLast} className="shrink-0 rounded-lg">
-                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              <Button size="sm" variant="outline" onClick={copyLast} aria-label={copied ? "Copied" : "Copy invite link"} className="shrink-0 rounded-lg">
+                {copied ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
               </Button>
             </div>
           )}
@@ -150,7 +151,7 @@ const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">{m.email.slice(0, 2).toUpperCase()}</div>
                 <p className="min-w-0 flex-1 truncate text-sm text-foreground">{m.email}</p>
                 <Badge variant="secondary" className="border-0 text-[10px] capitalize">{m.role}</Badge>
-                <Badge variant="secondary" className={`border-0 text-[10px] capitalize ${m.status === "active" ? "bg-emerald-500/15 text-emerald-400" : "bg-muted text-muted-foreground"}`}>{m.status}</Badge>
+                <Badge variant="secondary" className={`border-0 text-[10px] capitalize ${m.status === "active" ? TONE_SOFT.success : TONE_SOFT.muted}`}>{m.status}</Badge>
                 {canManage && m.role !== "owner" && (
                   m.status === "active"
                     ? <Button size="sm" variant="ghost" onClick={() => setStatus(m.id, "disabled")} className="h-7 text-xs text-destructive hover:text-destructive"><Ban className="mr-1 h-3.5 w-3.5" />Disable</Button>

@@ -203,10 +203,17 @@ export default function ApplicantsListView({
       </div>
 
       {/* View Tabs */}
-      <div className="flex gap-1 p-1.5 rounded-2xl bg-muted/40 border border-border/40 backdrop-blur-sm overflow-x-auto scrollbar-none mb-5">
+      <div
+        role="tablist"
+        aria-label="Applicant views"
+        className="flex gap-1 p-1.5 rounded-2xl bg-[hsl(var(--intel-tab-bg))] border border-[hsl(var(--intel-border))] overflow-x-auto scrollbar-none mb-5"
+      >
         {tabs.map(tab => (
           <button
             key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-medium transition-all duration-300 whitespace-nowrap ${
               activeTab === tab.id

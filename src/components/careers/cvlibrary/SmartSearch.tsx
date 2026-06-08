@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, X, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +41,13 @@ function parseQuery(raw: string): ParsedQuery {
 
 export default function SmartSearch({ onSearch }: Props) {
   const [query, setQuery] = useState("");
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  // Persist recent searches across reloads (was lost on refresh).
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("cvlib:recentSearches") || "[]"); } catch { return []; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("cvlib:recentSearches", JSON.stringify(recentSearches)); } catch { /* ignore */ }
+  }, [recentSearches]);
 
   const handleSearch = (val: string) => {
     setQuery(val);
@@ -70,16 +76,16 @@ export default function SmartSearch({ onSearch }: Props) {
             className="pl-9 pr-8"
           />
           {query && (
-            <button className="absolute right-3 top-1/2 -translate-y-1/2" onClick={() => handleSearch("")}>
-              <X className="w-3.5 h-3.5 text-muted-foreground" />
+            <button type="button" aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2" onClick={() => handleSearch("")}>
+              <X className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
             </button>
           )}
         </div>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-10 w-10 flex-shrink-0">
-                <Info className="w-4 h-4" />
+              <Button variant="ghost" size="icon" aria-label="Search syntax help" className="h-10 w-10 flex-shrink-0">
+                <Info className="w-4 h-4" aria-hidden="true" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-xs text-xs">
