@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from "react";
 import lumofyLogo from "@/assets/lumofy-mark.png";
 import { Link } from "react-router-dom";
 import {
@@ -43,7 +43,7 @@ const sidebarItemVariants = {
 import { toast } from "sonner";
 import DashboardAuth from "@/components/careers/DashboardAuth";
 import JobFormModal from "@/components/careers/JobFormModal";
-import DashboardOverview from "@/components/careers/DashboardOverview";
+const DashboardOverview = lazy(() => import("@/components/careers/DashboardOverview")); // lazy: defers the recharts (~108KB) chunk off the dashboard's initial paint
 import CandidateProfile from "@/components/careers/CandidateProfile";
 import CVLibrary from "@/components/careers/CVLibrary";
 import SettlementCalculator from "@/components/careers/SettlementCalculator";
@@ -393,11 +393,13 @@ const Dashboard = () => {
             >
           {/* OVERVIEW TAB */}
           {activeTab === "overview" && (
-            <DashboardOverview
-              jobs={jobs}
-              applicants={applicants}
-              onNavigate={(tab) => setActiveTab(tab as Tab)}
-            />
+            <Suspense fallback={<div className="flex items-center justify-center py-32"><Loader2 className="w-6 h-6 animate-spin text-primary" aria-label="Loading" /></div>}>
+              <DashboardOverview
+                jobs={jobs}
+                applicants={applicants}
+                onNavigate={(tab) => setActiveTab(tab as Tab)}
+              />
+            </Suspense>
           )}
 
           {/* JOBS TAB */}

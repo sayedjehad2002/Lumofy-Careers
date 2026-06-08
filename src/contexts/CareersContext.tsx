@@ -155,17 +155,17 @@ export function CareersProvider({ children }: { children: ReactNode }) {
         // Admin: load ALL jobs (incl. closed/draft) with full columns so the
         // dashboard can manage them and AI scoring weights are available for
         // manual analysis (the public RPC intentionally omits both).
-        const { data: allJobs } = await adminQuery<any[]>(sessionToken, "select", "jobs", {
-          order: { column: "created_at", ascending: false },
-        });
-        if (allJobs) setJobs(allJobs.map(dbRowToJob));
-
-        // Applicants require the session token (fetched via edge function).
-        const { data, error } = await supabase.functions.invoke("get-applicants", {
-          body: { sessionToken },
-        });
-        if (!error && data?.applicants) {
-          setApplicants(data.applicants.map(dbRowToApplicant));
+        // Jobs + applicants are independent, so fetch them concurrently: the
+        // data critical path becomes max(jobs, applicants) instead of the sum.
+        const [jobsRes, applicantsRes] = await Promise.all([
+          adminQuery<any[]>(sessionToken, "select", "jobs", {
+            order: { column: "created_at", ascending: false },
+          }),
+          supabase.functions.invoke("get-applicants", { body: { sessionToken } }),
+        ]);
+        if (jobsRes.data) setJobs(jobsRes.data.map(dbRowToJob));
+        if (!applicantsRes.error && applicantsRes.data?.applicants) {
+          setApplicants(applicantsRes.data.applicants.map(dbRowToApplicant));
         }
       } else {
         // Public: only open jobs, candidate-safe fields, via the secure RPC.

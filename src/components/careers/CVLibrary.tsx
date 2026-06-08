@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import {
   Search, Upload, FolderTree, ChevronRight, ChevronDown,
   Download, Brain, Pencil, Loader2, X, Tag, FileText,
@@ -10,12 +10,12 @@ import {
 import SmartSearch, { parseQuery, type ParsedQuery } from "./cvlibrary/SmartSearch";
 import SavedFilters, { type SavedFilter } from "./cvlibrary/SavedFilters";
 import DuplicateDetection from "./cvlibrary/DuplicateDetection";
-import TalentPoolInsights from "./cvlibrary/TalentPoolInsights";
+const TalentPoolInsights = lazy(() => import("./cvlibrary/TalentPoolInsights")); // lazy: defers recharts to the Insights sub-tab
 import AIJobMatching from "./cvlibrary/AIJobMatching";
 import BulkReparse from "./cvlibrary/BulkReparse";
 import CandidateTags from "./cvlibrary/CandidateTags";
 import PipelineIntegration from "./cvlibrary/PipelineIntegration";
-import ExportReporting from "./cvlibrary/ExportReporting";
+const ExportReporting = lazy(() => import("./cvlibrary/ExportReporting")); // lazy: defers xlsx (~94KB) to the Export sub-tab
 import DataCompleteness from "./cvlibrary/DataCompleteness";
 import GDPRRetention from "./cvlibrary/GDPRRetention";
 import AuditTrail, { type AuditEntry } from "./cvlibrary/AuditTrail";
@@ -748,7 +748,9 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
       )}
 
       {subTab === "insights" && (
-        <TalentPoolInsights candidates={candidates as any} />
+        <Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" aria-hidden="true" /></div>}>
+          <TalentPoolInsights candidates={candidates as any} />
+        </Suspense>
       )}
 
       {subTab === "matching" && (
@@ -769,7 +771,9 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
       )}
 
       {subTab === "export" && (
-        <ExportReporting candidates={filteredCandidates as any} />
+        <Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" aria-hidden="true" /></div>}>
+          <ExportReporting candidates={filteredCandidates as any} />
+        </Suspense>
       )}
 
       {subTab === "completeness" && (

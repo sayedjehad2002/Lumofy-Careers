@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, lazy, Suspense } from "react";
 import {
   Brain, Star, Clock, AlertTriangle, Users, Trophy,
   ArrowUpDown, Trash2, Search, Filter, ChevronRight, Zap, Eye,
@@ -25,7 +25,7 @@ import BulkComparison from "@/components/careers/applicants/BulkComparison";
 import BatchActions from "@/components/careers/applicants/BatchActions";
 import AdvancedFilters, { applyAdvancedFilters, DEFAULT_FILTERS, type AdvancedFiltersState } from "@/components/careers/applicants/AdvancedFilters";
 import ActivityFeed from "@/components/careers/applicants/ActivityFeed";
-import SourceAnalytics from "@/components/careers/applicants/SourceAnalytics";
+const SourceAnalytics = lazy(() => import("@/components/careers/applicants/SourceAnalytics")); // lazy: shares the recharts chunk; load only when the Sources view opens
 import SmartRankingRefresh from "@/components/careers/applicants/SmartRankingRefresh";
 import CandidateCompareView from "@/components/careers/applicants/CandidateCompareView";
 import { tierSoft, TONE_SOFT, TONE_TEXT } from "@/components/careers/statusColors";
@@ -252,7 +252,9 @@ export default function ApplicantsListView({
         {/* ═══ SOURCES TAB ═══ */}
         {activeTab === "sources" && (
           <motion.div key="sources" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-            <SourceAnalytics applicants={applicants} getJobTitle={getJobTitle} />
+            <Suspense fallback={<div className="py-20 text-center text-sm text-muted-foreground">Loading analytics…</div>}>
+              <SourceAnalytics applicants={applicants} getJobTitle={getJobTitle} />
+            </Suspense>
           </motion.div>
         )}
 

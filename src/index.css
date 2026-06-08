@@ -1,5 +1,4 @@
-/* Lumofy brand type: Source Sans 3 (= Source Sans Pro, the brand primary typeface) sitewide */
-@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
+/* Lumofy brand type: Source Sans 3 — loaded non-render-blocking from index.html (was a blocking @import here). */
 
 @tailwind base;
 @tailwind components;

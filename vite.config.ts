@@ -25,9 +25,10 @@ export default defineConfig(() => ({
         // duplicate them and the public site doesn't ship admin-only vendors.
         manualChunks: {
           "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "motion-vendor": ["framer-motion"],
           charts: ["recharts"],
           xlsx: ["xlsx"],
-          pdf: ["jspdf", "jspdf-autotable"],
+          pdf: ["jspdf", "jspdf-autotable", "html2canvas", "dompurify"],
           dnd: ["@hello-pangea/dnd"],
         },
       },

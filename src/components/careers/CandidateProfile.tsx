@@ -4,7 +4,6 @@ import {
   MessageSquare, Star, Clock, User, Brain, Activity,
   Mail, Phone, MapPin, ExternalLink, Calendar, Globe, Trash2, FileDown } from
 "lucide-react";
-import { generateCandidateReport } from "@/utils/candidateReportPdf";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -137,7 +136,11 @@ const CandidateProfile = ({
                   size="sm"
                   variant="outline"
                   className="h-8 px-2.5 text-muted-foreground hover:text-primary hover:border-primary/30 transition-colors"
-                  onClick={() => generateCandidateReport(applicant, job)}
+                  onClick={async () => {
+                    // Defer the ~205KB jspdf/html2canvas stack until an export is actually requested.
+                    const { generateCandidateReport } = await import("@/utils/candidateReportPdf");
+                    generateCandidateReport(applicant, job);
+                  }}
                   title="Export PDF report">
                   
                   <FileDown className="w-4 h-4" />
