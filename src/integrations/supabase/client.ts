@@ -9,8 +9,11 @@ import type { Database } from './types';
 // String contains non ISO-8859-1 code point." A Supabase URL and anon key are always
 // plain ASCII, so this is safe.
 const cleanEnv = (v: string | undefined) => (v ?? "").replace(/[^\x20-\x7E]/g, "").trim();
-const SUPABASE_URL = cleanEnv(import.meta.env.VITE_SUPABASE_URL);
-const SUPABASE_PUBLISHABLE_KEY = cleanEnv(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+// Exported so direct `fetch` calls to edge functions (file uploads that can't use
+// supabase-js) reuse the SAME sanitized values — otherwise a BOM in the Vercel env
+// var corrupts the URL/headers and the upload fails with a 405 / empty JSON body.
+export const SUPABASE_URL = cleanEnv(import.meta.env.VITE_SUPABASE_URL);
+export const SUPABASE_PUBLISHABLE_KEY = cleanEnv(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";

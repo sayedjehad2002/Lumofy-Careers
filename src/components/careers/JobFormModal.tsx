@@ -14,7 +14,7 @@ import {
 import { departments, jobTypes } from "@/data/jobs";
 import type { Job, ScreeningQuestion } from "@/types/careers";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import AIJobAssistModal from "./AIJobAssistModal";
 import { TONE_TEXT } from "./statusColors";
 import lumofyLogo from "@/assets/lumofy-mark.png";
@@ -170,10 +170,10 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
       formData.append("contentType", jdFile.type);
       formData.append("sessionToken", sessionToken);
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-jd`, {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/upload-jd`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: formData,
       });

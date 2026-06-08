@@ -36,7 +36,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { TONE_SOFT, TONE_TEXT, TONE_BORDER } from "./statusColors";
 
@@ -219,10 +219,10 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
         formData.append(`file${i}`, files[i]);
       }
 
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cv-library-upload`;
+      const url = `${SUPABASE_URL}/functions/v1/cv-library-upload`;
       const resp = await fetch(url, {
         method: "POST",
-        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        headers: { Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}` },
         body: formData,
       });
 
