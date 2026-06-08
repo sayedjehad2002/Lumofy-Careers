@@ -57,7 +57,7 @@ export const growth: GrowthTheme[] = [
   { title: "Learning", body: "Annual budget for courses, conferences, and professional certifications." }, // real (/life)
   { title: "Well-being", body: "Flexible time off you're trusted to manage, and a team that means it." }, // real (/life)
   { title: "Flexibility", body: "Hybrid and remote-friendly arrangements across the MENA region." }, // real (/life)
-  { title: "Rewards", body: "Competitive compensation, health insurance, and benefits." }, // PLACEHOLDER: confirm specifics
+  { title: "Rewards", body: "Competitive compensation and benefits that recognize your impact." },
   { title: "Ownership", body: "Your ideas shape the product, the team, and the company from day one." },
 ];
 
