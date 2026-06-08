@@ -90,13 +90,8 @@ CRITICAL RULES:
 
 The candidate was pre-classified as: Department="${suggestedDept}", Role="${suggestedTitle}". Treat that as a HINT, not ground truth — confirm or CORRECT it from the CV evidence.
 
-You MUST respond with a valid JSON object (no markdown, no code blocks):
+You MUST respond with a single valid JSON object (no markdown, no code blocks). EVERY field below is REQUIRED — you MUST include "professionalIdentity", "careerTrackAnalysis", "evidenceFor", "evidenceAgainst", "alternativesConsidered", "departmentMatches", and "recruiterVerdict". NEVER omit them.
 {
-  "fitScore": <number 0-100>,
-  "fitLevel": "<Strong Fit|Moderate Fit|Low Fit>",
-  "recommendation": "<Fast-Track to Interview|Proceed to Next Stage|Hold for Review|Not Recommended>",
-  "recommendationJustification": "<evidence-tied justification>",
-  "summary": "<2-3 sentence evidence-based candidate summary>",
   "professionalIdentity": {
     "primary": "<the candidate's TRUE primary role/identity>",
     "primaryConfidence": <0-100>,
@@ -104,12 +99,17 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
     "secondaryConfidence": <0-100>,
     "keyIdentity": "<one sentence: who this candidate really is>"
   },
+  "recruiterVerdict": {"shortlistFor": "<the single role you would shortlist them for>", "reasoning": "<detailed reasoning from responsibilities, business impact, stakeholder ownership, and trajectory>"},
+  "fitScore": <number 0-100>,
+  "fitLevel": "<Strong Fit|Moderate Fit|Low Fit>",
+  "recommendation": "<Fast-Track to Interview|Proceed to Next Stage|Hold for Review|Not Recommended>",
+  "recommendationJustification": "<evidence-tied justification>",
+  "summary": "<2-3 sentence evidence-based candidate summary>",
   "careerTrackAnalysis": "<3-5 sentences deriving the true career track from responsibilities, outcomes, and progression>",
   "evidenceFor": ["<CV evidence supporting the primary identity>"],
   "evidenceAgainst": ["<evidence that complicates or argues against it>"],
   "alternativesConsidered": [{"role": "<role>", "confidence": <0-100>}],
   "departmentMatches": [{"department": "<department>", "confidence": <0-100>, "reason": "<why, from evidence>"}],
-  "recruiterVerdict": {"shortlistFor": "<the single role you would shortlist them for>", "reasoning": "<detailed reasoning from responsibilities, business impact, stakeholder ownership, and trajectory>"},
   "strengths": ["<evidence-based strength with CV reference>"],
   "gaps": ["<evidence-based gap>"],
   "skillsAlignment": [

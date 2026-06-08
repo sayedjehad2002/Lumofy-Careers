@@ -209,13 +209,13 @@ EVIDENCE RULES:
 - Focus ONLY on job-relevant qualifications.
 - Do NOT consider age, gender, nationality, religion, or any protected traits.
 
-You MUST respond with a valid JSON object (no markdown, no code blocks) using this exact structure:
+You MUST respond with a single valid JSON object (no markdown, no code blocks) using this EXACT structure. EVERY field is REQUIRED — you MUST include "professionalIdentity" and "recruiterVerdict"; NEVER omit them.
 {
+  "professionalIdentity": {"primary": "<candidate's TRUE primary role from evidence>", "primaryConfidence": <0-100>, "secondary": "<a genuinely different secondary role>", "secondaryConfidence": <0-100>, "keyIdentity": "<one sentence: who they really are>"},
+  "recruiterVerdict": {"shortlistFor": "<the single role you would shortlist them for>", "reasoning": "<evidence-based reasoning from responsibilities, impact, and trajectory>"},
   "fitScore": <number 0-100 - STRICT weighted average>,
   "fitLevel": "<Strong Fit|Moderate Fit|Low Fit>",
   "summary": "<1-2 sentence evidence-based summary>",
-  "professionalIdentity": {"primary": "<candidate's TRUE primary role from evidence>", "primaryConfidence": <0-100>, "secondary": "<a genuinely different secondary role>", "secondaryConfidence": <0-100>, "keyIdentity": "<one sentence: who they really are>"},
-  "recruiterVerdict": {"shortlistFor": "<the single role you would shortlist them for>", "reasoning": "<evidence-based reasoning from responsibilities, impact, and trajectory>"},
   "strengths": ["<evidence-based strength>"],
   "gaps": ["<evidence-based gap>"],
   "interviewQuestions": ["<targeted question>"],
