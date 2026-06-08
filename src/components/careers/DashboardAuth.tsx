@@ -123,7 +123,7 @@ const DashboardAuth = () => {
             </Button>
           </form>
           <p className="text-[11px] text-muted-foreground text-center mt-4">
-            Contact Jhasan@lumofy.com for access
+            Contact hr@lumofy.com for access
           </p>
         </div>
       </div>

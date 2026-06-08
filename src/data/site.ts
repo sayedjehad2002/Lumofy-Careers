@@ -4,12 +4,8 @@
  * previously hardcoded/duplicated in Footer, JobDetails, DashboardAuth, Hero, etc.).
  */
 export const SITE = {
-  /**
-   * Public careers contact inbox.
-   * NOTE: confirm this is the correct, monitored address — it was inconsistent
-   * (`.com` on a `.ai` brand) and is the address candidates are told to email.
-   */
-  careersEmail: "Jhasan@lumofy.com",
+  /** Public careers / HR contact inbox — used by the Footer "Get in Touch" + JobDetails "Contact HR". */
+  careersEmail: "hr@lumofy.com",
   recruiter: {
     name: "Hasan Alhashimi",
     title: "Talent Acquisition & Onboarding Specialist",
