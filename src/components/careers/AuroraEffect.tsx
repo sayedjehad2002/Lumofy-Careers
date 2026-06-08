@@ -1,41 +1,42 @@
 import { motion } from "framer-motion";
 
 /**
- * Signature Lumofy "aurora" — soft, slow-moving ROYAL-BLUE bands behind the hero,
- * matching the logo's blue -> light-blue -> white feel. GPU-only (transform / opacity /
- * blur), pointer-events-none, paused under prefers-reduced-motion via MotionConfig.
+ * Signature Lumofy "aurora" — a soft, slow-moving cosmic nebula behind the hero:
+ * Sirius blue leads, with Eclipse purple + Nova pink accents (the brand palette).
+ * GPU-only (transform / opacity / blur), pointer-events-none, paused under
+ * prefers-reduced-motion via MotionConfig.
  */
 const AuroraEffect = ({ className = "" }: { className?: string }) => {
   return (
     <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
-      {/* Band 1 — royal blue */}
+      {/* Band 1 — Sirius blue (brand-led, dominant) */}
       <motion.div
         className="absolute top-[8%] left-[-20%] w-[140%] h-[42%] rounded-[50%] blur-[100px]"
         style={{
           background:
-            "linear-gradient(90deg, hsl(223 83% 58% / 0.14), hsl(212 90% 64% / 0.22), hsl(223 83% 58% / 0.10))",
+            "linear-gradient(90deg, hsl(223 83% 58% / 0.16), hsl(223 92% 66% / 0.24), hsl(223 83% 58% / 0.10))",
         }}
         animate={{ x: [0, 80, -40, 0], y: [0, -20, 10, 0], scaleX: [1, 1.15, 0.95, 1], rotate: [0, 3, -2, 0] }}
         transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {/* Band 2 — brighter blue */}
+      {/* Band 2 — Eclipse purple accent */}
       <motion.div
         className="absolute top-[22%] left-[-10%] w-[120%] h-[34%] rounded-[50%] blur-[120px]"
         style={{
           background:
-            "linear-gradient(90deg, hsl(220 85% 60% / 0.10), hsl(210 92% 66% / 0.18), hsl(224 80% 56% / 0.08))",
+            "linear-gradient(90deg, hsl(245 80% 64% / 0.09), hsl(264 100% 72% / 0.18), hsl(264 85% 66% / 0.08))",
         }}
         animate={{ x: [-30, 50, 0, -30], y: [10, -15, 20, 10], scaleX: [1, 0.9, 1.1, 1], rotate: [0, -4, 2, 0] }}
         transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
       />
 
-      {/* Band 3 — light-blue accent */}
+      {/* Band 3 — Nova pink accent (subtle) */}
       <motion.div
         className="absolute top-[14%] left-[10%] w-[80%] h-[28%] rounded-[50%] blur-[140px]"
         style={{
           background:
-            "linear-gradient(90deg, hsl(205 92% 64% / 0.09), hsl(210 92% 72% / 0.16), hsl(205 92% 64% / 0.07))",
+            "linear-gradient(90deg, hsl(300 70% 64% / 0.07), hsl(336 78% 68% / 0.15), hsl(312 70% 64% / 0.06))",
         }}
         animate={{ x: [20, -40, 30, 20], y: [-10, 15, -5, -10], scaleX: [1, 1.2, 0.85, 1] }}
         transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 4 }}
