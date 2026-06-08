@@ -98,6 +98,13 @@ export default {
 				DEFAULT: 'hsl(var(--lumofy-blue))',
 				glow: 'hsl(var(--lumofy-glow))'
 			},
+			brand: {
+				sirius: 'hsl(var(--brand-sirius))',
+				eclipse: 'hsl(var(--brand-eclipse))',
+				aurora: 'hsl(var(--brand-aurora))',
+				stellar: 'hsl(var(--brand-stellar))',
+				nova: 'hsl(var(--brand-nova))',
+			},
 			intel: {
 				surface: 'hsl(var(--intel-surface))',
 				card: 'hsl(var(--intel-card))',

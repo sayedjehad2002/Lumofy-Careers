@@ -50,6 +50,14 @@
     --lumofy-glow: 223 83% 70%;
     --surface: 220 15% 95%;
     --surface-hover: 220 15% 90%;
+
+    /* Cosmic accent palette (brand) — light-mode AA-safe variants for the semantic data system.
+       The .dark block defines vivid versions; these are darkened/saturated for contrast on white. */
+    --brand-sirius: 223 83% 50%;   /* blue   */
+    --brand-eclipse: 264 70% 56%;  /* purple */
+    --brand-aurora: 149 64% 38%;   /* green  */
+    --brand-stellar: 38 92% 42%;   /* amber/yellow (darkened for white-bg contrast) */
+    --brand-nova: 336 68% 50%;     /* pink   */
     --chart-1: 223 83% 52%;
     --chart-2: 149 65% 45%;
     --chart-3: 264 75% 64%;
