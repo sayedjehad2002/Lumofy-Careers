@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sparkles, ArrowRight, Rocket, Brain, Sprout, MapPin, Users, Globe } from "lucide-react";
+import { ArrowRight, Rocket, Brain, Sprout, MapPin, Users, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import AnimatedCounter from "./AnimatedCounter";
@@ -34,16 +34,9 @@ const Hero = () => {
           initial="hidden"
           animate="show"
         >
-          <motion.div variants={fadeUp}>
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.06] px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary backdrop-blur-sm">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-              AI-Powered Talent Platform
-            </span>
-          </motion.div>
-
           <motion.h1
             variants={fadeUp}
-            className="mt-7 text-4xl font-extrabold leading-[1.08] tracking-tight text-foreground sm:text-6xl lg:text-7xl"
+            className="text-4xl font-extrabold leading-[1.08] tracking-tight text-foreground sm:text-6xl lg:text-7xl"
           >
             Build your future
             <br />
@@ -84,13 +77,13 @@ const Hero = () => {
           >
             {[
               { ...splitStat(SITE.stats.employees), label: "Active Employees", icon: Users },
-              { value: 2, suffix: "", label: `Offices — ${SITE.stats.offices}`, icon: Globe },
+              { value: 2, suffix: "", label: `Offices, ${SITE.stats.offices}`, icon: Globe },
               { value: SITE.stats.founded, suffix: "", label: "Year Founded", icon: Rocket, raw: true },
-              { ...splitStat(SITE.stats.countries), label: "Countries — Remote Team", icon: MapPin },
+              { ...splitStat(SITE.stats.countries), label: "Countries, Remote Team", icon: MapPin },
             ].map((stat) => (
-              <motion.div key={stat.label} variants={fadeUp}>
-                <div className="rounded-2xl border border-border bg-card p-5 text-center light-glow sm:p-6">
-                  <stat.icon className="mx-auto mb-2.5 h-6 w-6 text-primary" aria-hidden="true" />
+              <motion.div key={stat.label} variants={fadeUp} className="h-full">
+                <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-border bg-card p-5 text-center light-glow sm:p-6">
+                  <stat.icon className="mb-2.5 h-6 w-6 text-primary" aria-hidden="true" />
                   <div className="text-3xl font-extrabold tabular-nums text-foreground sm:text-4xl">
                     {stat.raw ? (
                       <span>{stat.value}</span>
