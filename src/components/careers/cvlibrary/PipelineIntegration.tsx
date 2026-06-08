@@ -97,7 +97,7 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
     <>
       <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setOpen(true)}>
         <UserPlus className="w-3.5 h-3.5" />
-        Add to Job
+        Add to job
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -145,7 +145,7 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={handleAddToJob} disabled={!selectedJobId || !candidate.email || submitting}>
               {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <ArrowRight className="w-4 h-4 mr-1" />}
-              Add to Pipeline
+              Add to pipeline
             </Button>
           </DialogFooter>
         </DialogContent>

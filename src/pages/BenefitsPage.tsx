@@ -116,7 +116,7 @@ const BenefitsPage = () => {
           <div className="mt-8">
             <Button size="lg" className="group h-12 rounded-xl px-8 text-base" asChild>
               <Link to="/jobs">
-                Explore Open Roles
+                Explore open roles
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
               </Link>
             </Button>

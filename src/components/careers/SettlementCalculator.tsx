@@ -447,7 +447,7 @@ export default function SettlementCalculator() {
           >
             <Button onClick={calculate} size="lg" className="px-8 gap-2.5 rounded-xl h-12 text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300">
               <Calculator className="w-4.5 h-4.5" />
-              Calculate Settlement
+              Calculate settlement
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
             <Button variant="outline" size="lg" onClick={reset} className="gap-2 rounded-xl h-12 text-sm border-border hover:bg-secondary/60">
@@ -577,7 +577,7 @@ export default function SettlementCalculator() {
                 {/* Actions */}
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" className="flex-1 gap-2 rounded-xl h-10 text-xs border-border" onClick={copySummary}>
-                    <Copy className="w-3.5 h-3.5" /> Copy Summary
+                    <Copy className="w-3.5 h-3.5" /> Copy summary
                   </Button>
                   <Button size="sm" variant="outline" className="flex-1 gap-2 rounded-xl h-10 text-xs border-border" onClick={() => window.print()}>
                     <Printer className="w-3.5 h-3.5" /> Print

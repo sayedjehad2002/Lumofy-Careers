@@ -147,7 +147,7 @@ const JobDetails = () => {
                     size="lg"
                     onClick={() => navigate(`/jobs/${job.id}/apply`)}
                   >
-                    Apply for This Position
+                    Apply for this position
                   </Button>
                   {job.jdFilePath && (
                     <Button
@@ -161,7 +161,7 @@ const JobDetails = () => {
                       ) : (
                         <Download className="w-4 h-4 mr-2" aria-hidden="true" />
                       )}
-                      Download Job Description
+                      Download job description
                     </Button>
                   )}
                 </div>
@@ -264,7 +264,7 @@ const JobDetails = () => {
                   onClick={handleCopyLink}
                 >
                   <Copy className="w-3.5 h-3.5 mr-2" aria-hidden="true" />
-                  Copy Link
+                  Copy link
                 </Button>
 
                 {job.jdFilePath && (

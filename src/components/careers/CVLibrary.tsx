@@ -497,7 +497,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
     return (
       <div>
         <Button variant="ghost" className="mb-4" onClick={() => setSelectedCandidate(null)}>
-          ← Back to CV Library
+          ← Back to CV library
         </Button>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -911,7 +911,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
                 <Brain className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
                 <p className="text-sm text-muted-foreground mb-3">No AI analysis yet</p>
                 <Button size="sm" onClick={() => processCandidate(c.id)} disabled={isBusy}>
-                  <Brain className="w-4 h-4 mr-2" /> Run AI Analysis
+                  <Brain className="w-4 h-4 mr-2" /> Run AI analysis
                 </Button>
               </div>
             )}
@@ -930,14 +930,14 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
                 onClick={() => processCandidate(c.id)}
               >
                 {isBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Brain className="w-4 h-4 mr-2" />}
-                Run AI Analysis
+                Run AI analysis
               </Button>
               <p className="text-[10px] text-muted-foreground px-1">Refresh candidate analysis using the latest CV, job details, and screening answers.</p>
               <Button className="w-full justify-start" variant="outline" size="sm" onClick={() => {
                 setEditCandidate(c);
                 addAudit(c.id, c.name || "Unknown", "edit");
               }}>
-                <Pencil className="w-4 h-4 mr-2" /> Edit Fields
+                <Pencil className="w-4 h-4 mr-2" /> Edit fields
               </Button>
               {jobs.length > 0 && (
                 <div className="pt-1">
@@ -1493,7 +1493,7 @@ function EditCandidateDialog({
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-            Save Changes
+            Save changes
           </Button>
         </DialogFooter>
       </DialogContent>

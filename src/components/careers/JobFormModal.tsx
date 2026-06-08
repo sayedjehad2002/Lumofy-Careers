@@ -323,7 +323,7 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
             ) : (
               <label className="flex flex-col items-center justify-center h-28 rounded-lg border-2 border-dashed border-border hover:border-primary/40 hover:bg-primary/5 transition-colors cursor-pointer">
                 <Upload className="w-6 h-6 text-muted-foreground mb-2" aria-hidden="true" />
-                <span className="text-sm text-muted-foreground">Upload Job Description</span>
+                <span className="text-sm text-muted-foreground">Upload job description</span>
                 <span className="text-xs text-muted-foreground mt-0.5">PDF, DOC, DOCX – Max 10MB</span>
                 <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleJdFileSelect} />
               </label>
@@ -563,7 +563,7 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
                   </Button>
                   <Button type="button" variant="ghost" size="sm" onClick={addScreeningQuestion}>
                     <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-                    Add Question
+                    Add question
                   </Button>
                 </div>
               </div>
@@ -697,11 +697,11 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => handleSave("closed")} disabled={jdUploading}>
                 {jdUploading ? <Loader2 className="w-4 h-4 animate-spin mr-1" aria-hidden="true" /> : null}
-                Save as Draft
+                Save as draft
               </Button>
               <Button onClick={() => handleSave("open")} disabled={jdUploading}>
                 {jdUploading ? <Loader2 className="w-4 h-4 animate-spin mr-1" aria-hidden="true" /> : null}
-                {isEdit ? "Update & Publish" : "Publish Job"}
+                {isEdit ? "Update & publish" : "Publish job"}
               </Button>
             </div>
           </DialogFooter>

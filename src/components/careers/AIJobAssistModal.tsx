@@ -347,7 +347,7 @@ const AIJobAssistModal = ({
 
               <Button onClick={handleInsert} className="w-full">
                 <Check className="w-4 h-4 mr-2" />
-                Insert Selected
+                Insert selected
               </Button>
             </div>
           )}

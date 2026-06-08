@@ -90,7 +90,7 @@ export default function SavedFilters({ currentFilters, onApply }: Props) {
 
         {hasActiveFilters && (
           <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1" onClick={() => setShowSave(true)}>
-            <Plus className="w-3 h-3" /> Save Current
+            <Plus className="w-3 h-3" /> Save current
           </Button>
         )}
 

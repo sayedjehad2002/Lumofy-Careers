@@ -79,7 +79,7 @@ const BatchActions = ({
             <div className="h-6 w-px bg-border" />
 
             <Button size="sm" variant="ghost" onClick={onSelectAll} className="text-xs h-8">
-              Select All
+              Select all
             </Button>
             <Button size="sm" variant="ghost" onClick={onClearSelection} className="text-xs h-8">
               Clear
@@ -108,7 +108,7 @@ const BatchActions = ({
             <Button size="sm" variant="outline" onClick={handleBatchReject} disabled={processing}
               className="h-8 text-xs text-destructive hover:bg-destructive/10 border-destructive/20 ml-auto">
               <Trash2 className="w-3.5 h-3.5 mr-1" />
-              Reject All
+              Reject all
             </Button>
           </div>
         </CardContent>

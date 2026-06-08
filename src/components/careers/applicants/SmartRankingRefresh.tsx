@@ -466,7 +466,7 @@ const SmartRankingRefresh = ({ applicants, jobs, job }: SmartRankingRefreshProps
                 ) : (
                   <Zap className="w-3.5 h-3.5 mr-1.5" />
                 )}
-                Re-Rank {analyzedApplicants.length}
+                Re-rank {analyzedApplicants.length}
               </Button>
             </div>
           </div>

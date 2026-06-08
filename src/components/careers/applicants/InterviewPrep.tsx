@@ -127,7 +127,7 @@ const InterviewPrep = ({ applicant, job }: InterviewPrepProps) => {
           {!kit && (
             <Button size="sm" onClick={generateKit} disabled={loading} className="text-xs h-9">
               {loading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Brain className="w-3.5 h-3.5 mr-1.5" />}
-              Generate Kit
+              Generate kit
             </Button>
           )}
         </div>
@@ -152,7 +152,7 @@ const InterviewPrep = ({ applicant, job }: InterviewPrepProps) => {
                 Interview Questions ({kit.questions.length})
                 <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px]"
                   onClick={() => copyToClipboard(kit.questions.map(q => `[${q.category}] ${q.question}`).join("\n\n"))}>
-                  <Copy className="w-3 h-3 mr-1" /> Copy All
+                  <Copy className="w-3 h-3 mr-1" /> Copy all
                 </Button>
               </h4>
               <ScrollArea className="max-h-[300px]">

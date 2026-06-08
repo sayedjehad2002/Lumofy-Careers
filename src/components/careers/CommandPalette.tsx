@@ -110,7 +110,7 @@ const CommandPalette = ({ onNavigateDashboard, isDashboard }: CommandPaletteProp
             ) : (
               <Moon className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
             )}
-            Toggle {theme === "dark" ? "Light" : "Dark"} Mode
+            Toggle {theme === "dark" ? "light" : "dark"} mode
           </CommandItem>
         </CommandGroup>
       </CommandList>

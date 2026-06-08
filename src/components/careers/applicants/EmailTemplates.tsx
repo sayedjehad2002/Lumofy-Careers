@@ -19,10 +19,10 @@ interface EmailTemplatesProps {
 type TemplateType = "rejection" | "interview_invite" | "offer" | "follow_up";
 
 const TEMPLATES: { type: TemplateType; label: string; icon: React.ReactNode; color: string }[] = [
-  { type: "interview_invite", label: "Interview Invite", icon: <Calendar className="w-3.5 h-3.5" aria-hidden="true" />, color: "bg-primary/10 text-primary" },
-  { type: "offer", label: "Offer Letter", icon: <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />, color: TONE_SOFT.success },
+  { type: "interview_invite", label: "Interview invite", icon: <Calendar className="w-3.5 h-3.5" aria-hidden="true" />, color: "bg-primary/10 text-primary" },
+  { type: "offer", label: "Offer letter", icon: <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />, color: TONE_SOFT.success },
   { type: "rejection", label: "Rejection", icon: <XCircle className="w-3.5 h-3.5" aria-hidden="true" />, color: TONE_SOFT.danger },
-  { type: "follow_up", label: "Follow Up", icon: <Mail className="w-3.5 h-3.5" aria-hidden="true" />, color: TONE_SOFT.warning },
+  { type: "follow_up", label: "Follow up", icon: <Mail className="w-3.5 h-3.5" aria-hidden="true" />, color: TONE_SOFT.warning },
 ];
 
 function generateTemplate(type: TemplateType, applicant: Applicant, job: Job | undefined): { subject: string; body: string } {
@@ -147,11 +147,11 @@ const EmailTemplates = ({ applicant, job }: EmailTemplatesProps) => {
           <div className="flex gap-2">
             <Button size="sm" onClick={handleMailTo} className="text-xs h-9 rounded-xl">
               <Send className="w-3.5 h-3.5 mr-1.5" />
-              Open in Mail Client
+              Open in mail client
             </Button>
             <Button size="sm" variant="outline" onClick={handleCopy} className="text-xs h-9 rounded-xl">
               <Copy className="w-3.5 h-3.5 mr-1.5" />
-              Copy to Clipboard
+              Copy to clipboard
             </Button>
           </div>
         </div>

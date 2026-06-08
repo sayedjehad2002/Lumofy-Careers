@@ -120,7 +120,7 @@ const CandidateCompareView = ({ applicants, pinnedIds, onUnpin, onClearAll }: Ca
           <span className="text-sm font-semibold">{pinned.length} candidates pinned</span>
         </div>
         <Button size="sm" variant="ghost" className="text-xs h-8" onClick={onClearAll}>
-          Clear All
+          Clear all
         </Button>
       </div>
 

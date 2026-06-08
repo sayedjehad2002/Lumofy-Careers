@@ -82,7 +82,7 @@ export default function GDPRRetention({ candidates, onDelete, onViewCandidate }:
                 {flagged.length} CV{flagged.length !== 1 ? "s" : ""} exceed retention period
               </p>
               <Button variant="destructive" size="sm" className="gap-1.5" onClick={handleBulkDelete}>
-                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Delete All Flagged
+                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Delete all flagged
               </Button>
             </div>
 

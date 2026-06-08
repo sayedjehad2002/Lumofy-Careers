@@ -136,7 +136,7 @@ export default function DataCompleteness({ candidates, onViewCandidate, onBulkRe
             ))}
           </div>
           <Button variant="outline" size="sm" className="mt-3 gap-1.5" onClick={onBulkReparse}>
-            <Zap className="w-3.5 h-3.5" /> Bulk Re-Parse to Fill Gaps
+            <Zap className="w-3.5 h-3.5" /> Bulk re-parse to fill gaps
           </Button>
         </div>
       )}

@@ -342,7 +342,7 @@ const Dashboard = () => {
           </Link>
           <button onClick={handleSignOut} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-destructive transition-colors">
             <LogOut className="w-4 h-4" />
-            Sign Out
+            Sign out
           </button>
         </div>
       </aside>
@@ -414,7 +414,7 @@ const Dashboard = () => {
                 </div>
                 <Button onClick={() => { setEditingJob(null); setJobFormOpen(true); }} className="rounded-xl shadow-lg shadow-primary/20">
                   <Plus className="w-4 h-4 mr-2" />
-                  New Job
+                  New job
                 </Button>
               </div>
 

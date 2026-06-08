@@ -119,7 +119,7 @@ const DashboardAuth = () => {
               </div>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Access Dashboard"}
+              {loading ? "Signing in..." : "Access dashboard"}
             </Button>
           </form>
           <p className="text-[11px] text-muted-foreground text-center mt-4">

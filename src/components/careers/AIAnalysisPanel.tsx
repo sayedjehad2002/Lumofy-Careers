@@ -150,7 +150,7 @@ const AIAnalysisPanel = ({ applicant, job, sessionToken, onAnalysisComplete, onE
               )}
               <Button size="sm" variant="outline" onClick={runAnalysis} disabled={loading}>
                 <RefreshCw className={`w-3.5 h-3.5 mr-1 ${loading ? "animate-spin" : ""}`} />
-                {a ? "Re-run" : "Run AI Analysis"}
+                {a ? "Re-run" : "Run AI analysis"}
               </Button>
             </div>
           </div>
@@ -165,7 +165,7 @@ const AIAnalysisPanel = ({ applicant, job, sessionToken, onAnalysisComplete, onE
           {!a && !loading && (
             <div className="text-center py-6 text-muted-foreground">
               <Brain className="w-10 h-10 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">No AI analysis yet. Click "Run AI Analysis" to generate.</p>
+              <p className="text-sm">No AI analysis yet. Click "Run AI analysis" to generate.</p>
             </div>
           )}
 

@@ -394,7 +394,7 @@ const ApplyPage = () => {
               Thank you for applying to <strong className="text-foreground">{job.title}</strong> at Lumofy. We'll review your application and get back to you soon.
             </motion.p>
             <motion.div variants={reveal}>
-              <Button onClick={() => navigate("/")} size="lg" className="h-12 rounded-xl px-8 text-base">Back to Careers</Button>
+              <Button onClick={() => navigate("/")} size="lg" className="h-12 rounded-xl px-8 text-base">Back to careers</Button>
             </motion.div>
           </motion.div>
         </main>
@@ -651,7 +651,7 @@ const ApplyPage = () => {
             <div className="pt-2">
               <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base" disabled={submitting}>
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
-                {submitting ? "Submitting..." : "Submit Application"}
+                {submitting ? "Submitting..." : "Submit application"}
               </Button>
             </div>
           </form>

@@ -128,7 +128,7 @@ export default function BulkReparse({ candidates, filteredIds, onReparse, onRefr
         ) : (
           <Button onClick={handleRun} disabled={targetIds.length === 0} className="gap-2">
             <RefreshCw className="w-4 h-4" />
-            Re-Parse {targetIds.length} Candidate{targetIds.length !== 1 ? "s" : ""}
+            Re-parse {targetIds.length} candidate{targetIds.length !== 1 ? "s" : ""}
           </Button>
         )}
 

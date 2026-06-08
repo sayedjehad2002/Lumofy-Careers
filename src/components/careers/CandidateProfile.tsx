@@ -224,9 +224,9 @@ const CandidateProfile = ({
                 </div>
               }
               {avgRating &&
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-500/10">
-                  <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                  <span className="text-sm font-medium text-yellow-400">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[hsl(var(--intel-warning)/0.1)]">
+                  <Star className="w-3.5 h-3.5 text-[hsl(var(--intel-warning))] fill-[hsl(var(--intel-warning))]" />
+                  <span className="text-sm font-medium text-[hsl(var(--intel-warning))]">
                     {avgRating}/5
                   </span>
                 </div>
@@ -283,17 +283,17 @@ const CandidateProfile = ({
               <div className="flex flex-col items-center ml-2">
                 {applicant.status === "rejected" ?
                 <>
-                    <div className="w-8 h-8 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center text-xs font-medium ring-4 ring-red-500/10">
+                    <div className="w-8 h-8 rounded-full bg-destructive/20 text-destructive flex items-center justify-center text-xs font-medium ring-4 ring-destructive/10">
                       ✕
                     </div>
-                    <span className="text-[10px] mt-1 text-red-400 font-medium">Rejected</span>
+                    <span className="text-[10px] mt-1 text-destructive font-medium">Rejected</span>
                   </> :
                 applicant.status === "hired" ?
                 <>
-                    <div className="w-8 h-8 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-medium ring-4 ring-green-500/10">
+                    <div className="w-8 h-8 rounded-full bg-[hsl(var(--intel-success)/0.2)] text-[hsl(var(--intel-success))] flex items-center justify-center text-xs font-medium ring-4 ring-[hsl(var(--intel-success)/0.1)]">
                       ✓
                     </div>
-                    <span className="text-[10px] mt-1 text-green-400 font-medium">Hired</span>
+                    <span className="text-[10px] mt-1 text-[hsl(var(--intel-success))] font-medium">Hired</span>
                   </> :
 
                 <>
@@ -432,7 +432,7 @@ const CandidateProfile = ({
             transition={{ duration: 0.3, delay: 0.05 }}>
             
               <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <Star className="w-4 h-4 text-yellow-400" />
+                <Star className="w-4 h-4 text-[hsl(var(--intel-warning))]" />
                 Rating
               </h3>
               <div className="space-y-2 text-sm">
@@ -446,7 +446,7 @@ const CandidateProfile = ({
                   <Star
                     key={i}
                     className={`w-3.5 h-3.5 ${
-                    i <= val ? "text-yellow-400 fill-yellow-400" : "text-muted"}`
+                    i <= val ? "text-[hsl(var(--intel-warning))] fill-[hsl(var(--intel-warning))]" : "text-muted"}`
                     } />
 
                   )}

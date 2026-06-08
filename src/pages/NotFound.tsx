@@ -22,7 +22,7 @@ const NotFound = () => {
             <Button asChild size="lg" className="h-12 rounded-xl px-8 text-base">
               <Link to="/">
                 <Compass className="mr-2 h-4 w-4" aria-hidden="true" />
-                Back to Careers
+                Back to careers
               </Link>
             </Button>
           </div>

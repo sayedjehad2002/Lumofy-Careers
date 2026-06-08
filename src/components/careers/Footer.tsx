@@ -51,8 +51,8 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             © {new Date().getFullYear()} Lumofy. All rights reserved.
           </p>
           <div className="flex gap-4">
-            <span className="text-xs text-muted-foreground">Privacy Policy</span>
-            <span className="text-xs text-muted-foreground">Terms of Service</span>
+            <a href="/privacy" className="text-xs text-muted-foreground hover:text-primary transition-colors">Privacy Policy</a>
+            <a href="/terms" className="text-xs text-muted-foreground hover:text-primary transition-colors">Terms of Service</a>
           </div>
         </div>
       </div>
