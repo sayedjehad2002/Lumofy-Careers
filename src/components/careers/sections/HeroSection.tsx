@@ -3,21 +3,10 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AuroraEffect from "@/components/careers/AuroraEffect";
-import AnimatedCounter from "@/components/careers/AnimatedCounter";
+import WorkforceSignal from "@/components/careers/WorkforceSignal";
 import { useCareers } from "@/contexts/CareersContext";
 import { hero } from "@/data/careers";
-import { SITE } from "@/data/site";
-import { fadeUp, staggerContainer, brandEase } from "@/lib/motion";
-import { hueClasses } from "@/lib/deptColor";
-
-// A stylized representation of the product's "workforce signal" — illustrative,
-// not company KPIs. Reinforces that Lumofy measures capability (spec §8 §1).
-const signals = [
-  { label: "Competency mapping", hue: "sirius", level: 0.92 },
-  { label: "Performance signal", hue: "eclipse", level: 0.74 },
-  { label: "Learning velocity", hue: "aurora", level: 0.86 },
-  { label: "Engagement index", hue: "nova", level: 0.81 },
-] as const;
+import { fadeUp, staggerContainer } from "@/lib/motion";
 
 const HeroSection = () => {
   const { jobs } = useCareers();
@@ -60,73 +49,8 @@ const HeroSection = () => {
           </motion.div>
         </motion.div>
 
-        {/* Right — live system panel (data, not decoration) */}
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.25, ease: brandEase }}
-          className="glass-card relative rounded-2xl p-6 sm:p-7"
-        >
-          <div className="mb-5 flex items-center justify-between">
-            <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-              Workforce signal
-            </span>
-            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-primary">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
-              </span>
-              Live
-            </span>
-          </div>
-
-          <div className="space-y-4">
-            {signals.map((s, i) => (
-              <div key={s.label}>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">{s.label}</span>
-                  <span className={`font-mono text-xs ${hueClasses[s.hue].text}`}>{Math.round(s.level * 100)}</span>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                  <motion.div
-                    className={`h-full rounded-full ${hueClasses[s.hue].bg}`}
-                    initial={{ scaleX: 0 }}
-                    animate={{ scaleX: s.level }}
-                    transition={{ duration: 1, delay: 0.5 + i * 0.12, ease: brandEase }}
-                    style={{ transformOrigin: "left" }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-6 flex items-end justify-between border-t border-border/60 pt-5">
-            <div>
-              {openCount > 0 ? (
-                <>
-                  <div className="text-4xl font-extrabold tabular-nums text-foreground">
-                    <AnimatedCounter value={openCount} duration={1.6} />
-                  </div>
-                  <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                    Open roles
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="text-3xl font-extrabold text-foreground">Always</div>
-                  <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                    Open to talent
-                  </p>
-                </>
-              )}
-            </div>
-            <p className="text-right font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              {SITE.stats.employees} people
-              <br />
-              {SITE.stats.countries} countries
-            </p>
-          </div>
-        </motion.div>
+        {/* Right — living workforce-intelligence panel */}
+        <WorkforceSignal openCount={openCount} />
       </div>
     </section>
   );
