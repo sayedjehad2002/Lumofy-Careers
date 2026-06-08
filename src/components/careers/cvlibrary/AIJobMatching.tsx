@@ -92,7 +92,7 @@ export default function AIJobMatching({ candidates, jobs, onViewCandidate }: Pro
           </SelectTrigger>
           <SelectContent>
             {openJobs.map(j => (
-              <SelectItem key={j.id} value={j.id}>{j.title} — {j.department}</SelectItem>
+              <SelectItem key={j.id} value={j.id}>{j.title} · {j.department}</SelectItem>
             ))}
           </SelectContent>
         </Select>

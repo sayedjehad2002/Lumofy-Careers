@@ -26,7 +26,7 @@ export function Panel({
   bodyClassName?: string;
 }) {
   return (
-    <section className={`rounded-xl border border-border/70 bg-card/50 ${className}`}>
+    <section className={`h-full rounded-xl border border-border/70 bg-card/50 ${className}`}>
       {(title || action) && (
         <header className="flex items-center justify-between gap-3 border-b border-border/50 px-4 py-2.5">
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -58,7 +58,7 @@ export function StatTile({
   return (
     <Tag
       {...(interactive ? { onClick, type: "button" as const } : {})}
-      className={`flex flex-col gap-1.5 rounded-xl border border-border/70 bg-card/50 px-4 py-3.5 text-left transition-colors ${
+      className={`flex h-full flex-col gap-1.5 rounded-xl border border-border/70 bg-card/50 px-4 py-3.5 text-left transition-colors ${
         interactive
           ? "hover:border-border hover:bg-card focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
           : ""

@@ -85,7 +85,7 @@ export default function TalentPoolInsights({ candidates }: Props) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top Skills */}
-        <div className="rounded-xl bg-card border border-border p-4">
+        <div className="h-full rounded-xl bg-card border border-border p-4">
           <h4 className="font-semibold text-sm mb-3">Top Skills</h4>
           <div className="space-y-2">
             {insights.topSkills.map(([skill, count], i) => (
@@ -104,7 +104,7 @@ export default function TalentPoolInsights({ candidates }: Props) {
         </div>
 
         {/* Experience Distribution */}
-        <div className="rounded-xl bg-card border border-border p-4">
+        <div className="h-full rounded-xl bg-card border border-border p-4">
           <h4 className="font-semibold text-sm mb-3">Experience Levels</h4>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
@@ -117,7 +117,7 @@ export default function TalentPoolInsights({ candidates }: Props) {
         </div>
 
         {/* Department Distribution */}
-        <div className="rounded-xl bg-card border border-border p-4">
+        <div className="h-full rounded-xl bg-card border border-border p-4">
           <h4 className="font-semibold text-sm mb-3">By Department</h4>
           {deptData.length > 0 ? (
             <ResponsiveContainer width="100%" height={200}>
@@ -134,7 +134,7 @@ export default function TalentPoolInsights({ candidates }: Props) {
         </div>
 
         {/* Nationality Distribution */}
-        <div className="rounded-xl bg-card border border-border p-4">
+        <div className="h-full rounded-xl bg-card border border-border p-4">
           <h4 className="font-semibold text-sm mb-3">Top Nationalities</h4>
           {natData.length > 0 ? (
             <ResponsiveContainer width="100%" height={200}>

@@ -84,8 +84,8 @@ export default function SmartSearch({ onSearch }: Props) {
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-xs text-xs">
               <p className="font-semibold mb-1">Boolean Search Operators</p>
-              <p><strong>AND</strong> — all terms must match</p>
-              <p><strong>NOT</strong> — exclude terms</p>
+              <p><strong>AND</strong>: all terms must match</p>
+              <p><strong>NOT</strong>: exclude terms</p>
               <p className="mt-1 text-muted-foreground">Example: Python AND Finance NOT Junior</p>
             </TooltipContent>
           </Tooltip>

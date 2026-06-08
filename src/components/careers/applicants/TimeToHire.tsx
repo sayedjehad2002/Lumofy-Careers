@@ -58,8 +58,8 @@ const TimeToHire = ({ applicants }: TimeToHireProps) => {
   return (
     <div className="space-y-4">
       {/* KPI Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="border-border/40">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 items-stretch">
+        <Card className="h-full border-border/40">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <Clock className="w-4 h-4 text-primary" />
@@ -68,7 +68,7 @@ const TimeToHire = ({ applicants }: TimeToHireProps) => {
             <p className="text-2xl font-bold">{metrics.avgTimeToHire ?? "—"}<span className="text-sm text-muted-foreground ml-1">days</span></p>
           </CardContent>
         </Card>
-        <Card className="border-border/40">
+        <Card className="h-full border-border/40">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <Zap className={`w-4 h-4 ${TONE_TEXT.success}`} aria-hidden="true" />
@@ -77,17 +77,17 @@ const TimeToHire = ({ applicants }: TimeToHireProps) => {
             <p className="text-2xl font-bold">{metrics.processedThisWeek}<span className="text-sm text-muted-foreground ml-1">processed</span></p>
           </CardContent>
         </Card>
-        <Card className="border-border/40">
+        <Card className="h-full border-border/40">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <Target className={`w-4 h-4 ${TONE_TEXT.warning}`} aria-hidden="true" />
               <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Bottleneck</span>
             </div>
-            <p className="text-lg font-bold truncate">{metrics.bottleneck?.label ?? "—"}</p>
+            <p className="text-2xl font-bold truncate">{metrics.bottleneck?.label ?? "—"}</p>
             {metrics.bottleneck && <p className="text-xs text-muted-foreground">{metrics.bottleneck.avg}d avg</p>}
           </CardContent>
         </Card>
-        <Card className="border-border/40">
+        <Card className="h-full border-border/40">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="w-4 h-4 text-destructive" aria-hidden="true" />

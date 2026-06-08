@@ -227,7 +227,7 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
     // AI scoring weights must form a valid distribution.
     const weightsTotal = WEIGHT_KEYS.reduce((s, k) => s + (aiWeights[k] || 0), 0);
     if (weightsTotal === 0) {
-      toast.error("AI scoring weights can't all be zero — assign at least one dimension.");
+      toast.error("AI scoring weights can't all be zero. Assign at least one dimension.");
       return;
     }
     const normalizedWeights = normalizeWeights(aiWeights);

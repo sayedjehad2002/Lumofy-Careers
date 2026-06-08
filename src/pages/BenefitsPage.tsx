@@ -66,7 +66,7 @@ const BenefitsPage = () => {
             Benefits at <span className="text-primary">Lumofy</span>
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Tangible advantages that support your career, wellbeing, and professional development — not just promises.
+            Tangible advantages that support your career, wellbeing, and professional development, not just promises.
           </p>
         </motion.div>
       </section>
@@ -85,7 +85,7 @@ const BenefitsPage = () => {
               <motion.div
                 key={benefit.title}
                 variants={fadeUp}
-                className="rounded-2xl border border-border bg-card p-6 light-glow transition-transform duration-300 hover:-translate-y-1"
+                className="h-full rounded-2xl border border-border bg-card p-6 light-glow transition-transform duration-300 hover:-translate-y-1"
               >
                 <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
                   <benefit.icon className="h-5 w-5 text-primary" aria-hidden="true" />

@@ -80,14 +80,14 @@ export default function AuditTrail({ entries }: Props) {
           {filtered.map(entry => {
             const config = ACTION_CONFIG[entry.action] || ACTION_CONFIG.view;
             return (
-              <div key={entry.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-secondary/20">
+              <div key={entry.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/20">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center ${config.color}`}>
                   {config.icon}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm">
                     <span className="font-medium">{entry.candidateName}</span>
-                    <span className="text-muted-foreground"> — {config.label}</span>
+                    <span className="text-muted-foreground"> · {config.label}</span>
                   </p>
                   {entry.details && <p className="text-[10px] text-muted-foreground">{entry.details}</p>}
                 </div>

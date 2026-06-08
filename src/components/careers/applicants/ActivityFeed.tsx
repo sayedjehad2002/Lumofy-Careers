@@ -44,7 +44,7 @@ const ActivityFeed = ({ applicants, getJobTitle }: ActivityFeedProps) => {
         items.push({
           type: "ai",
           name: a.fullName,
-          detail: `AI scored ${a.aiAnalysis.fitScore}/100 — ${a.aiAnalysis.fitLevel}`,
+          detail: `AI scored ${a.aiAnalysis.fitScore}/100 · ${a.aiAnalysis.fitLevel}`,
           timestamp: new Date(a.aiAnalysis.analyzedAt),
           icon: Brain,
           color: TONE_TEXT.ai,

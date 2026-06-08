@@ -508,7 +508,7 @@ const ApplyPage = () => {
               data-field="cv"
             >
               <h2 className="text-lg font-bold tracking-tight">Upload CV / Resume</h2>
-              <p className="mb-5 mt-1 text-sm text-muted-foreground">PDF, DOC, DOCX — Max 10MB</p>
+              <p className="mb-5 mt-1 text-sm text-muted-foreground">PDF, DOC, DOCX · Max 10MB</p>
 
               {cvFile ? (
                 <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
@@ -542,7 +542,7 @@ const ApplyPage = () => {
                   <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFileChange} />
                   <Upload className="mx-auto mb-3 h-10 w-10 text-muted-foreground" aria-hidden="true" />
                   <p className="mb-1 text-sm font-medium">Click to upload your CV</p>
-                  <p className="text-xs text-muted-foreground">PDF, DOC, DOCX — Max 10MB</p>
+                  <p className="text-xs text-muted-foreground">PDF, DOC, DOCX · Max 10MB</p>
                 </button>
               )}
               {/* Inline validation feedback — surfaced immediately on file rejection */}

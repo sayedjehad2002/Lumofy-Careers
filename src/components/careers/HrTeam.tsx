@@ -66,7 +66,7 @@ const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
       setLastLink(link);
       setEmail("");
       try { await navigator.clipboard.writeText(link); } catch { /* ignore */ }
-      toast.success("Invite link created + copied — send it to your teammate.");
+      toast.success("Invite link created and copied. Send it to your teammate.");
       refresh();
     } catch (e) { toast.error((e as Error).message); }
     finally { setCreating(false); }
@@ -86,7 +86,7 @@ const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
   const copyLast = async () => {
     if (!lastLink) return;
     try { await navigator.clipboard.writeText(lastLink); setCopied(true); setTimeout(() => setCopied(false), 1500); toast.success("Copied"); }
-    catch { toast.error("Couldn't copy — select the link manually."); }
+    catch { toast.error("Couldn't copy. Select the link manually."); }
   };
 
   const revoke = async (id: string) => {
@@ -136,7 +136,7 @@ const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
               </Button>
             </div>
           )}
-          <p className="mt-2 text-[11px] text-muted-foreground">Send this link to your teammate — it expires in 7 days and can be used once.</p>
+          <p className="mt-2 text-[11px] text-muted-foreground">Send this link to your teammate. It expires in 7 days and can be used once.</p>
         </Panel>
       )}
 

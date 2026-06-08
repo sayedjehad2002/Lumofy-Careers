@@ -288,7 +288,7 @@ export default function SettlementCalculator() {
               <Badge className="bg-primary/15 text-primary border-0 text-[10px] font-semibold uppercase tracking-wider">Pro</Badge>
             </div>
             <p className="text-sm text-muted-foreground max-w-xl leading-relaxed">
-              Calculate final employee settlements with leave encashment, prorated salary, and Bahrain GOSI deductions — built for HR, payroll, and people ops teams.
+              Calculate final employee settlements with leave encashment, prorated salary, and Bahrain GOSI deductions, built for HR, payroll, and people ops teams.
             </p>
           </div>
           <div className="hidden lg:flex items-center gap-3">

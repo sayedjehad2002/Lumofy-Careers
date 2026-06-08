@@ -139,7 +139,7 @@ const Dashboard = () => {
         await addJob(job);
         try {
           await navigator.clipboard.writeText(jobApplyUrl(job.id));
-          toast.success("Job created — apply link copied. Share it on LinkedIn!");
+          toast.success("Job created. Apply link copied, share it on LinkedIn!");
         } catch {
           toast.success("Job created successfully");
         }
@@ -156,7 +156,7 @@ const Dashboard = () => {
     setDeletingJob(true);
     try {
       await archiveJob(deleteJobTarget.id);
-      toast.success("Job archived — applicants are kept. Restore it anytime.");
+      toast.success("Job archived. Applicants are kept, restore it anytime.");
       setDeleteJobTarget(null);
     } catch {
       toast.error("Failed to archive job");
@@ -748,7 +748,7 @@ const Dashboard = () => {
                 const count = deleteJobTarget ? getApplicantCount(deleteJobTarget.id) : 0;
                 return (
                   <>
-                    You're about to archive <strong>{deleteJobTarget?.title}</strong> — it will be removed from the public careers site.
+                    You're about to archive <strong>{deleteJobTarget?.title}</strong>. It will be removed from the public careers site.
                     {count > 0 ? (
                       <>
                         {" "}Its <strong>{count} applicant{count !== 1 ? "s" : ""}</strong> are kept and stay in the dashboard.

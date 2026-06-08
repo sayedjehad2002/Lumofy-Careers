@@ -24,10 +24,10 @@ const stagger = {
 };
 
 const cultureHighlights = [
-{ icon: Globe, title: "Flexible & Hybrid", desc: "Work from our office or remotely — we support flexible, hybrid arrangements across the MENA region." },
+{ icon: Globe, title: "Flexible & Hybrid", desc: "Work from our office or remotely, we support flexible, hybrid arrangements across the MENA region." },
 { icon: BookOpen, title: "Learning Budget", desc: "Annual stipend for courses, conferences, and professional certifications." },
 { icon: Palmtree, title: "Flexible Time Off", desc: "We trust you to manage your time and recharge when you need it." },
-{ icon: Users, title: "Flat Culture", desc: "Your ideas matter from day one — no red tape, just impact." },
+{ icon: Users, title: "Flat Culture", desc: "Your ideas matter from day one, no red tape, just impact." },
 { icon: TrendingUp, title: "Career Growth", desc: "Clear paths for advancement with mentorship from senior leaders." },
 { icon: Lightbulb, title: "Innovation Days", desc: "Dedicated time each month to explore new ideas and build prototypes." },
 { icon: Target, title: "Impactful Work", desc: "Build products used by organizations transforming talent across the region." }];
@@ -45,9 +45,9 @@ const teamMembers = [
 
 
 const testimonials = [
-{ name: "Suzan Alkhriesat", role: "Senior Finance Manager", photo: "/lovable-uploads/0aa8eb0b-531f-4d4c-b360-7e6d1bf82d31.jpg", quote: "What sets Lumofy apart is the trust. From day one, I had ownership of real decisions — not busywork. That's rare.", rating: 5, tenure: "2 years" },
-{ name: "Hasan Alhashimi", role: "Employee Engagement & HR Ops Lead", photo: "/lovable-uploads/a82f5de3-82d3-4b03-9f19-85a62252e6d8.jpg", quote: "I get to practice what we preach — building an employee experience that actually works. The culture here isn't a poster on a wall.", rating: 5, tenure: "1.5 years" },
-{ name: "Mahmoud Elrweny", role: "CS & Professional Service Director", photo: "/lovable-uploads/a4a73021-bfc4-4bde-8bb2-1338418a13e2.jpg", quote: "Our clients don't just use the platform — they see real results. Being part of those transformations keeps me motivated every day.", rating: 5, tenure: "3 years" },
+{ name: "Suzan Alkhriesat", role: "Senior Finance Manager", photo: "/lovable-uploads/0aa8eb0b-531f-4d4c-b360-7e6d1bf82d31.jpg", quote: "What sets Lumofy apart is the trust. From day one, I had ownership of real decisions, not busywork. That's rare.", rating: 5, tenure: "2 years" },
+{ name: "Hasan Alhashimi", role: "Employee Engagement & HR Ops Lead", photo: "/lovable-uploads/a82f5de3-82d3-4b03-9f19-85a62252e6d8.jpg", quote: "I get to practice what we preach, building an employee experience that actually works. The culture here isn't a poster on a wall.", rating: 5, tenure: "1.5 years" },
+{ name: "Mahmoud Elrweny", role: "CS & Professional Service Director", photo: "/lovable-uploads/a4a73021-bfc4-4bde-8bb2-1338418a13e2.jpg", quote: "Our clients don't just use the platform, they see real results. Being part of those transformations keeps me motivated every day.", rating: 5, tenure: "3 years" },
 { name: "Shehab Beram", role: "Senior Product Manager", photo: "/lovable-uploads/72097222-3975-48f3-b226-c02d3e10ad53.jpg", quote: "The speed here is unreal. We ideate, ship, and iterate faster than teams three times our size. And the team actually listens.", rating: 5, tenure: "1 year" }];
 
 
@@ -113,7 +113,7 @@ const LifeAtLumofy = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1, ease }}
           >
-            We're a team of builders, dreamers, and operators united by one goal — transforming how the MENA region grows its talent.
+            We're a team of builders, dreamers, and operators united by one goal, transforming how the MENA region grows its talent.
           </motion.p>
         </div>
       </section>
@@ -129,8 +129,8 @@ const LifeAtLumofy = () => {
             viewport={{ once: true, margin: "-60px" }}
           >
             {stats.map((s) => (
-              <motion.div key={s.label} variants={fadeUp}>
-                <div className="rounded-2xl border border-border bg-card p-5 text-center light-glow sm:p-6">
+              <motion.div key={s.label} variants={fadeUp} className="h-full">
+                <div className="h-full flex flex-col justify-center rounded-2xl border border-border bg-card p-5 text-center light-glow sm:p-6">
                   <s.icon className="mx-auto mb-2.5 h-6 w-6 text-primary" aria-hidden="true" />
                   <div className="text-3xl font-extrabold tabular-nums text-foreground sm:text-4xl">{s.value}</div>
                   <p className="mt-2 text-xs text-muted-foreground sm:text-sm">{s.label}</p>
@@ -189,7 +189,7 @@ const LifeAtLumofy = () => {
               Meet the <span className="text-primary">people</span>
             </h2>
             <p className="mt-3 text-base text-muted-foreground sm:text-lg">
-              The people behind the platform — united by a shared mission.
+              The people behind the platform, united by a shared mission.
             </p>
           </motion.div>
 

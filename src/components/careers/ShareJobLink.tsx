@@ -13,7 +13,7 @@ export const jobApplyUrl = (jobId: string) => `${siteUrl()}/jobs/${jobId}`;
 
 export async function copyJobLink(jobId: string) {
   const url = jobApplyUrl(jobId);
-  try { await navigator.clipboard.writeText(url); toast.success("Apply link copied — paste it into LinkedIn."); }
+  try { await navigator.clipboard.writeText(url); toast.success("Apply link copied. Paste it into LinkedIn."); }
   catch { toast.error("Couldn't copy automatically. Use the dropdown to open the link."); }
 }
 

@@ -29,7 +29,7 @@ const JobDetails = () => {
               {/* Main column */}
               <div className="lg:col-span-2 space-y-6">
                 {/* Header card */}
-                <div className="rounded-xl bg-card border border-border p-6">
+                <div className="rounded-2xl bg-card border border-border p-6">
                   <Skeleton className="mb-3 h-5 w-24" />
                   <Skeleton className="mb-4 h-8 w-3/4" />
                   <div className="mb-4 flex flex-wrap gap-4">
@@ -40,7 +40,7 @@ const JobDetails = () => {
                   <Skeleton className="h-11 w-48 rounded-md" />
                 </div>
                 {/* Body card */}
-                <div className="rounded-xl bg-card border border-border p-6">
+                <div className="rounded-2xl bg-card border border-border p-6">
                   <Skeleton className="mb-3 h-5 w-40" />
                   <Skeleton className="mb-2 h-4 w-full" />
                   <Skeleton className="mb-2 h-4 w-full" />
@@ -49,7 +49,7 @@ const JobDetails = () => {
               </div>
               {/* Sidebar */}
               <div className="space-y-6">
-                <div className="rounded-xl bg-card border border-border p-5">
+                <div className="rounded-2xl bg-card border border-border p-5">
                   <Skeleton className="mb-4 h-5 w-32" />
                   <Skeleton className="mb-4 h-9 w-full rounded-md" />
                   <Skeleton className="h-9 w-full rounded-md" />
@@ -117,7 +117,7 @@ const JobDetails = () => {
             <div className="lg:col-span-2 space-y-6">
               {/* Header card */}
               <motion.div
-                className="rounded-xl bg-card border border-border p-6 glow-blue-sm"
+                className="rounded-2xl bg-card border border-border p-6 light-glow"
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
@@ -170,7 +170,7 @@ const JobDetails = () => {
               {/* About the Role */}
               {job.description && (
                 <motion.div
-                  className="rounded-xl bg-card border border-border p-6"
+                  className="rounded-2xl bg-card border border-border p-6"
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.1 }}
@@ -183,7 +183,7 @@ const JobDetails = () => {
               {/* Responsibilities */}
               {(job.responsibilities ?? []).length > 0 && (job.responsibilities ?? []).some(r => r.trim()) && (
                 <motion.div
-                  className="rounded-xl bg-card border border-border p-6"
+                  className="rounded-2xl bg-card border border-border p-6"
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.15 }}
@@ -203,7 +203,7 @@ const JobDetails = () => {
               {/* Requirements */}
               {(job.requirements ?? []).length > 0 && (job.requirements ?? []).some(r => r.trim()) && (
                 <motion.div
-                  className="rounded-xl bg-card border border-border p-6"
+                  className="rounded-2xl bg-card border border-border p-6"
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.2 }}
@@ -223,7 +223,7 @@ const JobDetails = () => {
               {/* Screening Questions Preview */}
               {(job.screeningQuestions ?? []).length > 0 && (
                 <motion.div
-                  className="rounded-xl bg-card border border-border p-6"
+                  className="rounded-2xl bg-card border border-border p-6"
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.25 }}
@@ -248,7 +248,7 @@ const JobDetails = () => {
             {/* Sidebar */}
             <div className="space-y-6">
               <motion.div
-                className="rounded-xl bg-card border border-border p-5 sticky top-24"
+                className="rounded-2xl bg-card border border-border p-5 sticky top-24"
                 initial={{ opacity: 0, x: 15 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.4, delay: 0.2 }}

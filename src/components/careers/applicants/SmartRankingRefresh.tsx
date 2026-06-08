@@ -209,7 +209,7 @@ function reScoreForJob(
   } else {
     if (finalScore >= 85) reasoning = `Strong direct match for ${targetJob.title} with verified skills and experience.`;
     else if (finalScore >= 70) reasoning = `Good fit for ${targetJob.title} with most requirements covered.`;
-    else if (finalScore >= 50) reasoning = `Partial fit — some gaps in required skills or experience level.`;
+    else if (finalScore >= 50) reasoning = `Partial fit: some gaps in required skills or experience level.`;
     else reasoning = `Significant gaps between candidate profile and ${targetJob.title} requirements.`;
   }
 

@@ -124,7 +124,7 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
                     <SelectItem key={j.id} value={j.id}>
                       <span className="flex items-center gap-2">
                         <Briefcase className="w-3 h-3" />
-                        {j.title} — {j.department}
+                        {j.title} · {j.department}
                       </span>
                     </SelectItem>
                   ))}
@@ -137,7 +137,7 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
             )}
 
             {!candidate.email && (
-              <Badge variant="destructive" className="text-xs">Email required — please edit candidate first</Badge>
+              <Badge variant="destructive" className="text-xs">Email required. Please edit the candidate first.</Badge>
             )}
           </div>
 

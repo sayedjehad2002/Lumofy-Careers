@@ -34,7 +34,7 @@ const DashboardAuth = () => {
       if (/invalid login credentials/i.test(msg)) {
         toast.error("Incorrect email or password.");
       } else if (/email not confirmed/i.test(msg)) {
-        toast.error("This account isn't confirmed yet — contact your admin.");
+        toast.error("This account isn't confirmed yet. Contact your admin.");
       } else {
         toast.error(msg || "Sign-in failed. Please try again.");
       }
@@ -54,7 +54,7 @@ const DashboardAuth = () => {
       redirectTo: `${window.location.origin}/dashboard`,
     });
     if (error) toast.error(error.message || "Couldn't send the reset email.");
-    else toast.success("Password reset link sent — check your email.");
+    else toast.success("Password reset link sent. Check your email.");
   };
 
   return (

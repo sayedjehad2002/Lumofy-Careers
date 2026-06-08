@@ -119,7 +119,7 @@ export default function GDPRRetention({ candidates, onDelete, onViewCandidate }:
           <li>CVs should be reviewed and deleted when no longer needed per GDPR Article 5(1)(e)</li>
           <li>Candidates have the right to request deletion of their data (Right to Erasure)</li>
           <li>Consider setting up automatic retention policies based on your organization's requirements</li>
-          <li>Archived CVs count towards retention — review archived candidates regularly</li>
+          <li>Archived CVs count towards retention; review archived candidates regularly</li>
         </ul>
       </div>
     </div>

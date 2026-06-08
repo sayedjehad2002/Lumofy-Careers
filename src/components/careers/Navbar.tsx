@@ -33,9 +33,9 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
               src={lumofyLogo}
               alt=""
               aria-hidden="true"
-              className="h-9 w-9 object-contain transition-transform duration-300 group-hover:scale-105"
+              className="h-11 w-11 object-contain transition-transform duration-300 group-hover:scale-105"
             />
-            <span className="text-[1.35rem] font-extrabold leading-none tracking-tight text-foreground">
+            <span className="text-[1.6rem] font-extrabold leading-none tracking-tight text-foreground">
               Lumofy
             </span>
             <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">

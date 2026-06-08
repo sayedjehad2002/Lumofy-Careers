@@ -504,7 +504,7 @@ const JobsPage = () => {
                       </div>
                       <h2 className="text-lg font-bold tracking-tight text-foreground">No open roles right now</h2>
                       <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
-                        We're not actively hiring at the moment — but new roles open often. Explore our teams and check back soon.
+                        We're not actively hiring at the moment, but new roles open often. Explore our teams and check back soon.
                       </p>
                       <Button size="sm" asChild className="mt-5 h-11 rounded-xl px-6">
                         <Link to="/">

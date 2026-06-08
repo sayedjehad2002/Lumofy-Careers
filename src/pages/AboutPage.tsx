@@ -88,7 +88,7 @@ const AboutPage = () => {
             <div className="rounded-2xl border border-border bg-card p-8 light-glow md:p-10">
               <div className="space-y-4 leading-relaxed text-muted-foreground">
                 <p>
-                  Lumofy was founded in 2020 during the COVID-19 pandemic by a group of forward thinking professionals who shared a common vision — talent in the region deserves a more structured and empowering way to be recognized and developed.
+                  Lumofy was founded in 2020 during the COVID-19 pandemic by a group of forward thinking professionals who shared a common vision: talent in the region deserves a more structured and empowering way to be recognized and developed.
                 </p>
                 <p>
                   Lumofy was founded in Bahrain and it is a pioneering B2B SaaS HRTech and EdTech company dedicated to advancing learning and capability building for organizations worldwide.
@@ -153,7 +153,7 @@ const AboutPage = () => {
               By combining skills data, intelligent insights, and streamlined workflows, Lumofy helps leaders identify skill gaps, align development to business priorities, and make smarter workforce decisions.
             </p>
             <p>
-              At our core, we focus on what growth truly means for each organization — by understanding its unique goals, challenges, and context, then translating that into actionable, measurable progress.
+              At our core, we focus on what growth truly means for each organization, by understanding its unique goals, challenges, and context, then translating that into actionable, measurable progress.
             </p>
           </div>
         </motion.div>

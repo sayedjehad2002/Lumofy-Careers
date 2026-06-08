@@ -146,7 +146,7 @@ function ScopeCard({ active, onClick, label, count, desc }: {
   return (
     <button
       onClick={onClick}
-      className={`rounded-lg p-3 text-left border transition-colors ${active ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/30"}`}
+      className={`h-full rounded-lg p-3 text-left border transition-colors ${active ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/30"}`}
     >
       <p className="text-sm font-semibold">{label}</p>
       <p className="text-xl font-bold mt-1">{count}</p>
