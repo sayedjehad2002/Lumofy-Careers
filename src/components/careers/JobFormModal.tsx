@@ -2,7 +2,7 @@ import { useState } from "react";
 import { DEFAULT_AI_WEIGHTS, type AIScoringWeights } from "@/types/careers";
 import {
   Plus, Trash2, Upload, FileText, Sparkles, Loader2, Wand2, RefreshCw,
-  Calendar, ChevronDown, Briefcase, X,
+  Calendar, ChevronDown, Briefcase, X, MessageSquarePlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -268,25 +268,37 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
     }
   };
 
-  /** Per-section "Regenerate" control + optional instruction box. */
+  /** Per-section controls: one-click Regenerate (immediate, uses the brief),
+   * plus a secondary button that opens an optional instruction box for a
+   * targeted tweak ("punchier", "more senior", …). */
   const aiControl = (type: AIType) => {
     const busy = !!generating[type];
     const open = instrFor === type;
     return (
       <div className="flex flex-col items-end gap-1.5">
-        <button
-          type="button" disabled={busy || draftingAll}
-          onClick={() => (open ? setInstrFor(null) : (setInstrFor(type), setInstrText("")))}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
-        >
-          {busy ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-3 w-3" aria-hidden="true" />}
-          {busy ? "Generating…" : "Regenerate"}
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button" disabled={busy || draftingAll}
+            onClick={() => regenerateSection(type)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+          >
+            {busy ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-3 w-3" aria-hidden="true" />}
+            {busy ? "Generating…" : "Regenerate"}
+          </button>
+          <button
+            type="button" disabled={busy || draftingAll}
+            onClick={() => (open ? setInstrFor(null) : (setInstrFor(type), setInstrText("")))}
+            aria-label="Regenerate with a specific instruction"
+            className="inline-flex items-center justify-center rounded-lg border border-primary/30 bg-primary/10 p-1.5 text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+          >
+            <MessageSquarePlus className="h-3 w-3" aria-hidden="true" />
+          </button>
+        </div>
         {open && !busy && (
           <div className="flex items-center gap-1.5">
             <Input
               value={instrText} onChange={(e) => setInstrText(e.target.value)}
-              placeholder='Optional: "punchier", "more senior"…'
+              placeholder='e.g. "punchier", "more senior"…'
               className="h-8 w-52 text-xs"
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); regenerateSection(type, instrText); } }}
             />
