@@ -333,8 +333,8 @@ const JobsPage = () => {
             transition={{ duration: 0.6, ease }}
             className="text-center"
           >
-            <span className="text-xs font-semibold uppercase tracking-wider text-primary">Open Roles</span>
-            <h1 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl">Open Positions</h1>
+            <span className="font-mono text-xs uppercase tracking-[0.2em] text-primary">Open roles · Lumofy</span>
+            <h1 className="mt-4 text-3xl font-extrabold tracking-[-0.02em] sm:text-4xl lg:text-5xl">Open Positions</h1>
             <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
               Explore opportunities at Lumofy and find the role that matches your skills and ambitions.
             </p>

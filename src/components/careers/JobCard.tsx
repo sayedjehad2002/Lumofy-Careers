@@ -3,6 +3,7 @@ import { MapPin, Clock, ArrowRight, Bookmark, BookmarkCheck } from "lucide-react
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { useSavedJobs } from "@/hooks/use-saved-jobs";
+import { deptClasses } from "@/lib/deptColor";
 import type { Job } from "@/types/careers";
 
 const ease = [0.22, 1, 0.36, 1] as [number, number, number, number];
@@ -15,6 +16,7 @@ interface JobCardProps {
 const JobCard = ({ job, index }: JobCardProps) => {
   const { isSaved, toggle } = useSavedJobs();
   const saved = isSaved(job.id);
+  const c = deptClasses(job.department); // semantic hue per department
 
   return (
     <motion.div
@@ -47,13 +49,13 @@ const JobCard = ({ job, index }: JobCardProps) => {
                 <div className="mb-2.5 flex items-center gap-2">
                   <Badge
                     variant="secondary"
-                    className="border-0 bg-primary/10 px-3 py-0.5 text-[11px] font-medium text-primary"
+                    className={`border-0 ${c.bgSoft} px-3 py-0.5 text-[11px] font-medium ${c.text}`}
                   >
                     {job.department}
                   </Badge>
                   {job.status === "open" && (
                     <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                      <span className={`h-1.5 w-1.5 rounded-full ${c.bg}`} />
                       Open
                     </span>
                   )}
@@ -63,7 +65,7 @@ const JobCard = ({ job, index }: JobCardProps) => {
                   {job.title}
                 </h3>
 
-                <div className="mb-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
+                <div className="mb-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
                   <span className="flex items-center gap-1.5">
                     <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
                     {job.location}
