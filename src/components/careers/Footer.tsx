@@ -21,7 +21,6 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             <h4 className="font-semibold text-sm mb-3 text-foreground">Careers</h4>
             <ul className="space-y-2">
               <li><Link to="/jobs" className="text-sm text-muted-foreground hover:text-primary transition-colors">Open Positions</Link></li>
-              <li><Link to="/#team" className="text-sm text-muted-foreground hover:text-primary transition-colors">Team</Link></li>
               <li><Link to="/#growth" className="text-sm text-muted-foreground hover:text-primary transition-colors">Growth</Link></li>
               <li><Link to="/#principles" className="text-sm text-muted-foreground hover:text-primary transition-colors">Principles</Link></li>
             </ul>

@@ -10,7 +10,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import {
-  Briefcase, Home, Users, LayoutDashboard,
+  Briefcase, Home, LayoutDashboard,
   Search, ArrowRight, Sparkles, Moon, Sun,
 } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
@@ -46,7 +46,6 @@ const CommandPalette = ({ onNavigateDashboard, isDashboard }: CommandPaletteProp
   const pages = [
     { label: "Home", icon: Home, path: "/" },
     { label: "Browse Jobs", icon: Briefcase, path: "/jobs" },
-    { label: "Team", icon: Users, path: "/#team" },
     { label: "Growth", icon: Sparkles, path: "/#growth" },
     // HR Dashboard only surfaces for authorized HR users.
     ...(isHrUser ? [{ label: "HR Dashboard", icon: LayoutDashboard, path: "/dashboard" }] : []),

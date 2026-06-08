@@ -16,7 +16,6 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
     { to: "/#building", label: "Building" },
     { to: "/#principles", label: "Principles" },
     { to: "/#growth", label: "Growth" },
-    { to: "/#team", label: "Team" },
     { to: "/#roles", label: "Roles" },
   ];
 
