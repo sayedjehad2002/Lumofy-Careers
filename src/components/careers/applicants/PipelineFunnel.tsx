@@ -5,14 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingDown, ArrowRight } from "lucide-react";
 import type { Applicant, ApplicantStatus } from "@/types/careers";
 import { APPLICANT_STATUSES } from "@/types/careers";
-import { TONE_SOFT } from "@/components/careers/statusColors";
+import { TONE_SOFT, FUNNEL_FILLS } from "@/components/careers/statusColors";
 
 interface PipelineFunnelProps {
   applicants: Applicant[];
 }
 
 const FUNNEL_ORDER: ApplicantStatus[] = ["new", "reviewing", "shortlisted", "interview", "hired"];
-const FUNNEL_COLORS = ["#3b82f6", "#f59e0b", "#10b981", "#8b5cf6", "#22c55e"];
 
 const PipelineFunnel = ({ applicants }: PipelineFunnelProps) => {
   const stages = useMemo(() => {
@@ -31,7 +30,7 @@ const PipelineFunnel = ({ applicants }: PipelineFunnelProps) => {
         return prevRemaining > 0 ? Math.round((remaining / prevRemaining) * 100) : 0;
       })();
       const info = APPLICANT_STATUSES.find(s => s.value === status);
-      return { status, label: info?.label || status, count, remaining, pct, conversionFromPrev, color: FUNNEL_COLORS[i] };
+      return { status, label: info?.label || status, count, remaining, pct, conversionFromPrev, color: FUNNEL_FILLS[i] };
     });
   }, [applicants]);
 
