@@ -5,20 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
 import { Globe, TrendingUp, Users } from "lucide-react";
 import type { Applicant } from "@/types/careers";
+import { CHART_SERIES } from "@/components/careers/statusColors";
 
 interface SourceAnalyticsProps {
   applicants: Applicant[];
   getJobTitle: (jobId: string) => string;
 }
 
-const SOURCE_COLORS = [
-  "hsl(var(--primary))",
-  "hsl(142, 71%, 45%)",
-  "hsl(48, 96%, 53%)",
-  "hsl(262, 83%, 58%)",
-  "hsl(0, 84%, 60%)",
-  "hsl(199, 89%, 48%)",
-];
+// Theme-aware categorical palette (was hardcoded raw HSL that ignored dark mode).
+const SOURCE_COLORS = CHART_SERIES;
 
 function inferSource(a: Applicant): string {
   if (a.linkedin) return "LinkedIn";

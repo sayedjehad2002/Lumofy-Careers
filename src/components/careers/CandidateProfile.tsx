@@ -50,11 +50,11 @@ const CandidateProfile = ({
 
   const avgRating = applicant.rating ?
   (
-  (applicant.rating.communication +
-  applicant.rating.roleFit +
-  applicant.rating.technicalSkills +
-  applicant.rating.cultureFit +
-  applicant.rating.overallRecommendation) / 5).
+  ((applicant.rating.communication ?? 0) +
+  (applicant.rating.roleFit ?? 0) +
+  (applicant.rating.technicalSkills ?? 0) +
+  (applicant.rating.cultureFit ?? 0) +
+  (applicant.rating.overallRecommendation ?? 0)) / 5).
   toFixed(1) :
   null;
 

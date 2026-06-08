@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Brain, Users, Globe, Briefcase, TrendingUp, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { TONE_TEXT, TONE_BORDER } from "@/components/careers/statusColors";
+import { TONE_TEXT, TONE_BORDER, CHART_SERIES } from "@/components/careers/statusColors";
 
 interface CVCandidate {
   id: string;
@@ -21,11 +21,8 @@ interface Props {
   candidates: CVCandidate[];
 }
 
-const COLORS = [
-  "hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))", "hsl(var(--chart-5))", "hsl(var(--intel-success))",
-  "hsl(var(--chart-3))", "hsl(var(--chart-5))",
-];
+// Theme-aware, de-duplicated categorical palette (was repeating chart-3 / chart-5).
+const COLORS = CHART_SERIES;
 
 export default function TalentPoolInsights({ candidates }: Props) {
   const insights = useMemo(() => {
