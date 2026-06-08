@@ -46,14 +46,10 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
           </div>
         </div>
 
-        <div className="border-t border-border/50 mt-8 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="border-t border-border/50 mt-8 pt-6">
           <p className="text-xs text-muted-foreground">
             © {new Date().getFullYear()} Lumofy. All rights reserved.
           </p>
-          <div className="flex gap-4">
-            <a href="/privacy" className="text-xs text-muted-foreground hover:text-primary transition-colors">Privacy Policy</a>
-            <a href="/terms" className="text-xs text-muted-foreground hover:text-primary transition-colors">Terms of Service</a>
-          </div>
         </div>
       </div>
     </footer>);

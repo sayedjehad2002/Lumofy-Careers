@@ -23,8 +23,6 @@ const BenefitsPage = lazy(() => import("./pages/BenefitsPage"));
 const LifeAtLumofy = lazy(() => import("./pages/LifeAtLumofy"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const HrJoin = lazy(() => import("./pages/HrJoin"));
-const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
-const Terms = lazy(() => import("./pages/Terms"));
 
 // Sensible production defaults for any React Query usage. (The careers data layer
 // currently lives in CareersContext with optimistic updates; this readies the
@@ -89,8 +87,6 @@ function AnimatedRoutes() {
               <Route path="/jobs/:id/apply" element={<ApplyPage />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/hr/join" element={<HrJoin />} />
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              <Route path="/terms" element={<Terms />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
