@@ -197,6 +197,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
         manual_overrides: c.manual_overrides || {},
       }));
       setCandidates(normalized);
+      return normalized as CVCandidate[];
     } catch (e) {
       import.meta.env.DEV && console.error("Fetch error:", e);
       toast.error("Failed to load CV library");
@@ -262,7 +263,18 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
       // Step 3: AI Analysis
       await runAIAnalysis(candidateId);
 
-      await fetchCandidates();
+      // Refresh the open profile too — parse/classify update the DB + list, not
+      // the already-open selectedCandidate, so without this its header + AI
+      // Classification would show stale "Unknown / Not extracted" after analysis.
+      const fresh = await fetchCandidates();
+      const updated = fresh?.find((c) => c.id === candidateId);
+      if (updated) {
+        setSelectedCandidate((prev) =>
+          prev && prev.id === candidateId
+            ? { ...updated, ai_analysis: updated.ai_analysis ?? prev.ai_analysis }
+            : prev
+        );
+      }
     } catch (e) {
       import.meta.env.DEV && console.error("Processing error:", e);
     } finally {

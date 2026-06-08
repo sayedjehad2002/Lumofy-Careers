@@ -76,50 +76,94 @@ export interface ChatOpts {
   hasImages?: boolean;       // drives vision-vs-text model selection in mapModel
 }
 
-// POST to Gemini's OpenAI-compatible chat-completions endpoint.
+// Transient upstream statuses worth retrying. 503 = "model overloaded / high
+// demand" (very common on busy multimodal models, especially the free tier),
+// 429 = rate limited, 500/502/504 = transient gateway hiccups. Terminal statuses
+// (400 bad request, 401/403 auth, 402 credits) are NOT retried — retrying can't
+// help and would just add latency.
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+// Attempts PER MODEL: 1 initial + 2 retries, exponential backoff with jitter so a
+// brief demand spike self-heals.
+const MAX_ATTEMPTS = 3;
+// When the requested model stays overloaded (503) through all its retries, fall
+// back to these other Gemini models in order. They sit in separate capacity
+// pools, so a 503 on one frequently clears on another, and all are multimodal
+// (handle the PDF/image CV inputs). This is the free-tier resilience path; a
+// billed key rarely 503s and simply succeeds on the first model.
+const FALLBACK_MODELS = ["gemini-2.0-flash", "gemini-2.5-flash-lite"];
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const backoff = (attempt: number) =>
+  sleep(Math.min(6000, 500 * 2 ** (attempt - 1)) + Math.floor(Math.random() * 400));
+
+// POST to Gemini's OpenAI-compatible chat-completions endpoint, with automatic
+// retry on transient errors AND multi-model fallback on sustained overload.
 // Returns the raw Response so callers keep their existing streaming / parsing /
 // status-code handling unchanged.
 export async function chatCompletion(opts: ChatOpts): Promise<Response> {
-  const body: Record<string, unknown> = {
-    model: mapModel(opts.model, opts.hasImages),
-    messages: opts.messages,
-  };
-  if (opts.stream) body.stream = true;
-  if (opts.temperature != null) body.temperature = opts.temperature;
-  // Apply caller's max_tokens, otherwise fall back to a sensible default so a
-  // generation can't run unbounded.
-  body.max_tokens = opts.max_tokens != null ? opts.max_tokens : DEFAULT_MAX_TOKENS;
-  if (opts.tools) body.tools = opts.tools;
-  if (opts.tool_choice) body.tool_choice = opts.tool_choice;
+  const apiKey = getGeminiKey(); // read once; throws cleanly if unset
+  const primary = mapModel(opts.model, opts.hasImages);
+  // Try the requested model first, then the fallbacks (skipping any that equals
+  // the primary so we don't waste attempts on the same overloaded model).
+  const modelChain = [primary, ...FALLBACK_MODELS.filter((m) => m !== primary)];
 
-  // Abort the request if Gemini takes too long. We translate the resulting
-  // AbortError into a clean 504 Response so callers' existing `if (!response.ok)`
-  // branches handle it uniformly instead of throwing an opaque network error.
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let lastRes: Response | null = null;
 
-  try {
-    return await fetch(GEMINI_BASE, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${getGeminiKey()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-  } catch (e) {
-    if (e instanceof DOMException && e.name === "AbortError") {
-      console.error(`chatCompletion: aborted after ${REQUEST_TIMEOUT_MS}ms timeout`);
-      return new Response(
-        JSON.stringify({ error: { message: "AI request timed out" } }),
-        { status: 504, headers: { "Content-Type": "application/json" } }
-      );
+  for (let m = 0; m < modelChain.length; m++) {
+    const model = modelChain[m];
+    const body: Record<string, unknown> = { model, messages: opts.messages };
+    if (opts.stream) body.stream = true;
+    if (opts.temperature != null) body.temperature = opts.temperature;
+    // Apply caller's max_tokens, otherwise fall back to a sensible default so a
+    // generation can't run unbounded.
+    body.max_tokens = opts.max_tokens != null ? opts.max_tokens : DEFAULT_MAX_TOKENS;
+    if (opts.tools) body.tools = opts.tools;
+    if (opts.tool_choice) body.tool_choice = opts.tool_choice;
+    const payload = JSON.stringify(body);
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      // Abort if Gemini takes too long; translated to a clean 504 below.
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        const res = await fetch(GEMINI_BASE, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: payload,
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        if (res.ok) return res;                            // success
+        if (!RETRYABLE_STATUS.has(res.status)) return res; // terminal error — surface it
+
+        // Retryable: remember it, drain the body, retry this model (or fall back).
+        lastRes = res;
+        console.warn(`chatCompletion: ${model} status ${res.status} (attempt ${attempt}/${MAX_ATTEMPTS})`);
+        try { await res.body?.cancel(); } catch { /* ignore */ }
+        if (attempt < MAX_ATTEMPTS) await backoff(attempt);
+      } catch (e) {
+        clearTimeout(timeout);
+        const isTimeout = e instanceof DOMException && e.name === "AbortError";
+        if (!isTimeout) throw e; // genuine network/other error — surface to caller
+        console.warn(`chatCompletion: ${model} timed out (attempt ${attempt}/${MAX_ATTEMPTS})`);
+        lastRes = new Response(JSON.stringify({ error: { message: "AI request timed out" } }), {
+          status: 504, headers: { "Content-Type": "application/json" },
+        });
+        if (attempt < MAX_ATTEMPTS) await backoff(attempt);
+      }
     }
-    throw e;
-  } finally {
-    clearTimeout(timeout);
+    if (m < modelChain.length - 1) {
+      console.warn(`chatCompletion: ${model} still overloaded — falling back to ${modelChain[m + 1]}`);
+    }
   }
+
+  // Every model exhausted with retryable errors (genuine sustained overload).
+  console.error("chatCompletion: all models overloaded after retries + fallback");
+  return lastRes ?? new Response(
+    JSON.stringify({ error: { message: "AI request failed after retries and fallbacks" } }),
+    { status: 502, headers: { "Content-Type": "application/json" } }
+  );
 }
 
 // ---------------------------------------------------------------------------
