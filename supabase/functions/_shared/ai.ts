@@ -16,7 +16,7 @@ const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/cha
 // connection could keep an edge function (and the client request) open until the
 // platform's own wall-clock limit, wasting resources. 45s comfortably covers a
 // multimodal CV/PDF analysis while still bounding the worst case.
-const REQUEST_TIMEOUT_MS = 45_000;
+const REQUEST_TIMEOUT_MS = 60_000;
 
 // Default token budget when a caller doesn't specify one. Most callers expect a
 // bounded JSON object; leaving max_tokens unset lets a runaway model generation

@@ -263,7 +263,7 @@ Provide your structured evidence-based analysis as JSON.`;
     }
 
     const response = await chatCompletion({
-      model: "google/gemini-2.5-pro",
+      model: "google/gemini-3-flash-preview",
       messages,
       hasImages: cvBase64 != null && cvParsingStatus === "success",
       max_tokens: 8000, // full recruiter-grade output (identity + verdict + scoring) — avoid truncation
