@@ -18,9 +18,6 @@ const JobsPage = lazy(() => import("./pages/JobsPage"));
 const JobDetails = lazy(() => import("./pages/JobDetails"));
 const ApplyPage = lazy(() => import("./pages/ApplyPage"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const AboutPage = lazy(() => import("./pages/AboutPage"));
-const BenefitsPage = lazy(() => import("./pages/BenefitsPage"));
-const LifeAtLumofy = lazy(() => import("./pages/LifeAtLumofy"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const HrJoin = lazy(() => import("./pages/HrJoin"));
 
@@ -80,9 +77,6 @@ function AnimatedRoutes() {
             <Routes location={location}>
               <Route path="/" element={<Index />} />
               <Route path="/jobs" element={<JobsPage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/life" element={<LifeAtLumofy />} />
-              <Route path="/benefits" element={<BenefitsPage />} />
               <Route path="/jobs/:id" element={<JobDetails />} />
               <Route path="/jobs/:id/apply" element={<ApplyPage />} />
               <Route path="/dashboard" element={<Dashboard />} />

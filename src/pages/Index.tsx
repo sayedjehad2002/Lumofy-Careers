@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Navbar from "@/components/careers/Navbar";
 import ScrollThread from "@/components/careers/ScrollThread";
 import HeroSection from "@/components/careers/sections/HeroSection";
@@ -9,23 +11,37 @@ import TeamStoriesSection from "@/components/careers/sections/TeamStoriesSection
 import OpenRolesSection from "@/components/careers/sections/OpenRolesSection";
 import ClosingSection from "@/components/careers/sections/ClosingSection";
 import Footer from "@/components/careers/Footer";
+import { prefersReducedMotion } from "@/lib/motion";
 
-const Index = () => (
-  <div className="min-h-screen bg-background">
-    <Navbar />
-    <ScrollThread />
-    <main id="main">
-      <HeroSection />
-      <WhyItMattersSection />
-      <WhatWeBuildSection />
-      <OperatingPrinciplesSection />
-      <GrowthExperienceSection />
-      <TeamStoriesSection />
-      <OpenRolesSection />
-      <ClosingSection />
-    </main>
-    <Footer />
-  </div>
-);
+const Index = () => {
+  // Anchor navigation: React Router doesn't auto-scroll to hashes, so do it here.
+  // Works whether arriving from another route or changing hash while on `/`.
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (!hash) return;
+    const el = document.querySelector(hash);
+    if (el) {
+      el.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+    }
+  }, [hash]);
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <ScrollThread />
+      <main id="main">
+        <HeroSection />
+        <WhyItMattersSection />
+        <WhatWeBuildSection />
+        <OperatingPrinciplesSection />
+        <GrowthExperienceSection />
+        <TeamStoriesSection />
+        <OpenRolesSection />
+        <ClosingSection />
+      </main>
+      <Footer />
+    </div>
+  );
+};
 
 export default Index;

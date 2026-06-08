@@ -10,12 +10,14 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isHrUser } = useCareers();
 
+  // Single-page anchors (Index has a hash-scroll effect that handles these).
   const links = [
-    { to: "/", label: "Home" },
-    { to: "/jobs", label: "Jobs" },
-    { to: "/life", label: "Life at Lumofy" },
-    { to: "/about", label: "About Lumofy" },
-    { to: "/benefits", label: "Benefits" },
+    { to: "/#why", label: "Mission" },
+    { to: "/#building", label: "Building" },
+    { to: "/#principles", label: "Principles" },
+    { to: "/#growth", label: "Growth" },
+    { to: "/#team", label: "Team" },
+    { to: "/#roles", label: "Roles" },
   ];
 
   return (
@@ -60,14 +62,23 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
                 </Link>
               </motion.div>
             ))}
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <Button asChild size="sm" className="ml-2 rounded-lg btn-sheen">
+                <Link to="/jobs">View open roles</Link>
+              </Button>
+            </motion.div>
             {isHrUser && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.6, duration: 0.3 }}
+                transition={{ delay: 0.7, duration: 0.3 }}
               >
                 <Link to="/dashboard">
-                  <Button size="sm" className="ml-2 breathing-ring">
+                  <Button size="sm" variant="outline" className="ml-1">
                     HR Dashboard
                   </Button>
                 </Link>
@@ -127,9 +138,14 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
                   </Link>
                 </motion.div>
               ))}
+              <Link to="/jobs" onClick={() => setMobileOpen(false)}>
+                <Button size="sm" className="mt-2 w-full btn-sheen">
+                  View open roles
+                </Button>
+              </Link>
               {isHrUser && (
                 <Link to="/dashboard" onClick={() => setMobileOpen(false)}>
-                  <Button size="sm" className="w-full mt-2">
+                  <Button size="sm" variant="outline" className="mt-2 w-full">
                     HR Dashboard
                   </Button>
                 </Link>

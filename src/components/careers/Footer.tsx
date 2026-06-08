@@ -1,5 +1,6 @@
 import { Linkedin, Mail, MapPin } from "lucide-react";
 import { forwardRef } from "react";
+import { Link } from "react-router-dom";
 import { SITE } from "@/data/site";
 
 const Footer = forwardRef<HTMLElement>((_, ref) => {
@@ -19,10 +20,10 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
           <div>
             <h4 className="font-semibold text-sm mb-3 text-foreground">Careers</h4>
             <ul className="space-y-2">
-              <li><a href="/jobs" className="text-sm text-muted-foreground hover:text-primary transition-colors">Open Positions</a></li>
-              <li><a href="/life" className="text-sm text-muted-foreground hover:text-primary transition-colors">Life at Lumofy</a></li>
-              <li><a href="/benefits" className="text-sm text-muted-foreground hover:text-primary transition-colors">Benefits</a></li>
-              <li><a href="/about" className="text-sm text-muted-foreground hover:text-primary transition-colors">About Us</a></li>
+              <li><Link to="/jobs" className="text-sm text-muted-foreground hover:text-primary transition-colors">Open Positions</Link></li>
+              <li><Link to="/#team" className="text-sm text-muted-foreground hover:text-primary transition-colors">Team</Link></li>
+              <li><Link to="/#growth" className="text-sm text-muted-foreground hover:text-primary transition-colors">Growth</Link></li>
+              <li><Link to="/#principles" className="text-sm text-muted-foreground hover:text-primary transition-colors">Principles</Link></li>
             </ul>
           </div>
 

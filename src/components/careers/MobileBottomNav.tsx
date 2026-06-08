@@ -1,13 +1,13 @@
 import { forwardRef } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Briefcase, Heart, Info, Gift } from "lucide-react";
+import { Home, Briefcase, Users, Sparkles, Send } from "lucide-react";
 
 const navItems = [
   { to: "/", label: "Home", icon: Home },
-  { to: "/jobs", label: "Jobs", icon: Briefcase },
-  { to: "/life", label: "Life", icon: Heart },
-  { to: "/about", label: "About", icon: Info },
-  { to: "/benefits", label: "Benefits", icon: Gift },
+  { to: "/#why", label: "Mission", icon: Sparkles },
+  { to: "/#team", label: "Team", icon: Users },
+  { to: "/#roles", label: "Roles", icon: Briefcase },
+  { to: "/jobs", label: "Apply", icon: Send },
 ];
 
 const MobileBottomNav = forwardRef<HTMLElement>((_, ref) => {
