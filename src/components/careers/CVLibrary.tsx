@@ -1,12 +1,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Search, Upload, FolderTree, ChevronRight, ChevronDown,
-  Download, Brain, Pencil, Eye, Loader2, X, Tag, FileText,
+  Download, Brain, Pencil, Loader2, X, Tag, FileText,
   AlertCircle, Check, Archive, RefreshCw, User, Mail, Phone,
-  Globe, MapPin, Briefcase, Star, Filter, ArrowUpDown, Plus,
-  Shield, TrendingUp, Target, MessageSquare, Zap, BarChart3,
-  AlertTriangle, BookOpen, Lightbulb, ThumbsUp, ThumbsDown,
-  Layers, History, UserPlus, Palette
+  Globe, MapPin, Briefcase, Filter, ArrowUpDown, Plus,
+  Shield, TrendingUp, Target, BarChart3,
+  AlertTriangle, History, Trash2
 } from "lucide-react";
 import SmartSearch, { parseQuery, type ParsedQuery } from "./cvlibrary/SmartSearch";
 import SavedFilters, { type SavedFilter } from "./cvlibrary/SavedFilters";
@@ -20,6 +19,8 @@ import ExportReporting from "./cvlibrary/ExportReporting";
 import DataCompleteness from "./cvlibrary/DataCompleteness";
 import GDPRRetention from "./cvlibrary/GDPRRetention";
 import AuditTrail, { type AuditEntry } from "./cvlibrary/AuditTrail";
+import TrashBin from "./cvlibrary/TrashBin";
+import CandidateAnalysis, { type CVAIAnalysis } from "./cvlibrary/CandidateAnalysis";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -31,48 +32,9 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Progress } from "@/components/ui/progress";
-import {
-  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
-} from "@/components/ui/accordion";
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { TONE_SOFT, TONE_TEXT, TONE_BORDER } from "./statusColors";
-
-interface CVAIAnalysis {
-  fitScore: number;
-  fitLevel: string;
-  recommendation: string;
-  recommendationJustification: string;
-  summary: string;
-  strengths: string[];
-  gaps: string[];
-  skillsAlignment: { requiredSkill: string; evidence: string; detail: string }[];
-  skillsCoveragePercent: number;
-  detectedSkills: string[];
-  missingSkills: string[];
-  experienceVerification: {
-    totalYears: string;
-    seniorityAlignment: string;
-    industryRelevance: string;
-  };
-  riskIndicators: string[];
-  organizationalFit: string;
-  growthPotential: string;
-  evidenceCitations: string[];
-  interviewQuestions: string[];
-  feedback: string;
-  analyzedAt: string;
-  // Recruiter-grade fields (Phase 2) — optional; older analyses won't have them.
-  professionalIdentity?: { primary: string; primaryConfidence: number; secondary: string; secondaryConfidence: number; keyIdentity: string };
-  careerTrackAnalysis?: string;
-  evidenceFor?: string[];
-  evidenceAgainst?: string[];
-  alternativesConsidered?: { role: string; confidence: number }[];
-  departmentMatches?: { department: string; confidence: number; reason: string }[];
-  recruiterVerdict?: { shortlistFor: string; reasoning: string };
-}
+import { TONE_SOFT, TONE_TEXT, TONE_BORDER, scoreTone } from "./statusColors";
 
 interface CVCandidate {
   id: string;
@@ -135,13 +97,7 @@ const RECOMMENDATION_COLORS: Record<string, string> = {
   "Not Recommended": `${TONE_SOFT.danger} ${TONE_BORDER.danger}`,
 };
 
-const FIT_COLORS: Record<string, string> = {
-  "Strong Fit": TONE_TEXT.success,
-  "Moderate Fit": TONE_TEXT.warning,
-  "Low Fit": TONE_TEXT.danger,
-};
-
-type CVSubTab = "library" | "duplicates" | "insights" | "matching" | "reparse" | "export" | "completeness" | "gdpr" | "audit";
+type CVSubTab = "library" | "duplicates" | "insights" | "matching" | "reparse" | "export" | "completeness" | "gdpr" | "audit" | "trash";
 
 interface Props {
   sessionToken: string;
@@ -376,7 +332,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
   };
 
   const handleDelete = async (candidateId: string) => {
-    if (!confirm("Delete this CV permanently?")) return;
+    if (!confirm("Move this CV to Trash? You can restore it from the Trash tab, or delete it permanently there.")) return;
     try {
       const { error } = await supabase.functions.invoke("cv-library-manage", {
         body: { action: "delete", sessionToken, candidateId },
@@ -384,7 +340,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
       if (error) throw error;
       setCandidates(prev => prev.filter(c => c.id !== candidateId));
       if (selectedCandidate?.id === candidateId) setSelectedCandidate(null);
-      toast.success("Deleted");
+      toast.success("Moved to Trash");
     } catch {
       toast.error("Delete failed");
     }
@@ -525,7 +481,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
           {/* Left: Candidate Info + AI Analysis */}
           <div className="lg:col-span-2 space-y-4">
             {/* Candidate Card */}
-            <div className="rounded-xl bg-card border border-border p-6">
+            <div className="rounded-2xl bg-card border border-border p-6 light-glow">
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h1 className="text-2xl font-bold">{c.name || "Unknown Candidate"}</h1>
@@ -579,7 +535,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
             </div>
 
             {/* AI Classification */}
-            <div className="rounded-xl bg-card border border-border p-6">
+            <div className="rounded-2xl bg-card border border-border p-6 light-glow">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
                 <Brain className="w-4 h-4 text-primary" /> AI Classification
               </h3>
@@ -654,367 +610,21 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
               )}
             </div>
 
-            {/* ====== AI ANALYSIS SECTION ====== */}
-            {(isAnalyzing || isProcessing) ? (
-              <div className="rounded-xl bg-card border border-border p-8 flex flex-col items-center justify-center gap-3">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Running AI analysis...</p>
-              </div>
-            ) : ai ? (
-              <div className="space-y-4">
-                {/* ===== Professional Identity & Recruiter Verdict (recruiter-grade) ===== */}
-                {(ai.professionalIdentity || ai.recruiterVerdict) && (
-                  <div className="rounded-xl bg-card border border-border p-6 space-y-4">
-                    <h3 className="font-semibold flex items-center gap-2">
-                      <UserPlus className="w-4 h-4 text-primary" /> Professional Identity
-                    </h3>
-                    {ai.professionalIdentity?.keyIdentity && (
-                      <p className="text-sm italic text-foreground/90 border-l-2 border-primary/40 pl-3">"{ai.professionalIdentity.keyIdentity}"</p>
-                    )}
-                    {ai.professionalIdentity && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="rounded-lg bg-secondary/40 p-3">
-                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Primary identity</p>
-                          <p className="font-semibold text-sm">{ai.professionalIdentity.primary}</p>
-                          {typeof ai.professionalIdentity.primaryConfidence === "number" && (
-                            <p className="text-xs text-primary mt-0.5">{ai.professionalIdentity.primaryConfidence}% confidence</p>
-                          )}
-                        </div>
-                        <div className="rounded-lg bg-secondary/40 p-3">
-                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Secondary identity</p>
-                          <p className="font-semibold text-sm">{ai.professionalIdentity.secondary}</p>
-                          {typeof ai.professionalIdentity.secondaryConfidence === "number" && (
-                            <p className="text-xs text-muted-foreground mt-0.5">{ai.professionalIdentity.secondaryConfidence}% confidence</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {ai.careerTrackAnalysis && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1">Career track analysis</p>
-                        <p className="text-sm">{ai.careerTrackAnalysis}</p>
-                      </div>
-                    )}
-                    {(ai.evidenceFor?.length || ai.evidenceAgainst?.length) ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <p className={`text-xs font-medium mb-2 ${TONE_TEXT.success}`}>Evidence for</p>
-                          <ul className="space-y-1.5">
-                            {(ai.evidenceFor || []).map((e, i) => (
-                              <li key={i} className="text-sm flex items-start gap-1.5"><Check className={`w-3 h-3 mt-0.5 flex-shrink-0 ${TONE_TEXT.success}`} aria-hidden="true" />{e}</li>
-                            ))}
-                            {!ai.evidenceFor?.length && <li className="text-xs text-muted-foreground">None noted</li>}
-                          </ul>
-                        </div>
-                        <div>
-                          <p className={`text-xs font-medium mb-2 ${TONE_TEXT.warning}`}>Evidence against</p>
-                          <ul className="space-y-1.5">
-                            {(ai.evidenceAgainst || []).map((e, i) => (
-                              <li key={i} className="text-sm flex items-start gap-1.5"><AlertCircle className={`w-3 h-3 mt-0.5 flex-shrink-0 ${TONE_TEXT.warning}`} aria-hidden="true" />{e}</li>
-                            ))}
-                            {!ai.evidenceAgainst?.length && <li className="text-xs text-muted-foreground">None noted</li>}
-                          </ul>
-                        </div>
-                      </div>
-                    ) : null}
-                    {ai.alternativesConsidered?.length ? (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-2">Alternatives considered</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {ai.alternativesConsidered.map((a, i) => (
-                            <Badge key={i} variant="outline" className="text-[11px]">{a.role} · {a.confidence}%</Badge>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                    {ai.recruiterVerdict && (
-                      <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
-                        <p className="text-xs font-semibold text-primary mb-1 flex items-center gap-1.5"><Target className="w-3.5 h-3.5" /> Recruiter verdict — shortlist for: {ai.recruiterVerdict.shortlistFor}</p>
-                        <p className="text-sm">{ai.recruiterVerdict.reasoning}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* AI Rating & Recommendation Header */}
-                <div className="rounded-xl bg-card border border-border p-6">
-                  <h3 className="font-semibold mb-4 flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-primary" /> AI Rating & Feedback
-                  </h3>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                    {/* Fit Score */}
-                    <div className="rounded-lg bg-secondary/50 p-4 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">Fit Score</p>
-                      <p className="text-3xl font-bold">{ai.fitScore}<span className="text-base text-muted-foreground">/100</span></p>
-                      <p className={`text-sm font-medium mt-1 ${FIT_COLORS[ai.fitLevel] || "text-muted-foreground"}`}>{ai.fitLevel}</p>
-                    </div>
-                    {/* Skills Coverage */}
-                    <div className="rounded-lg bg-secondary/50 p-4 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">Skills Coverage</p>
-                      <p className="text-3xl font-bold">{ai.skillsCoveragePercent}<span className="text-base text-muted-foreground">%</span></p>
-                      <Progress value={ai.skillsCoveragePercent} className="mt-2 h-1.5" />
-                    </div>
-                    {/* Recommendation */}
-                    <div className="rounded-lg bg-secondary/50 p-4 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">AI Recommendation</p>
-                      <Badge className={`text-xs mt-1 ${RECOMMENDATION_COLORS[ai.recommendation] || ""}`}>
-                        {ai.recommendation}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Candidate Summary */}
-                  <div className="rounded-lg bg-secondary/30 p-4">
-                    <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
-                      <BookOpen className="w-3 h-3" /> Candidate Summary
-                    </p>
-                    <p className="text-sm">{ai.summary}</p>
-                  </div>
-
-                  {ai.recommendationJustification && (
-                    <div className="mt-3 rounded-lg bg-secondary/30 p-4">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Recommendation Justification</p>
-                      <p className="text-sm">{ai.recommendationJustification}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Detailed Analysis Accordion */}
-                <div className="rounded-xl bg-card border border-border p-6">
-                  <Accordion type="multiple" defaultValue={["skills", "strengths", "experience"]}>
-                    {/* Skills Alignment */}
-                    <AccordionItem value="skills">
-                      <AccordionTrigger className="text-sm font-semibold">
-                        <span className="flex items-center gap-2">
-                          <Target className="w-4 h-4 text-primary" /> Skills Alignment
-                        </span>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        {ai.skillsAlignment?.length > 0 ? (
-                          <div className="space-y-2">
-                            {ai.skillsAlignment.map((s, i) => (
-                              <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-secondary/30">
-                                <div className="mt-0.5">
-                                  {s.evidence === "Yes" ? (
-                                    <Check className={`w-4 h-4 ${TONE_TEXT.success}`} aria-hidden="true" />
-                                  ) : s.evidence === "Partial" ? (
-                                    <AlertCircle className={`w-4 h-4 ${TONE_TEXT.warning}`} aria-hidden="true" />
-                                  ) : (
-                                    <X className="w-4 h-4 text-destructive" aria-hidden="true" />
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium">{s.requiredSkill}</p>
-                                  <p className="text-xs text-muted-foreground">{s.detail}</p>
-                                </div>
-                                <Badge variant="outline" className="text-[10px] flex-shrink-0">{s.evidence}</Badge>
-                              </div>
-                            ))}
-                          </div>
-                        ) : <p className="text-sm text-muted-foreground">No skills alignment data.</p>}
-
-                        {/* Detected & Missing Skills */}
-                        <div className="grid grid-cols-2 gap-4 mt-4">
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
-                              <ThumbsUp className="w-3 h-3" /> Detected Skills
-                            </p>
-                            <div className="flex flex-wrap gap-1">
-                              {ai.detectedSkills?.map((s, i) => (
-                                <Badge key={i} variant="secondary" className={`text-[10px] ${TONE_SOFT.success}`}>{s}</Badge>
-                              ))}
-                              {(!ai.detectedSkills || ai.detectedSkills.length === 0) && <p className="text-xs text-muted-foreground">None detected</p>}
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
-                              <ThumbsDown className="w-3 h-3" /> Missing Skills
-                            </p>
-                            <div className="flex flex-wrap gap-1">
-                              {ai.missingSkills?.map((s, i) => (
-                                <Badge key={i} variant="secondary" className="text-[10px] bg-destructive/10 text-destructive">{s}</Badge>
-                              ))}
-                              {(!ai.missingSkills || ai.missingSkills.length === 0) && <p className="text-xs text-muted-foreground">None missing</p>}
-                            </div>
-                          </div>
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-
-                    {/* Strengths & Gaps */}
-                    <AccordionItem value="strengths">
-                      <AccordionTrigger className="text-sm font-semibold">
-                        <span className="flex items-center gap-2">
-                          <Star className="w-4 h-4 text-primary" /> Strengths & Gaps
-                        </span>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <p className={`text-xs font-medium mb-2 ${TONE_TEXT.success}`}>Strengths</p>
-                            <ul className="space-y-1.5">
-                              {ai.strengths?.map((s, i) => (
-                                <li key={i} className="text-sm flex items-start gap-1.5">
-                                  <Check className={`w-3 h-3 mt-0.5 flex-shrink-0 ${TONE_TEXT.success}`} aria-hidden="true" />
-                                  {s}
-                                </li>
-                              ))}
-                              {(!ai.strengths || ai.strengths.length === 0) && <p className="text-xs text-muted-foreground">None identified</p>}
-                            </ul>
-                          </div>
-                          <div>
-                            <p className="text-xs font-medium text-destructive mb-2">Gaps</p>
-                            <ul className="space-y-1.5">
-                              {ai.gaps?.map((g, i) => (
-                                <li key={i} className="text-sm flex items-start gap-1.5">
-                                  <AlertCircle className="w-3 h-3 text-destructive mt-0.5 flex-shrink-0" aria-hidden="true" />
-                                  {g}
-                                </li>
-                              ))}
-                              {(!ai.gaps || ai.gaps.length === 0) && <p className="text-xs text-muted-foreground">None identified</p>}
-                            </ul>
-                          </div>
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-
-                    {/* Experience Verification */}
-                    <AccordionItem value="experience">
-                      <AccordionTrigger className="text-sm font-semibold">
-                        <span className="flex items-center gap-2">
-                          <Briefcase className="w-4 h-4 text-primary" /> Experience Verification
-                        </span>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        {ai.experienceVerification ? (
-                          <div className="grid grid-cols-3 gap-4">
-                            <div className="rounded-lg bg-secondary/30 p-3">
-                              <p className="text-xs text-muted-foreground">Total Years</p>
-                              <p className="text-sm font-medium">{ai.experienceVerification.totalYears}</p>
-                            </div>
-                            <div className="rounded-lg bg-secondary/30 p-3">
-                              <p className="text-xs text-muted-foreground">Seniority Alignment</p>
-                              <p className="text-sm font-medium">{ai.experienceVerification.seniorityAlignment}</p>
-                            </div>
-                            <div className="rounded-lg bg-secondary/30 p-3">
-                              <p className="text-xs text-muted-foreground">Industry Relevance</p>
-                              <p className="text-sm font-medium">{ai.experienceVerification.industryRelevance}</p>
-                            </div>
-                          </div>
-                        ) : <p className="text-sm text-muted-foreground">No experience data.</p>}
-                      </AccordionContent>
-                    </AccordionItem>
-
-                    {/* Hiring Risk Indicators */}
-                    <AccordionItem value="risk">
-                      <AccordionTrigger className="text-sm font-semibold">
-                        <span className="flex items-center gap-2">
-                          <AlertTriangle className={`w-4 h-4 ${TONE_TEXT.warning}`} aria-hidden="true" /> Hiring Risk Indicators
-                        </span>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        {ai.riskIndicators?.length > 0 ? (
-                          <ul className="space-y-1.5">
-                            {ai.riskIndicators.map((r, i) => (
-                              <li key={i} className="text-sm flex items-start gap-1.5">
-                                <AlertTriangle className={`w-3 h-3 mt-0.5 flex-shrink-0 ${TONE_TEXT.warning}`} aria-hidden="true" />
-                                {r}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : <p className="text-sm text-muted-foreground">No risk indicators found.</p>}
-                      </AccordionContent>
-                    </AccordionItem>
-
-                    {/* Organizational Fit & Growth Potential */}
-                    <AccordionItem value="orgfit">
-                      <AccordionTrigger className="text-sm font-semibold">
-                        <span className="flex items-center gap-2">
-                          <TrendingUp className="w-4 h-4 text-primary" /> Organizational Fit & Growth
-                        </span>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="space-y-3">
-                          <div className="rounded-lg bg-secondary/30 p-3">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">Organizational Fit</p>
-                            <p className="text-sm">{ai.organizationalFit || "Not assessed"}</p>
-                          </div>
-                          <div className="rounded-lg bg-secondary/30 p-3">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">Growth Potential</p>
-                            <p className="text-sm">{ai.growthPotential || "Not assessed"}</p>
-                          </div>
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-
-                    {/* Evidence Citations */}
-                    <AccordionItem value="evidence">
-                      <AccordionTrigger className="text-sm font-semibold">
-                        <span className="flex items-center gap-2">
-                          <BookOpen className="w-4 h-4 text-primary" /> Evidence Citations
-                        </span>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        {ai.evidenceCitations?.length > 0 ? (
-                          <ul className="space-y-2">
-                            {ai.evidenceCitations.map((e, i) => (
-                              <li key={i} className="text-sm p-2 rounded-lg bg-secondary/30 border-l-2 border-primary/40 italic">
-                                "{e}"
-                              </li>
-                            ))}
-                          </ul>
-                        ) : <p className="text-sm text-muted-foreground">No evidence citations.</p>}
-                      </AccordionContent>
-                    </AccordionItem>
-
-                    {/* Interview Questions */}
-                    <AccordionItem value="questions">
-                      <AccordionTrigger className="text-sm font-semibold">
-                        <span className="flex items-center gap-2">
-                          <MessageSquare className="w-4 h-4 text-primary" /> Interview Questions to Ask
-                        </span>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        {ai.interviewQuestions?.length > 0 ? (
-                          <ol className="space-y-2 list-decimal list-inside">
-                            {ai.interviewQuestions.map((q, i) => (
-                              <li key={i} className="text-sm">{q}</li>
-                            ))}
-                          </ol>
-                        ) : <p className="text-sm text-muted-foreground">No questions suggested.</p>}
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </div>
-
-                {/* Final AI Feedback */}
-                <div className="rounded-xl bg-card border border-border p-6">
-                  <h3 className="font-semibold mb-2 flex items-center gap-2">
-                    <Lightbulb className="w-4 h-4 text-primary" /> Final AI Feedback
-                  </h3>
-                  <p className="text-sm">{ai.feedback}</p>
-                  {ai.analyzedAt && (
-                    <p className="text-[10px] text-muted-foreground mt-3">
-                      Analyzed on {new Date(ai.analyzedAt).toLocaleString()}
-                    </p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-xl bg-card border border-border p-8 text-center">
-                <Brain className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
-                <p className="text-sm text-muted-foreground mb-3">No AI analysis yet</p>
-                <Button size="sm" onClick={() => processCandidate(c.id)} disabled={isBusy}>
-                  <Brain className="w-4 h-4 mr-2" /> Run AI analysis
-                </Button>
-              </div>
-            )}
+            {/* ====== AI ANALYSIS ====== */}
+            <CandidateAnalysis
+              ai={ai}
+              analyzing={isBusy}
+              onRun={() => {
+                processCandidate(c.id);
+                addAudit(c.id, c.name || "Unknown", "ai_parse");
+              }}
+              disabled={isBusy}
+            />
           </div>
 
           {/* Right: Actions */}
-          <div className="space-y-4">
-            <div className="rounded-xl bg-card border border-border p-4 space-y-2">
+          <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+            <div className="rounded-2xl bg-card border border-border p-4 space-y-2 light-glow">
               <h3 className="font-semibold text-sm mb-3">Actions</h3>
               <Button className="w-full justify-start" variant="outline" size="sm" onClick={() => handleDownload(c.id)}>
                 <Download className="w-4 h-4 mr-2" /> Download CV
@@ -1058,41 +668,10 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
 
               <div className="border-t border-border pt-2 mt-2">
                 <Button className="w-full justify-start text-destructive" variant="ghost" size="sm" onClick={() => handleDelete(c.id)}>
-                  <X className="w-4 h-4 mr-2" /> Delete CV
+                  <Trash2 className="w-4 h-4 mr-2" /> Move to Trash
                 </Button>
               </div>
             </div>
-
-            {/* Quick AI Summary sidebar card */}
-            {ai && (
-              <div className="rounded-xl bg-card border border-border p-4">
-                <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-primary" /> Quick Stats
-                </h3>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Fit Score</span>
-                    <span className="font-bold">{ai.fitScore}/100</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Skills Coverage</span>
-                    <span className="font-bold">{ai.skillsCoveragePercent}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Detected</span>
-                    <span className="font-bold">{ai.detectedSkills?.length || 0} skills</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Missing</span>
-                    <span className="font-bold">{ai.missingSkills?.length || 0} skills</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Risks</span>
-                    <span className="font-bold">{ai.riskIndicators?.length || 0}</span>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -1111,6 +690,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
     { id: "completeness", label: "Quality", icon: <BarChart3 className="w-3.5 h-3.5" /> },
     { id: "gdpr", label: "GDPR", icon: <Shield className="w-3.5 h-3.5" /> },
     { id: "audit", label: "Audit", icon: <History className="w-3.5 h-3.5" /> },
+    { id: "trash", label: "Trash", icon: <Trash2 className="w-3.5 h-3.5" /> },
   ];
 
   // ---- Main CV Library View ----
@@ -1210,6 +790,10 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
 
       {subTab === "audit" && (
         <AuditTrail entries={auditLog} />
+      )}
+
+      {subTab === "trash" && (
+        <TrashBin sessionToken={sessionToken} onChange={fetchCandidates} />
       )}
 
       {/* Main Library Tab */}
@@ -1365,7 +949,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
                     return (
                       <div
                         key={c.id}
-                        className="rounded-xl bg-card border border-border p-4 cursor-pointer hover:border-primary/30 transition-colors"
+                        className="group rounded-2xl bg-card border border-border p-4 cursor-pointer transition-all duration-200 hover:border-primary/40 hover:-translate-y-0.5 light-glow"
                         onClick={() => {
                           setSelectedCandidate(c);
                           addAudit(c.id, c.name || "Unknown", "view");
@@ -1385,8 +969,8 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
                                 </Badge>
                               )}
                               {ai && (
-                                <Badge variant="outline" className="text-[10px]">
-                                  Score: {ai.fitScore}/100
+                                <Badge className={`text-[10px] border-0 ${TONE_SOFT[scoreTone(ai.fitScore)]}`}>
+                                  <Brain className="w-2.5 h-2.5 mr-1" aria-hidden="true" /> {ai.fitScore}/100
                                 </Badge>
                               )}
                               {isDuplicate && (

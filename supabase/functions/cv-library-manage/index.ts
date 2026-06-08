@@ -18,12 +18,28 @@ Deno.serve(async (req) => {
     if (!auth.valid) return auth.response;
     const supabase = auth.supabase;
 
-    // LIST candidates
+    // LIST candidates (active only — soft-deleted rows are hidden)
     if (action === "list") {
       const { data, error } = await supabase
         .from("cv_library_candidates")
         .select("*")
+        .is("deleted_at", null)
         .order("uploaded_at", { ascending: false })
+        .limit(500);
+
+      if (error) throw error;
+      return new Response(JSON.stringify({ candidates: data }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // LIST TRASH — soft-deleted candidates (the recycle bin)
+    if (action === "list-trash") {
+      const { data, error } = await supabase
+        .from("cv_library_candidates")
+        .select("*")
+        .not("deleted_at", "is", null)
+        .order("deleted_at", { ascending: false })
         .limit(500);
 
       if (error) throw error;
@@ -73,10 +89,42 @@ Deno.serve(async (req) => {
       });
     }
 
-    // DELETE candidate
+    // DELETE candidate — SOFT delete (recoverable). Keeps the stored file so a
+    // restore can recover it. Use the "purge" action for permanent erasure.
     if (action === "delete") {
       const { candidateId } = body;
-      
+
+      const { error } = await supabase
+        .from("cv_library_candidates")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", candidateId);
+
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // RESTORE a soft-deleted candidate back into the active library
+    if (action === "restore") {
+      const { candidateId } = body;
+
+      const { error } = await supabase
+        .from("cv_library_candidates")
+        .update({ deleted_at: null })
+        .eq("id", candidateId);
+
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // PURGE — permanent erasure (GDPR right to be forgotten). Removes the stored
+    // CV file AND the row. Irreversible.
+    if (action === "purge") {
+      const { candidateId } = body;
+
       // Get file path first
       const { data: candidate } = await supabase
         .from("cv_library_candidates")

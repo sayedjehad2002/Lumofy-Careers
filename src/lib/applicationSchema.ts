@@ -11,6 +11,18 @@ import { z } from "zod";
  */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Lenient URL shape: needs a scheme + host + dot (e.g. https://example.com).
+// We keep it simple rather than full RFC — enough to catch obvious typos while
+// not rejecting valid-but-unusual profile links.
+const URL_RE = /^https?:\/\/.+\..+/i;
+
+// Optional link field: empty/whitespace is allowed; if filled it must look like a URL.
+const optionalUrl = (message: string) =>
+  z
+    .string()
+    .trim()
+    .optional()
+    .refine((v) => !v || URL_RE.test(v), { message });
 
 export const applicationSchema = z.object({
   fullName: z.string().trim().min(1, "Full name is required"),
@@ -18,8 +30,8 @@ export const applicationSchema = z.object({
   phone: z.string().trim().min(1, "Phone number is required"),
   location: z.string().trim().min(1, "Location is required"),
   nationality: z.string().trim().min(1, "Please select your nationality"),
-  linkedin: z.string().trim().optional(),
-  portfolio: z.string().trim().optional(),
+  linkedin: optionalUrl("Enter a valid URL (https://…)"),
+  portfolio: optionalUrl("Enter a valid URL (https://…)"),
   coverLetter: z.string().trim().optional(),
 });
 

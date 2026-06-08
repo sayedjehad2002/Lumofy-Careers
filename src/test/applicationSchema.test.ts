@@ -17,6 +17,29 @@ describe("applicationSchema / getApplicationFieldErrors", () => {
   it("treats linkedin / portfolio / coverLetter as optional", () => {
     expect(getApplicationFieldErrors({ ...valid, linkedin: "", portfolio: "", coverLetter: "" })).toEqual({});
     expect(getApplicationFieldErrors({ ...valid, coverLetter: "I would love to join." })).toEqual({});
+    // whitespace-only links are trimmed to empty -> still optional
+    expect(getApplicationFieldErrors({ ...valid, linkedin: "   ", portfolio: "   " })).toEqual({});
+  });
+
+  it("accepts valid linkedin / portfolio URLs", () => {
+    expect(
+      getApplicationFieldErrors({
+        ...valid,
+        linkedin: "https://linkedin.com/in/ada",
+        portfolio: "http://ada.dev",
+      }),
+    ).toEqual({});
+  });
+
+  it("flags malformed linkedin / portfolio URLs but keeps them optional", () => {
+    expect(getApplicationFieldErrors({ ...valid, linkedin: "linkedin.com/in/ada" }).linkedin).toBe(
+      "Enter a valid URL (https://…)",
+    );
+    expect(getApplicationFieldErrors({ ...valid, portfolio: "not a url" }).portfolio).toBe(
+      "Enter a valid URL (https://…)",
+    );
+    // empty stays valid (optional)
+    expect(getApplicationFieldErrors({ ...valid, linkedin: "", portfolio: "" })).toEqual({});
   });
 
   it("flags a missing full name", () => {

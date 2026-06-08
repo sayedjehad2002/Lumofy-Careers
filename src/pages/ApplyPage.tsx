@@ -1,6 +1,6 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Upload, CheckCircle, Loader2, X, FileText, User, Briefcase, HelpCircle } from "lucide-react";
-import { useState, useRef, useMemo } from "react";
+import { ArrowLeft, Upload, CheckCircle, Loader2, X, FileText, User, Briefcase, HelpCircle, Info } from "lucide-react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -67,12 +67,14 @@ function ProgressIndicator({ current }: { current: number }) {
 function NationalitySelect({
   value,
   onChange,
+  onBlur,
   error,
   id,
   errorId,
 }: {
   value: string;
   onChange: (v: string) => void;
+  onBlur?: () => void;
   error?: string;
   id?: string;
   errorId?: string;
@@ -80,6 +82,12 @@ function NationalitySelect({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Validate when the dropdown closes (the select-equivalent of blur).
+  const close = () => {
+    setOpen(false);
+    onBlur?.();
+  };
 
   const filtered = useMemo(() => {
     if (!search) return NATIONALITIES as unknown as string[];
@@ -103,6 +111,11 @@ function NationalitySelect({
           setOpen(true);
           setTimeout(() => inputRef.current?.focus(), 50);
         }}
+        onBlur={() => {
+          // Tabbed away without opening the list — validate. (When the list is
+          // open, focus moves into the search input, so this won't fire early.)
+          if (!open) onBlur?.();
+        }}
       >
         {value ? (
           <span className="flex-1">{value}</span>
@@ -112,7 +125,7 @@ function NationalitySelect({
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0 z-40" onClick={close} />
           <div className="absolute top-full z-50 mt-1 flex max-h-64 w-full flex-col overflow-hidden rounded-md border border-border bg-popover shadow-lg">
             <div className="border-b border-border p-2">
               <Input
@@ -140,7 +153,7 @@ function NationalitySelect({
                     onClick={() => {
                       onChange(n);
                       setSearch("");
-                      setOpen(false);
+                      close();
                     }}
                   >
                     {n}
@@ -166,8 +179,17 @@ const ApplyPage = () => {
 
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Two-phase submit feedback: the CTA + an aria-live region reflect the real
+  // awaited phase (upload-cv, then submit-application). No fake percentage —
+  // the invoke calls don't expose progress, so honest phase text is the signal.
+  const [submitPhase, setSubmitPhase] = useState<"uploading" | "submitting" | null>(null);
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [cvError, setCvError] = useState("");
+  // Drag-and-drop visual state for the CV dropzone.
+  const [isDragging, setIsDragging] = useState(false);
+  // Mirrors the submission-error toast into an aria-live region so screen-reader
+  // users hear failures (toasts alone aren't reliably announced).
+  const [submitError, setSubmitError] = useState("");
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -220,8 +242,9 @@ const ApplyPage = () => {
     );
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  // Shared CV validation used by BOTH click-to-pick and drag-and-drop so the
+  // rules can never drift apart. Returns nothing; sets state directly.
+  const acceptFile = useCallback((file: File | null | undefined) => {
     setCvError("");
     if (!file) return;
     const validTypes = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
@@ -243,6 +266,48 @@ const ApplyPage = () => {
       if (!prev.cv) return prev;
       const next = { ...prev };
       delete next.cv;
+      return next;
+    });
+  }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    acceptFile(e.target.files?.[0]);
+  };
+
+  // ── Drag-and-drop handlers (share acceptFile with the click path) ──
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+  const handleDragOver = (e: React.DragEvent) => {
+    // Must preventDefault on dragover for the drop event to fire.
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) setIsDragging(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only clear when leaving the dropzone itself, not when moving over children.
+    if (e.currentTarget === e.target) setIsDragging(false);
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    acceptFile(e.dataTransfer.files?.[0]);
+  };
+
+  // Validate a single personal field on blur (without triggering the
+  // submit-time gate). We run the whole schema but only sync THIS field's
+  // error entry, so we never surface errors for fields the user hasn't reached.
+  const handleFieldBlur = (key: string) => {
+    const fieldErrs = getApplicationFieldErrors(formData);
+    setErrors((prev) => {
+      const next = { ...prev };
+      if (fieldErrs[key]) next[key] = fieldErrs[key];
+      else delete next[key];
       return next;
     });
   };
@@ -275,10 +340,20 @@ const ApplyPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) { toast.error("Please fill in all required fields."); return; }
+    if (!validate()) {
+      const msg = "Please fix the highlighted fields before submitting.";
+      setSubmitError(msg);
+      toast.error("Please fill in all required fields.");
+      return;
+    }
     if (submitting) return;
 
+    // Toast + aria-live mirror so screen readers hear submission failures too.
+    const fail = (msg: string) => { setSubmitError(msg); toast.error(msg); };
+
+    setSubmitError("");
     setSubmitting(true);
+    setSubmitPhase("uploading");
     try {
       const uploadForm = new FormData();
       uploadForm.append("file", cvFile!);
@@ -290,7 +365,7 @@ const ApplyPage = () => {
       });
 
       if (uploadError || uploadData?.error) {
-        toast.error(uploadData?.error || "Failed to upload CV. Please try again.");
+        fail(uploadData?.error || "Failed to upload CV. Please try again.");
         setSubmitting(false);
         return;
       }
@@ -298,7 +373,7 @@ const ApplyPage = () => {
       // P0 guard: the upload-cv response must include both storagePath and applicantId
       // before we destructure/use them, otherwise the page would crash on undefined.
       if (!uploadData?.storagePath || !uploadData?.applicantId) {
-        toast.error("Upload failed, please try again.");
+        fail("Upload failed, please try again.");
         setSubmitting(false);
         return;
       }
@@ -326,6 +401,7 @@ const ApplyPage = () => {
         notes: [],
       };
 
+      setSubmitPhase("submitting");
       const newApplicantId = await addApplicant(newApplicant);
       setSubmitted(true);
       toast.success("Application submitted successfully!");
@@ -340,16 +416,17 @@ const ApplyPage = () => {
       import.meta.env.DEV && console.error("Submit error:", err);
       const msg = err?.message || "";
       if (msg === "already_applied" || msg.includes("duplicate")) {
-        toast.error("It looks like you've already applied for this position.");
+        fail("It looks like you've already applied for this position.");
       } else if (msg.includes("no longer accepting") || msg.includes("deadline has passed")) {
-        toast.error(msg);
+        fail(msg);
       } else if (msg === "Job not found") {
-        toast.error("This job is no longer available.");
+        fail("This job is no longer available.");
       } else {
-        toast.error("We could not submit your application. Please try again later.");
+        fail("We could not submit your application. Please try again later.");
       }
     } finally {
       setSubmitting(false);
+      setSubmitPhase(null);
     }
   };
 
@@ -402,7 +479,13 @@ const ApplyPage = () => {
     );
   }
 
-  const field = (key: string, val: string) => ({ value: val, onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setFormData({ ...formData, [key]: e.target.value }) });
+  // Wires value + onChange (live) + onBlur (validate just this field). We don't
+  // validate on every keystroke — only when the field loses focus.
+  const field = (key: string, val: string) => ({
+    value: val,
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setFormData({ ...formData, [key]: e.target.value }),
+    onBlur: () => handleFieldBlur(key),
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -459,7 +542,7 @@ const ApplyPage = () => {
                 </div>
                 <div data-field="phone">
                   <Label htmlFor="phone" className="text-sm">Phone <span className="text-destructive">*</span></Label>
-                  <Input id="phone" {...field("phone", formData.phone)} className="mt-1.5" aria-invalid={!!errors.phone} aria-describedby={errors.phone ? "phone-error" : undefined} />
+                  <Input id="phone" type="tel" inputMode="tel" autoComplete="tel" {...field("phone", formData.phone)} className="mt-1.5" aria-invalid={!!errors.phone} aria-describedby={errors.phone ? "phone-error" : undefined} />
                   {errors.phone && <p id="phone-error" role="alert" className="mt-1 text-xs text-destructive">{errors.phone}</p>}
                 </div>
                 <div data-field="location">
@@ -475,17 +558,20 @@ const ApplyPage = () => {
                       errorId="nationality-error"
                       value={formData.nationality}
                       onChange={(v) => setFormData({ ...formData, nationality: v })}
+                      onBlur={() => handleFieldBlur("nationality")}
                       error={errors.nationality}
                     />
                   </div>
                 </div>
-                <div>
+                <div data-field="linkedin">
                   <Label htmlFor="linkedin" className="text-sm">LinkedIn Profile</Label>
-                  <Input id="linkedin" placeholder="https://linkedin.com/in/..." {...field("linkedin", formData.linkedin)} className="mt-1.5" />
+                  <Input id="linkedin" type="url" inputMode="url" placeholder="https://linkedin.com/in/..." {...field("linkedin", formData.linkedin)} className="mt-1.5" aria-invalid={!!errors.linkedin} aria-describedby={errors.linkedin ? "linkedin-error" : undefined} />
+                  {errors.linkedin && <p id="linkedin-error" role="alert" className="mt-1 text-xs text-destructive">{errors.linkedin}</p>}
                 </div>
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-2" data-field="portfolio">
                   <Label htmlFor="portfolio" className="text-sm">Portfolio / Website</Label>
-                  <Input id="portfolio" placeholder="https://..." {...field("portfolio", formData.portfolio)} className="mt-1.5" />
+                  <Input id="portfolio" type="url" inputMode="url" placeholder="https://..." {...field("portfolio", formData.portfolio)} className="mt-1.5" aria-invalid={!!errors.portfolio} aria-describedby={errors.portfolio ? "portfolio-error" : undefined} />
+                  {errors.portfolio && <p id="portfolio-error" role="alert" className="mt-1 text-xs text-destructive">{errors.portfolio}</p>}
                 </div>
                 <div className="sm:col-span-2">
                   <Label htmlFor="coverLetter" className="text-sm">Cover Letter</Label>
@@ -508,7 +594,13 @@ const ApplyPage = () => {
               data-field="cv"
             >
               <h2 className="text-lg font-bold tracking-tight">Upload CV / Resume</h2>
-              <p className="mb-5 mt-1 text-sm text-muted-foreground">PDF, DOC, DOCX · Max 10MB</p>
+              <p className="mt-1 text-sm text-muted-foreground">PDF, DOC, DOCX · Max 10MB</p>
+              {/* Honesty note: Gemini (our AI screening) can't read Word .doc/.docx,
+                  so those upload but silently skip analysis. Guide toward PDF without blocking. */}
+              <p className="mb-5 mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+                <Info className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" aria-hidden="true" />
+                <span>PDF recommended — Word files may not be readable by our AI screening.</span>
+              </p>
 
               {cvFile ? (
                 <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
@@ -531,17 +623,32 @@ const ApplyPage = () => {
               ) : (
                 <button
                   type="button"
-                  className={`w-full rounded-xl border-2 border-dashed p-10 text-center transition-all hover:bg-muted/50 ${
-                    cvError ? "border-destructive" : errors.cv ? "border-destructive/60" : "border-border hover:border-primary/40"
+                  className={`w-full rounded-xl border-2 border-dashed p-10 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                    isDragging
+                      ? "border-primary bg-primary/5"
+                      : cvError
+                      ? "border-destructive"
+                      : errors.cv
+                      ? "border-destructive/60 hover:bg-muted/50"
+                      : "border-border hover:border-primary/40 hover:bg-muted/50"
                   }`}
                   onClick={() => fileInputRef.current?.click()}
-                  aria-label="Upload your CV"
+                  onDragEnter={handleDragEnter}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  aria-label="Upload your CV. Click to browse, or drag and drop a PDF, DOC, or DOCX file."
                   aria-invalid={!!cvError || !!errors.cv}
                   aria-describedby={cvError ? "cv-error" : errors.cv ? "cv-error" : undefined}
                 >
                   <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFileChange} />
-                  <Upload className="mx-auto mb-3 h-10 w-10 text-muted-foreground" aria-hidden="true" />
-                  <p className="mb-1 text-sm font-medium">Click to upload your CV</p>
+                  <Upload
+                    className={`mx-auto mb-3 h-10 w-10 transition-colors ${isDragging ? "text-primary" : "text-muted-foreground"}`}
+                    aria-hidden="true"
+                  />
+                  <p className="mb-1 text-sm font-medium">
+                    {isDragging ? "Drop your CV here" : "Click to upload or drag & drop"}
+                  </p>
                   <p className="text-xs text-muted-foreground">PDF, DOC, DOCX · Max 10MB</p>
                 </button>
               )}
@@ -564,7 +671,7 @@ const ApplyPage = () => {
                 <div className="space-y-6">
                   {(job.screeningQuestions ?? []).map((q, idx) => (
                     <div key={q.id} data-field={`sq_${q.id}`} className={idx > 0 ? "border-t border-border pt-6" : ""}>
-                      <Label htmlFor={`sq-${q.id}`} className="text-sm font-medium">
+                      <Label id={`sq-${q.id}-label`} htmlFor={`sq-${q.id}`} className="text-sm font-medium">
                         {q.question} {q.required && <span className="text-destructive">*</span>}
                       </Label>
                       {q.type === "short_text" && (
@@ -603,6 +710,9 @@ const ApplyPage = () => {
                           value={screeningAnswers[q.id] || ""}
                           onValueChange={(v) => setScreeningAnswers({ ...screeningAnswers, [q.id]: v })}
                           className="mt-3 flex gap-6"
+                          aria-labelledby={`sq-${q.id}-label`}
+                          aria-invalid={!!errors[`sq_${q.id}`]}
+                          aria-describedby={errors[`sq_${q.id}`] ? `sq-${q.id}-error` : undefined}
                         >
                           {["Yes", "No"].map((opt) => (
                             <label
@@ -624,6 +734,9 @@ const ApplyPage = () => {
                           value={screeningAnswers[q.id] || ""}
                           onValueChange={(v) => setScreeningAnswers({ ...screeningAnswers, [q.id]: v })}
                           className="mt-3 space-y-2"
+                          aria-labelledby={`sq-${q.id}-label`}
+                          aria-invalid={!!errors[`sq_${q.id}`]}
+                          aria-describedby={errors[`sq_${q.id}`] ? `sq-${q.id}-error` : undefined}
                         >
                           {q.options.map((opt) => (
                             <label
@@ -651,8 +764,35 @@ const ApplyPage = () => {
             <div className="pt-2">
               <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base" disabled={submitting}>
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
-                {submitting ? "Submitting..." : "Submit application"}
+                {submitPhase === "uploading"
+                  ? "Uploading CV…"
+                  : submitPhase === "submitting"
+                  ? "Submitting application…"
+                  : submitting
+                  ? "Submitting…"
+                  : "Submit application"}
               </Button>
+
+              {/* Visible status for sighted users during the two awaited phases. */}
+              {submitPhase && (
+                <p className="mt-3 text-center text-xs text-muted-foreground">
+                  {submitPhase === "uploading" ? "Uploading your CV…" : "Saving your application…"}
+                </p>
+              )}
+
+              {/* Inline submission-error summary (mirrors the toast) for sighted users. */}
+              {submitError && !submitting && (
+                <p className="mt-3 text-center text-sm text-destructive">{submitError}</p>
+              )}
+
+              {/* Single polite live region announcing phase + errors to screen readers. */}
+              <p role="status" aria-live="polite" className="sr-only">
+                {submitPhase === "uploading"
+                  ? "Uploading your CV"
+                  : submitPhase === "submitting"
+                  ? "Submitting your application"
+                  : submitError || ""}
+              </p>
             </div>
           </form>
         </div>
