@@ -162,7 +162,7 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
       </div>
 
       {/* ── Hero metric row ── */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {metrics.map((m) => (
           <MetricTile key={m.label} label={m.label} value={m.value} delta={m.delta} series={m.series} onClick={() => onNavigate(m.tab)} />
         ))}

@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Mail } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import AuroraEffect from "@/components/careers/AuroraEffect";
-import { faqs, recruiter } from "@/data/careers";
+import { faqs } from "@/data/careers";
 import { useCareers } from "@/contexts/CareersContext";
 
 // Quiet FAQ + the horizon close: aurora #2, mission restatement, live count, one
@@ -16,7 +16,7 @@ const ClosingSection = () => {
   return (
     <>
       {/* FAQ — quiet */}
-      <section id="faq" className="scroll-mt-24 px-4 py-20 sm:py-24">
+      <section id="faq" className="scroll-mt-24 px-4 py-16 sm:px-6 sm:py-24 lg:px-8 lg:py-28">
         <div className="mx-auto max-w-3xl">
           <p className="mb-8 text-center font-mono text-xs uppercase tracking-[0.2em] text-primary">Questions</p>
           <Accordion type="single" collapsible className="w-full">
@@ -31,7 +31,7 @@ const ClosingSection = () => {
       </section>
 
       {/* Horizon close */}
-      <section className="relative overflow-hidden px-4 py-28 sm:py-36">
+      <section className="relative overflow-hidden px-4 py-24 sm:px-6 sm:py-32 lg:px-8 lg:py-36">
         <AuroraEffect />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
         <motion.div
@@ -58,28 +58,6 @@ const ClosingSection = () => {
                 View open roles
                 <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
               </Link>
-            </Button>
-          </div>
-
-          {/* Recruiter handoff — a real person */}
-          <div className="mx-auto mt-14 flex max-w-md items-center gap-4 rounded-2xl border border-border bg-card/70 p-4 text-left backdrop-blur">
-            <img
-              src={recruiter.photo}
-              alt={recruiter.name}
-              loading="lazy"
-              className="h-14 w-14 shrink-0 rounded-full object-cover"
-            />
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">{recruiter.name}</p>
-              <p className="truncate font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-                {recruiter.title}
-              </p>
-            </div>
-            <Button asChild variant="outline" size="sm" className="ml-auto shrink-0 rounded-lg">
-              <a href={`mailto:${recruiter.email}`}>
-                <Mail className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                Say hi
-              </a>
             </Button>
           </div>
         </motion.div>
