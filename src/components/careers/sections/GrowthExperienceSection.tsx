@@ -1,92 +1,104 @@
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Rocket, GraduationCap, HeartPulse, CalendarClock, Award, KeyRound, type LucideIcon } from "lucide-react";
 import SectionShell from "./SectionShell";
 import { growth } from "@/data/careers";
 import { fadeUp, staggerContainer, revealViewport, brandEase } from "@/lib/motion";
 import { BRAND_HUES, hueClasses } from "@/lib/deptColor";
 
-// "Growth experience" reframed as a TRAJECTORY: the six growth areas as connected nodes
-// on a single drawn path, not an isolated card grid. ONE calm reveal on scroll (the path
-// draws top-to-bottom, milestones fade in in sequence); NO continuous motion. The path +
-// glow are decorative (aria-hidden); MotionConfig keeps it reduced-motion safe.
-const spineDraw = {
-  hidden: { scaleY: 0, opacity: 0 },
-  show: { scaleY: 1, opacity: 1, transition: { duration: 1, ease: brandEase } },
-};
+// "Growth experience" as a compact, interactive "Growth OS": a left editorial column + a
+// right system panel where the six growth areas are premium chips and the selected one
+// expands into a detail panel. Hover / click / keyboard-focus a chip reveals its detail
+// (announced via aria-live, so nothing is hidden from screen readers). Compact + contained
+// — no long timeline / no big scroll. Motion is light + reduced-motion safe (MotionConfig
+// + a gentle detail crossfade).
+const ICONS: LucideIcon[] = [Rocket, GraduationCap, HeartPulse, CalendarClock, Award, KeyRound];
 
-const GrowthExperienceSection = () => (
-  <SectionShell
-    id="growth"
-    kicker="Growth experience"
-    title="Designed for the person you're becoming."
-    sub="We build workforce growth systems for organizations. Inside Lumofy, we design the same kind of clarity, trust, and momentum for our own team."
-    headerClassName="max-w-3xl"
-  >
-    <div className="relative mx-auto mt-12 max-w-2xl">
-      {/* soft depth glow */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-x-10 -top-10 bottom-0"
-        style={{ background: "radial-gradient(55% 45% at 18% 0%, hsl(var(--primary) / 0.07), transparent 70%)" }}
-      />
+const GrowthExperienceSection = () => {
+  const [sel, setSel] = useState(0);
+  const active = growth[sel];
+  const ActiveIcon = ICONS[sel];
+  const ac = hueClasses[BRAND_HUES[sel % BRAND_HUES.length]];
 
-      {/* trajectory: a drawn path through six growth milestones */}
-      <div className="relative">
-        <motion.div
-          aria-hidden="true"
-          variants={spineDraw}
-          initial="hidden"
-          whileInView="show"
-          viewport={revealViewport}
-          className="pointer-events-none absolute left-[22px] top-6 bottom-6 w-px origin-top sm:left-[26px]"
-          style={{ background: "linear-gradient(to bottom, hsl(var(--primary) / 0.7), hsl(var(--brand-eclipse) / 0.45) 50%, hsl(var(--brand-aurora) / 0.4))" }}
-        />
-
-        <motion.ul
-          className="relative space-y-7 sm:space-y-8"
-          variants={staggerContainer()}
-          initial="hidden"
-          whileInView="show"
-          viewport={revealViewport}
-        >
-          {growth.map((g, i) => {
-            const hue = BRAND_HUES[i % BRAND_HUES.length];
-            const c = hueClasses[hue];
-            return (
-              <motion.li key={g.title} variants={fadeUp} className="relative flex gap-5 sm:gap-6">
-                {/* milestone node */}
-                <span
-                  className="relative z-10 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border sm:h-[3.25rem] sm:w-[3.25rem]"
-                  style={{
-                    background: "hsl(222 30% 9%)",
-                    borderColor: `hsl(var(--brand-${hue}) / 0.45)`,
-                    boxShadow: `0 0 16px hsl(var(--brand-${hue}) / 0.18)`,
-                  }}
-                >
-                  <span className={`font-mono text-sm font-bold ${c.text}`}>{String(i + 1).padStart(2, "0")}</span>
-                </span>
-                {/* milestone content */}
-                <div className="min-w-0 pt-1 sm:pt-1.5">
-                  <h3 className="text-base font-bold text-foreground sm:text-lg">{g.title}</h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{g.body}</p>
-                </div>
-              </motion.li>
-            );
-          })}
-        </motion.ul>
-      </div>
-
-      {/* closing */}
-      <motion.p
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
+  return (
+    <SectionShell id="growth">
+      <motion.div
+        className="grid items-center gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-14"
+        variants={staggerContainer()}
+        initial="hidden"
+        whileInView="show"
         viewport={revealViewport}
-        transition={{ duration: 0.5, delay: 0.25, ease: brandEase }}
-        className="mt-10 border-t border-border/60 pt-6 text-center text-sm text-muted-foreground"
       >
-        Growth at Lumofy is not a side benefit. It's part of <span className="font-semibold text-foreground">how the company works</span>.
-      </motion.p>
-    </div>
-  </SectionShell>
-);
+        {/* Left — editorial */}
+        <motion.div variants={fadeUp}>
+          <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-primary">Growth experience</p>
+          <h2 className="text-3xl font-extrabold leading-[1.1] tracking-tight sm:text-4xl">Designed for the person you're becoming.</h2>
+          <p className="mt-5 max-w-md text-base leading-relaxed text-muted-foreground">
+            We build workforce growth systems for organizations. Inside Lumofy, we design the same clarity, trust, and momentum for our own team.
+          </p>
+          <p className="mt-6 text-sm text-muted-foreground/80">
+            Growth here is part of <span className="font-semibold text-foreground">how the company works</span>, not a side benefit.
+          </p>
+        </motion.div>
+
+        {/* Right — Growth OS panel */}
+        <motion.div
+          variants={fadeUp}
+          className="relative overflow-hidden rounded-2xl border border-border bg-card/40 p-5 backdrop-blur-sm sm:p-6"
+        >
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 85% 0%, hsl(var(--primary) / 0.07), transparent 70%)" }} />
+
+          {/* chips — hover / click / focus to select */}
+          <div className="relative grid grid-cols-2 gap-2.5">
+            {growth.map((g, i) => {
+              const c = hueClasses[BRAND_HUES[i % BRAND_HUES.length]];
+              const Icon = ICONS[i];
+              const isSel = i === sel;
+              return (
+                <button
+                  key={g.title}
+                  type="button"
+                  onMouseEnter={() => setSel(i)}
+                  onFocus={() => setSel(i)}
+                  onClick={() => setSel(i)}
+                  aria-pressed={isSel}
+                  className={`flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition-all duration-300 ${
+                    isSel ? "border-primary/40 bg-primary/[0.08]" : "border-border/60 bg-card/40 hover:border-border hover:bg-card/70"
+                  }`}
+                >
+                  <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${c.bgSoft}`}>
+                    <Icon className={`h-4 w-4 ${c.text}`} aria-hidden="true" />
+                  </span>
+                  <span className={`text-xs font-semibold leading-tight sm:text-sm ${isSel ? "text-foreground" : "text-muted-foreground"}`}>{g.title}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* detail panel */}
+          <div className="relative mt-3.5 min-h-[7.5rem] rounded-xl border border-border/60 bg-secondary/30 p-5" aria-live="polite">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={sel}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.25, ease: brandEase }}
+              >
+                <div className="mb-2 flex items-center gap-2.5">
+                  <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${ac.bgSoft}`}>
+                    <ActiveIcon className={`h-5 w-5 ${ac.text}`} aria-hidden="true" />
+                  </span>
+                  <h3 className="text-lg font-bold text-foreground">{active.title}</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-muted-foreground">{active.body}</p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </motion.div>
+      </motion.div>
+    </SectionShell>
+  );
+};
 
 export default GrowthExperienceSection;
