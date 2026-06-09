@@ -14,21 +14,13 @@ export const hero = {
 };
 
 export const stakes = {
-  lead: "The way organizations build talent is being rewritten. We intend to write it.",
-  points: [
-    {
-      title: "The skills gap is the defining business problem of the decade.",
-      body: "Companies can't see the capabilities they have, or the ones they'll need. We make them visible.",
-    },
-    {
-      title: "AI is reshaping every role.",
-      body: "Workforce intelligence is how organizations adapt without leaving their people behind.",
-    },
-    {
-      title: "MENA is transforming how it grows talent, and we're at its center.",
-      body: `100+ organizations across ${SITE.stats.countries} countries already build with Lumofy.`, // 100+ clients: real
-    },
-  ],
+  kicker: "The problem worth joining",
+  lead: "Work is changing faster than organizations can understand their talent.",
+  sub: "Lumofy is building the intelligence layer that connects skills, learning, performance, and goals so companies can grow their people with clarity.",
+  problems: ["Skills are hard to see", "Learning is disconnected", "Performance data is underused"],
+  solutions: ["Capabilities become visible", "Development becomes personalized", "Growth becomes measurable"],
+  // "100+ organizations across N countries" is existing approved proof (100+ clients: real).
+  proof: { lead: "100+ organizations", rest: `across ${SITE.stats.countries} countries already build with Lumofy.` },
 };
 
 export type Pillar = { name: string; hue: BrandHue; line: string };
