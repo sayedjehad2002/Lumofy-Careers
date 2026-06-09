@@ -200,6 +200,12 @@ RED FLAGS to detect:
 - Career Instability (3+ jobs under 1 year each)
 - Tool Gaps (missing critical tools/technologies)
 - Industry Mismatch (no relevant industry experience)
+- Implausible Claims (skills/experience that are unrealistic for the stated timeline)
+
+PLAUSIBILITY / REALISM CHECK (important — the recruiter explicitly wants this):
+- Judge whether the CV's claims are REALISTIC for the candidate's stated years of experience and timeline. Genuine careers show focused, progressive depth — not instant mastery of everything.
+- Treat as SUSPICIOUS and call it out: expert command of an implausibly broad set of languages / tools / skills for the time worked (e.g. an engineer who "knows every major programming language" with ~1 year of experience); a seniority title that far outpaces total tenure; overlapping or impossible dates; a wall of buzzwords with no evidence of real use; education or certifications that could not fit the stated timeline.
+- When you find this, ADD "Implausible Claims" to redFlags AND add a concrete, evidence-tied note to riskIndicators naming the specific issue (e.g. "Claims expert-level command of 12+ programming languages with only ~1 year of experience — not realistic"). If the CV is realistic and internally consistent, do NOT invent concerns.
 
 EVIDENCE RULES:
 - ONLY analyze real content from the uploaded CV and application data.
@@ -248,7 +254,7 @@ You MUST respond with a single valid JSON object (no markdown, no code blocks) u
     "careerStability": <0-100>
   },
   "rankingTier": "<Top Match|Strong Match|Moderate Match|Weak Match>",
-  "redFlags": ["<Missing Required Skills|Underqualified|Overqualified Risk|Career Instability|Tool Gaps|Industry Mismatch>"],
+  "redFlags": ["<Missing Required Skills|Underqualified|Overqualified Risk|Career Instability|Tool Gaps|Industry Mismatch|Implausible Claims>"],
   "interviewSuccessProbability": <0-100>,
   "offerAcceptanceProbability": <0-100>,
   "earlyTurnoverRisk": <0-100>,

@@ -6,12 +6,12 @@ import SectionShell from "./SectionShell";
 import JobCard from "@/components/careers/JobCard";
 import { Button } from "@/components/ui/button";
 import { useCareers } from "@/contexts/CareersContext";
-import { hiringSteps, recruiter } from "@/data/careers";
+import { recruiter } from "@/data/careers";
 import { deptClasses } from "@/lib/deptColor";
 import { fadeUp, staggerContainer, revealViewport } from "@/lib/motion";
 
 // Curated live roles → full /jobs, with color-coded department pills and a
-// premium empty state, plus "how hiring works" folded in (spec §8 §7).
+// premium empty state (spec §8 §7).
 const OpenRolesSection = () => {
   const { jobs } = useCareers();
   const openJobs = useMemo(() => jobs.filter((j) => j.status === "open"), [jobs]);
@@ -101,20 +101,6 @@ const OpenRolesSection = () => {
           </Button>
         </div>
       )}
-
-      {/* How hiring works */}
-      <div className="mt-20">
-        <h3 className="text-center font-mono text-xs uppercase tracking-[0.2em] text-primary">How hiring works</h3>
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {hiringSteps.map((s) => (
-            <div key={s.n} className="rounded-2xl border border-border bg-card/50 p-6">
-              <span className="font-mono text-2xl font-extrabold text-primary/40">{s.n}</span>
-              <h4 className="mt-2 font-bold text-foreground">{s.title}</h4>
-              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{s.desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
     </SectionShell>
   );
 };

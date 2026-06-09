@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   Brain, Loader2, Target, Zap, BookOpen, Star, Briefcase, AlertTriangle,
   TrendingUp, MessageSquare, Quote, Check, AlertCircle, X, UserPlus,
-  Lightbulb, Shield, Building2, ThumbsUp, ThumbsDown, Sparkles, Route,
+  Lightbulb, Shield, Building2, ThumbsUp, ThumbsDown, Sparkles, Route, BarChart3, ShieldAlert,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,19 @@ export interface CVAIAnalysis {
   alternativesConsidered?: { role: string; confidence: number }[];
   departmentMatches?: { department: string; confidence: number; reason: string }[];
   recruiterVerdict?: { shortlistFor: string; reasoning: string };
+  // Applicant-context extras (optional; CV-library analyses won't have them).
+  confidence?: string;
+  cvParsingStatus?: "success" | "partial" | "failed";
+  rankingTier?: string;
+  redFlags?: string[];
+  scoreBreakdown?: {
+    skillsMatch: number; toolsMatch: number; relevantExperience: number;
+    industryAlignment: number; educationRelevance: number; careerStability: number;
+  };
+  interviewSuccessProbability?: number;
+  offerAcceptanceProbability?: number;
+  earlyTurnoverRisk?: number;
+  growthPotentialScore?: number;
 }
 
 const FIT_TEXT: Record<string, string> = {
@@ -71,6 +84,22 @@ const GAUGE_STROKE: Record<Tone, string> = {
   ai: "hsl(var(--chart-3))",
   bronze: "hsl(var(--chart-5))",
   muted: "hsl(var(--muted-foreground))",
+};
+
+const SCORE_ROWS: { key: keyof NonNullable<CVAIAnalysis["scoreBreakdown"]>; label: string }[] = [
+  { key: "skillsMatch", label: "Skills match" },
+  { key: "toolsMatch", label: "Tools & tech" },
+  { key: "relevantExperience", label: "Relevant experience" },
+  { key: "industryAlignment", label: "Industry alignment" },
+  { key: "educationRelevance", label: "Education relevance" },
+  { key: "careerStability", label: "Career stability" },
+];
+
+const TIER_SOFT: Record<string, string> = {
+  "Top Match": TONE_SOFT.success,
+  "Strong Match": "bg-primary/15 text-primary",
+  "Moderate Match": "bg-muted text-muted-foreground",
+  "Weak Match": TONE_SOFT.danger,
 };
 
 /** Compact radial score gauge — reads the verdict in one glance. */
@@ -177,6 +206,14 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
     >
+      {/* CV parsing warning (applicant context) */}
+      {ai.cvParsingStatus && ai.cvParsingStatus !== "success" && (
+        <div className={`flex items-center gap-2 rounded-2xl border p-3 text-sm ${TONE_SOFT.warning} ${TONE_BORDER.warning}`}>
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+          <span>{ai.cvParsingStatus === "failed" ? "CV could not be fully parsed — manual HR review recommended." : "CV was only partially parsed; some data may be incomplete."}</span>
+        </div>
+      )}
+
       {/* ===== Score hero — verdict at a glance ===== */}
       <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 light-glow sm:p-6">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
@@ -192,6 +229,12 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
                 <Badge className={`border text-xs ${REC_SOFT[ai.recommendation] || "bg-secondary text-foreground"}`}>
                   {ai.recommendation}
                 </Badge>
+              )}
+              {ai.rankingTier && (
+                <Badge className={`border-0 text-xs ${TIER_SOFT[ai.rankingTier] || "bg-muted text-muted-foreground"}`}>{ai.rankingTier}</Badge>
+              )}
+              {ai.confidence && (
+                <Badge variant="outline" className="text-[10px]">Confidence: {ai.confidence}</Badge>
               )}
             </div>
             <div>
@@ -210,6 +253,48 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
           </div>
         </div>
       </div>
+
+      {/* ===== Score breakdown & predictive insights (applicant context) ===== */}
+      {(ai.scoreBreakdown || ai.interviewSuccessProbability != null || ai.offerAcceptanceProbability != null || ai.earlyTurnoverRisk != null || ai.growthPotentialScore != null) && (
+        <div className="space-y-4 rounded-2xl border border-border bg-card p-5 light-glow sm:p-6">
+          {ai.scoreBreakdown && (
+            <div>
+              <h3 className="mb-3 flex items-center gap-2 font-semibold">
+                <BarChart3 className="h-4 w-4 text-primary" aria-hidden="true" /> Weighted score breakdown
+              </h3>
+              <div className="space-y-2">
+                {SCORE_ROWS.map(({ key, label }) => (
+                  <div key={key} className="flex items-center gap-3">
+                    <span className="w-32 flex-shrink-0 truncate text-xs text-muted-foreground sm:w-40">{label}</span>
+                    <Progress value={ai.scoreBreakdown![key]} className="h-1.5 flex-1" />
+                    <span className="w-8 flex-shrink-0 text-right text-xs tabular-nums">{ai.scoreBreakdown![key]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {(ai.interviewSuccessProbability != null || ai.offerAcceptanceProbability != null || ai.earlyTurnoverRisk != null || ai.growthPotentialScore != null) && (
+            <div>
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                <TrendingUp className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> Predictive insights
+              </h3>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[
+                  { label: "Interview success", value: ai.interviewSuccessProbability, cls: TONE_TEXT.success },
+                  { label: "Offer acceptance", value: ai.offerAcceptanceProbability, cls: "text-primary" },
+                  { label: "Early turnover risk", value: ai.earlyTurnoverRisk, cls: TONE_TEXT.danger },
+                  { label: "Growth potential", value: ai.growthPotentialScore, cls: TONE_TEXT.ai },
+                ].filter((m) => m.value != null).map((m, i) => (
+                  <div key={i} className="rounded-xl bg-secondary/30 p-3 text-center">
+                    <p className="text-[10px] text-muted-foreground">{m.label}</p>
+                    <p className={`text-lg font-bold ${m.cls}`}>{m.value}%</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ===== Professional identity & recruiter verdict ===== */}
       {hasIdentity && (
@@ -405,6 +490,16 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
 
           {/* Risk */}
           <TabsContent value="risk" className="mt-4 space-y-4">
+            {ai.redFlags && ai.redFlags.length > 0 && (
+              <div>
+                <h4 className="mb-2 flex items-center gap-1.5 text-sm font-semibold"><ShieldAlert className="h-3.5 w-3.5 text-destructive" aria-hidden="true" /> Red flags</h4>
+                <div className="flex flex-wrap gap-2">
+                  {ai.redFlags.map((f, i) => (
+                    <Badge key={i} variant="secondary" className="border border-destructive/20 bg-destructive/10 text-xs text-destructive">{f}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
             <div>
               <h4 className="mb-2 flex items-center gap-1.5 text-sm font-semibold"><AlertTriangle className={`h-3.5 w-3.5 ${TONE_TEXT.warning}`} aria-hidden="true" /> Hiring risk indicators</h4>
               {ai.riskIndicators?.length > 0 ? (

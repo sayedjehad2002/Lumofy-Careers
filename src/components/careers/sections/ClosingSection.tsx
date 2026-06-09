@@ -1,10 +1,8 @@
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import AuroraEffect from "@/components/careers/AuroraEffect";
-import { faqs } from "@/data/careers";
 import { useCareers } from "@/contexts/CareersContext";
 
 // Quiet FAQ + the horizon close: aurora #2, mission restatement, live count, one
@@ -15,21 +13,6 @@ const ClosingSection = () => {
 
   return (
     <>
-      {/* FAQ — quiet */}
-      <section id="faq" className="scroll-mt-24 px-4 py-16 sm:px-6 sm:py-24 lg:px-8 lg:py-28">
-        <div className="mx-auto max-w-3xl">
-          <p className="mb-8 text-center font-mono text-xs uppercase tracking-[0.2em] text-primary">Questions</p>
-          <Accordion type="single" collapsible className="w-full">
-            {faqs.map((f, i) => (
-              <AccordionItem key={i} value={`item-${i}`} className="border-border">
-                <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">{f.q}</AccordionTrigger>
-                <AccordionContent className="text-sm leading-relaxed text-muted-foreground">{f.a}</AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </div>
-      </section>
-
       {/* Horizon close */}
       <section className="relative overflow-hidden px-4 py-24 sm:px-6 sm:py-32 lg:px-8 lg:py-36">
         <AuroraEffect />
