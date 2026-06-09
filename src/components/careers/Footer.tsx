@@ -2,6 +2,7 @@ import { Linkedin, Mail, MapPin } from "lucide-react";
 import { forwardRef } from "react";
 import { Link } from "react-router-dom";
 import { SITE } from "@/data/site";
+import lumofyLogo from "@/assets/lumofy-mark.png";
 
 const Footer = forwardRef<HTMLElement>((_, ref) => {
   return (
@@ -46,9 +47,13 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
           </div>
         </div>
 
-        <div className="border-t border-border/50 mt-8 pt-6">
+        <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-border/50 pt-6 sm:flex-row">
+          <Link to="/" className="flex items-center gap-2.5" aria-label="Lumofy — home">
+            <img src={lumofyLogo} alt="" aria-hidden="true" className="h-8 w-8 object-contain" />
+            <span className="text-lg font-extrabold tracking-tight text-foreground">Lumofy</span>
+          </Link>
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Lumofy. All rights reserved.
+            © {new Date().getFullYear()} <span className="font-semibold text-primary">Lumofy</span> — All rights reserved.
           </p>
         </div>
       </div>

@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useCareers } from "@/contexts/CareersContext";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/careers/Navbar";
+import Footer from "@/components/careers/Footer";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { NATIONALITIES } from "@/data/nationalities";
@@ -800,6 +801,7 @@ const ApplyPage = () => {
           </form>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };

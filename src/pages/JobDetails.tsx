@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCareers } from "@/contexts/CareersContext";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/careers/Navbar";
+import Footer from "@/components/careers/Footer";
 import { SITE } from "@/data/site";
 import { toast } from "sonner";
 
@@ -300,6 +301,7 @@ const JobDetails = () => {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };
