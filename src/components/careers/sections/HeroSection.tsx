@@ -4,14 +4,10 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AuroraEffect from "@/components/careers/AuroraEffect";
 import WorkforceSignal from "@/components/careers/WorkforceSignal";
-import { useCareers } from "@/contexts/CareersContext";
 import { hero } from "@/data/careers";
 import { fadeUp, staggerContainer } from "@/lib/motion";
 
 const HeroSection = () => {
-  const { jobs } = useCareers();
-  const openCount = jobs.filter((j) => j.status === "open").length;
-
   return (
     <section className="relative flex min-h-[88vh] items-center overflow-hidden px-4 pt-24 pb-16 sm:px-6 sm:pt-28 lg:px-8">
       <AuroraEffect className="opacity-70" />
@@ -50,7 +46,7 @@ const HeroSection = () => {
         </motion.div>
 
         {/* Right — living workforce-intelligence panel */}
-        <WorkforceSignal openCount={openCount} />
+        <WorkforceSignal />
       </div>
     </section>
   );
