@@ -202,7 +202,7 @@ const CandidateProfile = ({
               <a
                 href={applicant.linkedin.startsWith("http") ? applicant.linkedin : `https://${applicant.linkedin}`}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="flex items-center gap-1 text-xs text-primary hover:underline">
                 
                     <ExternalLink className="w-3 h-3" /> LinkedIn
@@ -212,7 +212,7 @@ const CandidateProfile = ({
               <a
                 href={applicant.portfolio.startsWith("http") ? applicant.portfolio : `https://${applicant.portfolio}`}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="flex items-center gap-1 text-xs text-primary hover:underline">
                 
                     <ExternalLink className="w-3 h-3" /> Portfolio

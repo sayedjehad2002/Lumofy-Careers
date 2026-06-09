@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // NOTE: The previous brute-force lockout (5 failures / 15 min, via the in-memory Map and
 // the `login_attempts` table) was REMOVED at the team's request — it was locking out the
@@ -65,6 +66,12 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // This is an unauthenticated password check (legacy login path). Throttle hard per IP
+    // so it can't be used as a brute-force oracle against the admin password.
+    const ip = getClientIp(req);
+    const rl = isRateLimited(`verify-password:${ip}`, { maxRequests: 8, windowMs: 15 * 60_000 });
+    if (rl.limited) return rateLimitResponse(corsHeaders, rl.retryAfterMs);
+
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
     const password = typeof body?.password === "string" ? body.password : "";
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";

@@ -36,7 +36,7 @@ const GrowthExperienceSection = () => {
           <p className="mt-5 max-w-md text-base leading-relaxed text-muted-foreground">
             We build workforce growth systems for organizations. Inside Lumofy, we design the same clarity, trust, and momentum for our own team.
           </p>
-          <p className="mt-6 text-sm text-muted-foreground/80">
+          <p className="mt-6 text-sm text-muted-foreground">
             Growth here is part of <span className="font-semibold text-foreground">how the company works</span>, not a side benefit.
           </p>
         </motion.div>
