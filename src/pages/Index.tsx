@@ -5,7 +5,6 @@ import ScrollThread from "@/components/careers/ScrollThread";
 import HeroSection from "@/components/careers/sections/HeroSection";
 import WhyItMattersSection from "@/components/careers/sections/WhyItMattersSection";
 import WhatWeBuildSection from "@/components/careers/sections/WhatWeBuildSection";
-import OperatingPrinciplesSection from "@/components/careers/sections/OperatingPrinciplesSection";
 import GrowthExperienceSection from "@/components/careers/sections/GrowthExperienceSection";
 import OpenRolesSection from "@/components/careers/sections/OpenRolesSection";
 import ClosingSection from "@/components/careers/sections/ClosingSection";
@@ -32,7 +31,6 @@ const Index = () => {
         <HeroSection />
         <WhyItMattersSection />
         <WhatWeBuildSection />
-        <OperatingPrinciplesSection />
         <GrowthExperienceSection />
         <OpenRolesSection />
         <ClosingSection />

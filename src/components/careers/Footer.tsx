@@ -31,7 +31,6 @@ const Footer = forwardRef<HTMLElement>((_, ref) => (
             <ul className="space-y-2.5">
               <li><Link to="/jobs" className="text-sm text-muted-foreground transition-colors hover:text-primary">Open Positions</Link></li>
               <li><Link to="/#growth" className="text-sm text-muted-foreground transition-colors hover:text-primary">Growth</Link></li>
-              <li><Link to="/#principles" className="text-sm text-muted-foreground transition-colors hover:text-primary">Principles</Link></li>
             </ul>
           </nav>
           <div>
