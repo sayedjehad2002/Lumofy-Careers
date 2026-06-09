@@ -58,7 +58,7 @@ const PageLoader = () => (
 // bottom "View open roles" CTA) used to open /jobs already scrolled down, hiding
 // its header. Rendered INSIDE the keyed transition wrapper, so it fires as the new
 // page mounts (after the outgoing page animates out) — not mid-exit. Skips hash
-// links so in-page anchors (#roles, #growth, …) still scroll to their target.
+// links so in-page anchors (#building, #growth, …) still scroll to their target.
 function ScrollToTop() {
   const { hash } = useLocation();
   useLayoutEffect(() => {

@@ -6,7 +6,6 @@ import HeroSection from "@/components/careers/sections/HeroSection";
 import WhyItMattersSection from "@/components/careers/sections/WhyItMattersSection";
 import WhatWeBuildSection from "@/components/careers/sections/WhatWeBuildSection";
 import GrowthExperienceSection from "@/components/careers/sections/GrowthExperienceSection";
-import OpenRolesSection from "@/components/careers/sections/OpenRolesSection";
 import ClosingSection from "@/components/careers/sections/ClosingSection";
 import Footer from "@/components/careers/Footer";
 import { prefersReducedMotion } from "@/lib/motion";
@@ -32,7 +31,6 @@ const Index = () => {
         <WhyItMattersSection />
         <WhatWeBuildSection />
         <GrowthExperienceSection />
-        <OpenRolesSection />
         <ClosingSection />
       </main>
       <Footer />

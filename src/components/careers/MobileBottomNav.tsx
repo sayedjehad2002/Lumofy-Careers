@@ -1,12 +1,11 @@
 import { forwardRef } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Briefcase, TrendingUp, Sparkles, Send } from "lucide-react";
+import { Home, TrendingUp, Sparkles, Send } from "lucide-react";
 
 const navItems = [
   { to: "/", label: "Home", icon: Home },
   { to: "/#why", label: "Mission", icon: Sparkles },
   { to: "/#growth", label: "Growth", icon: TrendingUp },
-  { to: "/#roles", label: "Roles", icon: Briefcase },
   { to: "/jobs", label: "Apply", icon: Send },
 ];
 
