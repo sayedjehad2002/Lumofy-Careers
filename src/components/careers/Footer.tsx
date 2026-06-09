@@ -7,7 +7,7 @@ import lumofyLogo from "@/assets/lumofy-mark.png";
 const Footer = forwardRef<HTMLElement>((_, ref) => {
   return (
     <footer ref={ref} className="border-t border-border/50 bg-muted/30">
-      <div className="max-w-6xl mx-auto px-4 py-12 pb-24 md:pb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pb-24 md:pb-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Brand */}
           <div>
