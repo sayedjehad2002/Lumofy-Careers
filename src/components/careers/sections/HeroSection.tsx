@@ -9,7 +9,7 @@ import { fadeUp, staggerContainer } from "@/lib/motion";
 
 const HeroSection = () => {
   return (
-    <section className="relative flex min-h-[88vh] items-center overflow-hidden px-4 pt-24 pb-16 sm:px-6 sm:pt-28 lg:px-8">
+    <section className="relative flex min-h-[clamp(640px,88vh,800px)] items-center overflow-hidden px-4 pt-24 pb-16 sm:px-6 sm:pt-28 lg:px-8">
       <AuroraEffect className="opacity-70" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[360px] bg-gradient-to-b from-primary/[0.05] to-transparent" />
 
