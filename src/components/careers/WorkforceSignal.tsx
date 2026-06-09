@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { Globe } from "lucide-react";
 import AnimatedCounter from "@/components/careers/AnimatedCounter";
 import { brandEase, prefersReducedMotion } from "@/lib/motion";
 
-// The Lumofy Impact panel — "Ambient Intelligence": a cinematic, layered data panel.
-// Four REAL impact KPIs as bold count-up numbers, each tagged with one brand accent
-// (Eclipse / Nova / Aurora / Stellar) and linked by a Sirius "signal" thread that a
-// light pulse travels down — under a breathing spotlight, a faint cosmic dot-grid, a
-// slow light sweep, and a LIVE pulse. On-brand (DESIGN.md). All motion is transform/
-// opacity (GPU), PAUSED off-screen (IntersectionObserver) and fully OFF under
-// prefers-reduced-motion; numbers count up once on view, then hold.
+// The Lumofy Impact panel — "Impact Intelligence Console": a cinematic workforce-
+// intelligence panel. Four REAL impact KPIs sit on translucent signal rails, each with a
+// glowing accent node (Eclipse / Nova / Aurora / Stellar) threaded by a Sirius signal
+// line that a light pulse travels down, over a layered field — breathing spotlight, faint
+// data-grid, a drawn data-wave contour, and an Eclipse base wash — under a LIVE pulse.
+// On-brand (DESIGN.md); the glass-card surface supplies the gradient border + hover glow.
+// All motion is transform/opacity (GPU), PAUSED off-screen (IntersectionObserver) and
+// fully OFF under prefers-reduced-motion; numbers count up once on view, then hold.
 type Stat = { value: number; label: string; accent: string };
 
 const STATS: Stat[] = [
@@ -39,11 +41,11 @@ const WorkforceSignal = () => {
       ref={ref}
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.2, ease: brandEase }}
+      transition={{ duration: 0.6, delay: 0.2, ease: brandEase }}
       whileHover={reduced ? undefined : { y: -3 }}
-      className="group glass-card relative overflow-hidden rounded-2xl p-6 shadow-[0_24px_70px_-24px_hsl(var(--primary)/0.28)] transition-shadow duration-500 hover:shadow-[0_34px_90px_-22px_hsl(var(--primary)/0.45)] sm:p-7"
+      className="glass-card relative overflow-hidden rounded-2xl p-6 sm:p-7"
     >
-      {/* ===== Depth: breathing spotlight + faint cosmic grid + accent wash + top edge ===== */}
+      {/* ===== Depth field: spotlight + data-grid + data-wave + base wash + top edge ===== */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
         <motion.div
           className="absolute inset-0"
@@ -52,9 +54,33 @@ const WorkforceSignal = () => {
           transition={{ duration: 9, ease: "easeInOut", repeat: Infinity }}
         />
         <div
-          className="absolute inset-0 opacity-[0.05]"
+          className="absolute inset-0 opacity-[0.045]"
           style={{ backgroundImage: "radial-gradient(hsl(var(--foreground)) 1px, transparent 1px)", backgroundSize: "22px 22px" }}
         />
+        {/* data-wave contour — draws on entry, drifts very slowly */}
+        <motion.svg
+          className="absolute inset-x-0 bottom-0 h-2/5 w-full"
+          viewBox="0 0 400 120"
+          preserveAspectRatio="none"
+          fill="none"
+          animate={live ? { x: [0, -14, 0] } : undefined}
+          transition={{ duration: 18, ease: "easeInOut", repeat: Infinity }}
+        >
+          <motion.path
+            d="M0,82 C70,44 140,104 220,72 C300,42 360,92 400,60"
+            stroke="hsl(var(--primary))" strokeOpacity="0.18" strokeWidth="1.5" strokeLinecap="round"
+            initial={reduced ? false : { pathLength: 0, opacity: 0 }}
+            animate={{ pathLength: 1, opacity: 1 }}
+            transition={{ duration: 1.1, delay: 0.5, ease: brandEase }}
+          />
+          <motion.path
+            d="M0,98 C90,72 150,116 240,86 C320,60 372,102 400,82"
+            stroke="hsl(var(--brand-eclipse))" strokeOpacity="0.12" strokeWidth="1" strokeLinecap="round"
+            initial={reduced ? false : { pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 1.3, delay: 0.7, ease: brandEase }}
+          />
+        </motion.svg>
         <div
           className="absolute inset-x-0 bottom-[-25%] h-2/3"
           style={{ background: "radial-gradient(70% 100% at 50% 100%, hsl(var(--brand-eclipse) / 0.10), transparent 62%)" }}
@@ -69,14 +95,14 @@ const WorkforceSignal = () => {
           className="pointer-events-none absolute inset-0"
           style={{ background: "linear-gradient(105deg, transparent 42%, hsl(var(--primary) / 0.07) 50%, transparent 58%)" }}
           animate={{ x: ["-130%", "130%"] }}
-          transition={{ duration: 2.2, ease: "easeInOut", repeat: Infinity, repeatDelay: 7 }}
+          transition={{ duration: 2.2, ease: "easeInOut", repeat: Infinity, repeatDelay: 8 }}
         />
       )}
 
       {/* ===== Header ===== */}
-      <div className="relative mb-6 flex items-center justify-between">
+      <div className="relative mb-5 flex items-center justify-between">
         <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary">Lumofy Impact</span>
-        <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground" aria-label="Live data">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--brand-aurora)/0.25)] bg-[hsl(var(--brand-aurora)/0.08)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[hsl(var(--brand-aurora))]" aria-label="Live data">
           <span className="relative flex h-1.5 w-1.5">
             {!reduced && <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: "hsl(var(--brand-aurora))" }} />}
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: "hsl(var(--brand-aurora))" }} />
@@ -85,57 +111,58 @@ const WorkforceSignal = () => {
         </span>
       </div>
 
-      {/* ===== Stat ledger — accent stars linked by a Sirius signal thread ===== */}
+      {/* ===== Stat console — signal rails on a Sirius thread ===== */}
       <div className="relative">
-        {/* thread (draws on entry) */}
+        {/* signal thread behind the rails (draws on entry) */}
         <motion.div
           aria-hidden="true"
-          className="pointer-events-none absolute left-[6px] top-3 bottom-3 w-px origin-top"
-          style={{ background: "linear-gradient(to bottom, hsl(var(--primary) / 0.7), hsl(var(--primary) / 0.12))" }}
+          className="pointer-events-none absolute left-5 top-4 bottom-4 w-px origin-top"
+          style={{ background: "linear-gradient(to bottom, hsl(var(--primary) / 0.65), hsl(var(--primary) / 0.1))" }}
           initial={reduced ? false : { scaleY: 0, opacity: 0 }}
           animate={{ scaleY: 1, opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.35, ease: brandEase }}
+          transition={{ duration: 0.7, delay: 0.4, ease: brandEase }}
         />
-        {/* signal pulse travelling the thread */}
+        {/* light pulse travelling the thread */}
         {live && (
           <motion.span
             aria-hidden="true"
-            className="pointer-events-none absolute left-[6px] h-5 w-px -translate-x-1/2 rounded-full"
+            className="pointer-events-none absolute left-5 h-5 w-px -translate-x-1/2 rounded-full"
             style={{ background: "linear-gradient(to bottom, transparent, hsl(var(--primary)), transparent)" }}
-            initial={{ top: "4%", opacity: 0 }}
-            animate={{ top: ["4%", "92%"], opacity: [0, 0.9, 0.9, 0] }}
-            transition={{ duration: 2.8, ease: "easeInOut", repeat: Infinity, repeatDelay: 1.8 }}
+            initial={{ top: "6%", opacity: 0 }}
+            animate={{ top: ["6%", "90%"], opacity: [0, 0.9, 0.9, 0] }}
+            transition={{ duration: 2.8, ease: "easeInOut", repeat: Infinity, repeatDelay: 2 }}
           />
         )}
 
         <motion.ul
-          className="relative space-y-[1.15rem]"
+          className="relative space-y-2.5"
           aria-label="Lumofy impact statistics"
           initial="hidden"
           animate="show"
-          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.09, delayChildren: 0.3 } } }}
+          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1, delayChildren: 0.3 } } }}
         >
           {STATS.map((s, i) => (
             <motion.li
               key={s.label}
-              className="flex items-center gap-4"
+              className="relative flex items-center gap-3.5 rounded-xl border border-foreground/[0.06] bg-foreground/[0.02] px-3 py-2.5 transition-colors duration-300 hover:border-foreground/[0.12] hover:bg-foreground/[0.05]"
               variants={{
                 hidden: { opacity: 0, x: reduced ? 0 : -8 },
-                show: { opacity: 1, x: 0, transition: { duration: 0.35, ease: brandEase } },
+                show: { opacity: 1, x: 0, transition: { duration: 0.4, ease: brandEase } },
               }}
             >
-              {/* accent star with a slow breathing glow */}
-              <span className="relative flex h-3 w-3 flex-shrink-0 items-center justify-center" aria-hidden="true">
+              {/* glowing signal node */}
+              <span className="relative flex h-4 w-4 flex-shrink-0 items-center justify-center" aria-hidden="true">
                 <motion.span
-                  className="absolute h-3 w-3 rounded-full blur-[4px]"
+                  className="absolute h-5 w-5 rounded-full blur-[6px]"
                   style={{ background: `hsl(${s.accent})` }}
-                  animate={live ? { opacity: [0.45, 0.85, 0.45], scale: [1, 1.3, 1] } : { opacity: 0.7 }}
-                  transition={{ duration: 3.6, ease: "easeInOut", repeat: Infinity, delay: i * 0.5 }}
+                  animate={live ? { opacity: [0.3, 0.6, 0.3], scale: [1, 1.35, 1] } : { opacity: 0.45 }}
+                  transition={{ duration: 4, ease: "easeInOut", repeat: Infinity, delay: i * 0.55 }}
                 />
-                <span className="relative h-2.5 w-2.5 rounded-full ring-2 ring-background" style={{ background: `hsl(${s.accent})` }} />
+                <span className="absolute h-4 w-4 rounded-full border" style={{ borderColor: `hsl(${s.accent} / 0.45)` }} />
+                <span className="relative h-2 w-2 rounded-full ring-2 ring-background" style={{ background: `hsl(${s.accent})`, boxShadow: `0 0 8px hsl(${s.accent})` }} />
               </span>
               {/* number + label */}
-              <span className="inline-flex min-w-[5.25rem] items-baseline text-3xl font-extrabold leading-none tracking-tight tabular-nums text-foreground sm:min-w-[5.75rem] sm:text-[2rem]">
+              <span className="inline-flex min-w-[4.75rem] items-baseline text-[1.7rem] font-extrabold leading-none tracking-tight tabular-nums text-foreground sm:min-w-[5.25rem] sm:text-[2rem]">
                 <AnimatedCounter value={s.value} suffix="K" duration={1.4} />
                 <span style={{ color: `hsl(${s.accent})` }}>+</span>
               </span>
@@ -147,13 +174,14 @@ const WorkforceSignal = () => {
         </motion.ul>
       </div>
 
-      {/* ===== Divider + footer (reveals last) ===== */}
+      {/* ===== Footer (reveals last) ===== */}
       <motion.div
-        className="relative mt-6 border-t border-border/60 pt-5 text-center"
+        className="relative mt-6 flex items-center justify-center gap-2 border-t border-border/60 pt-5"
         initial={reduced ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.95, ease: brandEase }}
+        transition={{ duration: 0.5, delay: 1, ease: brandEase }}
       >
+        <Globe className="h-3.5 w-3.5 flex-shrink-0 text-primary/70" aria-hidden="true" />
         <p className="text-xs font-medium tracking-wide text-muted-foreground">
           Powering <span className="font-semibold text-foreground">Workforce Development</span> across MENA
         </p>
