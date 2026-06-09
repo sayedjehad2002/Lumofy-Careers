@@ -43,13 +43,17 @@ export const principles: Principle[] = [
 ];
 
 export type GrowthTheme = { title: string; body: string };
+// Generalized, claim-safe phrasing for the careers "trajectory". The more specific
+// versions (annual learning budget, flexible time off, hybrid/remote across MENA,
+// competitive compensation) were approved-real in code and can be restored if Product
+// prefers the concrete wording.
 export const growth: GrowthTheme[] = [
-  { title: "Career acceleration", body: "Clear paths, senior mentorship, and the room to outgrow your title." },
-  { title: "Learning", body: "Annual budget for courses, conferences, and professional certifications." }, // real (/life)
-  { title: "Well-being", body: "Flexible time off you're trusted to manage, and a team that means it." }, // real (/life)
-  { title: "Flexibility", body: "Hybrid and remote-friendly arrangements across the MENA region." }, // real (/life)
-  { title: "Rewards", body: "Competitive compensation and benefits that recognize your impact." },
-  { title: "Ownership", body: "Your ideas shape the product, the team, and the company from day one." },
+  { title: "Career Acceleration", body: "Clear paths, mentorship, and room to take on bigger challenges." },
+  { title: "Learning", body: "Support for courses, conferences, certifications, and continuous skill-building." },
+  { title: "Well-being", body: "A working rhythm designed for sustainable performance and real life." },
+  { title: "Flexibility", body: "Flexible ways of working where the role allows." },
+  { title: "Rewards", body: "Compensation and benefits designed to recognize meaningful contribution." },
+  { title: "Ownership", body: "Your ideas can shape the product, the team, and the way we build." },
 ];
 
 export type TeamMember = {
