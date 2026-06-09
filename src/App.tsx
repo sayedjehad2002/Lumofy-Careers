@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { CareersProvider } from "@/contexts/CareersContext";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useLayoutEffect } from "react";
 import { Loader2 } from "lucide-react";
 import MobileBottomNav from "@/components/careers/MobileBottomNav";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -53,6 +53,27 @@ const PageLoader = () => (
   </div>
 );
 
+// Reset scroll to the top on every route change. React Router keeps the previous
+// page's scroll position, so navigating from partway down one page (e.g. the
+// bottom "View open roles" CTA) used to open /jobs already scrolled down, hiding
+// its header. Rendered INSIDE the keyed transition wrapper, so it fires as the new
+// page mounts (after the outgoing page animates out) — not mid-exit. Skips hash
+// links so in-page anchors (#roles, #growth, …) still scroll to their target.
+function ScrollToTop() {
+  const { hash } = useLocation();
+  useLayoutEffect(() => {
+    if (hash) return;
+    // Force an instant jump: index.css sets `scroll-behavior: smooth`, which would
+    // otherwise animate a long scroll-up on each navigation.
+    const html = document.documentElement;
+    const prev = html.style.scrollBehavior;
+    html.style.scrollBehavior = "auto";
+    window.scrollTo(0, 0);
+    html.style.scrollBehavior = prev;
+  }, [hash]);
+  return null;
+}
+
 function AnimatedRoutes() {
   const location = useLocation();
 
@@ -73,6 +94,7 @@ function AnimatedRoutes() {
           variants={pageVariants}
           transition={pageTransition}
         >
+          <ScrollToTop />
           <Suspense fallback={<PageLoader />}>
             <Routes location={location}>
               <Route path="/" element={<Index />} />

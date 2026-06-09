@@ -206,6 +206,11 @@
      The prefers-reduced-motion block below forces scroll-behavior: auto. */
   html {
     scroll-behavior: smooth;
+    /* Offset in-page anchor jumps (#roles, #growth, …) by the fixed navbar
+       height (h-16 = 64px) + breathing room, so section headings land BELOW the
+       navbar instead of hidden under it. Does not affect the absolute scroll-to-top
+       on route changes. */
+    scroll-padding-top: 5rem;
   }
 
   /* Headings use Source Sans 3 (Lumofy brand primary), heavy weight for display */
