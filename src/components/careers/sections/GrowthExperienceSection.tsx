@@ -13,7 +13,7 @@ const GrowthExperienceSection = () => (
     sub="We don't list perks. We design for the person you're becoming."
   >
     <motion.div
-      className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+      className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
       variants={staggerContainer()}
       initial="hidden"
       whileInView="show"

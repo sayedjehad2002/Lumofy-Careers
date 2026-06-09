@@ -19,7 +19,7 @@ const OperatingPrinciplesSection = () => {
       title="How we work"
       sub="Five principles that decide what we build, how we build it, and who we hire."
     >
-      <div className="mt-14 grid gap-8 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+      <div className="mt-8 grid gap-8 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         {/* Index */}
         <ul className="space-y-1">
           {principles.map((pr, i) => {

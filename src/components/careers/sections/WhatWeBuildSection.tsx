@@ -18,7 +18,7 @@ const WhatWeBuildSection = () => (
     sub="Four connected systems that help organizations see, grow, and keep their people."
   >
     <motion.div
-      className="mt-14 grid gap-5 sm:grid-cols-2"
+      className="mt-8 grid gap-5 sm:grid-cols-2"
       variants={staggerContainer()}
       initial="hidden"
       whileInView="show"

@@ -4,8 +4,8 @@ import { stakes } from "@/data/careers";
 import { fadeUp, staggerContainer, revealViewport } from "@/lib/motion";
 import { hueClasses, type BrandHue } from "@/lib/deptColor";
 
-// The stakes: why workforce intelligence matters now. Editorial lead statement
-// (left-aligned for confidence) + three scroll-revealed stake points (spec §8 §2).
+// The stakes: why workforce intelligence matters now. Centered lead statement
+// (consistent with every other section) + three scroll-revealed stake points.
 const hues: BrandHue[] = ["sirius", "eclipse", "aurora"];
 
 const WhyItMattersSection = () => (
@@ -13,10 +13,10 @@ const WhyItMattersSection = () => (
     id="why"
     kicker="Why this matters"
     title={stakes.lead}
-    headerClassName="max-w-4xl text-left mx-0"
+    headerClassName="max-w-3xl"
   >
     <motion.div
-      className="mt-14 grid gap-6 md:grid-cols-3"
+      className="mt-8 grid gap-6 md:grid-cols-3"
       variants={staggerContainer()}
       initial="hidden"
       whileInView="show"
