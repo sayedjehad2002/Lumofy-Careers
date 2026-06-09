@@ -18,7 +18,7 @@ interface SectionShellProps {
 
 const SectionShell = ({ id, kicker, title, sub, className, headerClassName, children }: SectionShellProps) => (
   <section id={id} className={cn("scroll-mt-24 px-4 py-16 sm:px-6 sm:py-24 lg:px-8 lg:py-28", className)}>
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-[1536px]">
       {(kicker || title || sub) && (
         <motion.div
           variants={staggerContainer()}

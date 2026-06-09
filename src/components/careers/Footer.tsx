@@ -11,7 +11,7 @@ const LINKEDIN_URL = "https://www.linkedin.com/company/lumofyinc/";
 // reads as a continuation, not a hard break. (pb-24 on mobile clears the bottom nav.)
 const Footer = forwardRef<HTMLElement>((_, ref) => (
   <footer ref={ref} className="border-t border-border/40 bg-card/20">
-    <div className="mx-auto max-w-7xl px-4 pb-24 pt-14 sm:px-6 md:pb-14 lg:px-8">
+    <div className="mx-auto max-w-[1536px] px-4 pb-24 pt-14 sm:px-6 md:pb-14 lg:px-8">
       <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
         {/* Brand */}
         <div className="max-w-xs">

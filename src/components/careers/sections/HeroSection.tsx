@@ -13,7 +13,7 @@ const HeroSection = () => {
       <AuroraEffect className="opacity-70" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[360px] bg-gradient-to-b from-primary/[0.05] to-transparent" />
 
-      <div className="relative z-10 mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
+      <div className="relative z-10 mx-auto grid w-full max-w-[1536px] items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
         {/* Left — the thesis */}
         <motion.div variants={staggerContainer()} initial="hidden" animate="show">
           <motion.p variants={fadeUp} className="mb-5 font-mono text-xs uppercase tracking-[0.25em] text-primary">
