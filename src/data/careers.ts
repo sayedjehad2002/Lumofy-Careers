@@ -26,10 +26,10 @@ export const stakes = {
 export type Pillar = { name: string; hue: BrandHue; line: string };
 // PLACEHOLDER: pillar names drafted from known Lumofy platform context — confirm.
 export const pillars: Pillar[] = [
-  { name: "Competency frameworks", hue: "sirius", line: "Define the skills that matter, role by role." },
-  { name: "Performance management", hue: "eclipse", line: "Turn goals and feedback into measurable growth." },
-  { name: "Assessments & learning", hue: "aurora", line: "Diagnose capability and close gaps with targeted learning." },
-  { name: "Engagement", hue: "nova", line: "Understand and lift how people feel about work." },
+  { name: "Competency Frameworks", hue: "sirius", line: "Define the capabilities that matter, role by role." },
+  { name: "Performance Management", hue: "eclipse", line: "Turn goals, feedback, and progress into measurable growth." },
+  { name: "Assessments & Learning", hue: "aurora", line: "Identify gaps and build capability with targeted development." },
+  { name: "Engagement", hue: "nova", line: "Understand how people experience work and where culture needs support." },
 ];
 
 export type Principle = { n: string; title: string; body: string; hue: BrandHue };
