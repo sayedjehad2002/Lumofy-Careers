@@ -6,8 +6,7 @@ import type { BrandHue } from "@/lib/deptColor";
 
 export const hero = {
   kicker: "CAREERS AT LUMOFY · MENA",
-  // PLACEHOLDER: confirm headline wording.
-  headline: "Workforce intelligence for the next era of work.",
+  headline: "Join the team transforming how organizations develop talent.",
   subdeck:
     "We build the AI platform helping enterprises across MENA understand, develop, and grow their people. Join the team turning workforce data into human potential.",
   ctaPrimary: { label: "View open roles", to: "/jobs" },
