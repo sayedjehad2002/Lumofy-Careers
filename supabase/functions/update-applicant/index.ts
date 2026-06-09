@@ -12,10 +12,43 @@ Deno.serve(async (req) => {
     const rl = isRateLimited(`update-applicant:${ip}`, { maxRequests: 60, windowMs: 60_000 });
     if (rl.limited) return rateLimitResponse(corsHeaders, rl.retryAfterMs);
 
-    const { sessionToken, applicantId, updates } = await req.json();
+    const { sessionToken, applicantId, updates, action, applicant } = await req.json();
 
     const auth = await validateSession(sessionToken, corsHeaders);
     if (!auth.valid) return auth.response;
+
+    // CREATE: add an applicant row (used by the CV Library "Add to job" flow).
+    if (action === "create") {
+      if (!applicant?.job_id || !applicant?.email) {
+        return new Response(JSON.stringify({ error: "applicant with job_id and email is required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const createFields = [
+        "id", "job_id", "full_name", "email", "phone", "location", "nationality",
+        "linkedin", "portfolio", "cover_letter", "cv_file_name", "cv_storage_path",
+        "cv_file_type", "cv_file_size", "status", "applied_date", "screening_answers",
+        "notes", "stage_entered_at",
+      ];
+      const row: Record<string, unknown> = {};
+      for (const key of createFields) if (key in applicant) row[key] = applicant[key];
+      if (!row.status) row.status = "new";
+      const nowIso = new Date().toISOString();
+      if (!row.applied_date) row.applied_date = nowIso.split("T")[0];
+      if (!row.stage_entered_at) row.stage_entered_at = nowIso;
+
+      const { data: created, error: createErr } = await auth.supabase
+        .from("applicants").insert(row).select("id").single();
+      if (createErr) {
+        console.error("Create applicant error:", createErr);
+        return new Response(JSON.stringify({ error: "Failed to add applicant" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ success: true, applicantId: created?.id }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (!applicantId || !updates) {
       return new Response(JSON.stringify({ error: "applicantId and updates are required" }), {

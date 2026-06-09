@@ -81,10 +81,15 @@ const CandidateProfile = ({
 
   const handleAddNote = async () => {
     if (!noteInput.trim()) return;
-    await onAddNote(applicant.id, noteInput.trim());
-    onApplicantChange({ ...applicant, notes: [...applicant.notes, noteInput.trim()] });
-    setNoteInput("");
-    toast.success("Note added");
+    const text = noteInput.trim();
+    try {
+      await onAddNote(applicant.id, text);
+      onApplicantChange({ ...applicant, notes: [...applicant.notes, text] });
+      setNoteInput("");
+      toast.success("Note added");
+    } catch {
+      toast.error("Couldn't save the note. Please try again.");
+    }
   };
 
   const handleStatusChange = async (status: ApplicantStatus) => {

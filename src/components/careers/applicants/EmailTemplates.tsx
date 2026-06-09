@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,24 +56,22 @@ function generateTemplate(type: TemplateType, applicant: Applicant, job: Job | u
 
 const EmailTemplates = ({ applicant, job }: EmailTemplatesProps) => {
   const [selectedType, setSelectedType] = useState<TemplateType>("interview_invite");
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
-  const [initialized, setInitialized] = useState(false);
+  const [subject, setSubject] = useState(() => generateTemplate("interview_invite", applicant, job).subject);
+  const [body, setBody] = useState(() => generateTemplate("interview_invite", applicant, job).body);
 
-  const template = useMemo(() => generateTemplate(selectedType, applicant, job), [selectedType, applicant, job]);
-
-  if (!initialized || subject === generateTemplate(
-    TEMPLATES.find(t => t.type !== selectedType)?.type || "interview_invite", applicant, job
-  ).subject) {
-    // Auto-fill on first render or type change
-  }
+  // Regenerate the draft when the candidate changes (e.g. navigating between profiles).
+  useEffect(() => {
+    const t = generateTemplate(selectedType, applicant, job);
+    setSubject(t.subject);
+    setBody(t.body);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applicant.id]);
 
   const handleSelectTemplate = (type: TemplateType) => {
     setSelectedType(type);
     const t = generateTemplate(type, applicant, job);
     setSubject(t.subject);
     setBody(t.body);
-    setInitialized(true);
   };
 
   const handleCopy = () => {
@@ -85,11 +83,6 @@ const EmailTemplates = ({ applicant, job }: EmailTemplatesProps) => {
     const mailto = `mailto:${applicant.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.open(mailto);
   };
-
-  // Initialize on first render
-  if (!initialized) {
-    handleSelectTemplate("interview_invite");
-  }
 
   return (
     <Card className="border-border/50">

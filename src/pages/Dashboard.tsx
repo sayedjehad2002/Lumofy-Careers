@@ -567,7 +567,7 @@ const Dashboard = () => {
               onStatusUpdate={handleStatusUpdate}
               onAddNote={addApplicantNote}
               onAIComplete={(applicantId, analysis) => {
-                updateApplicantAI(applicantId, analysis);
+                updateApplicantAI(applicantId, analysis).catch(() => {});
               }}
               onApplicantChange={setSelectedApplicant}
               onDelete={async (id) => {

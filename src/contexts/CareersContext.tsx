@@ -331,29 +331,42 @@ export function CareersProvider({ children }: { children: ReactNode }) {
 
   const addApplicantNote = useCallback(async (applicantId: string, note: string) => {
     if (!sessionToken) throw new Error("Not authenticated");
+    let prevNotes: string[] | null = null;
     let newNotes: string[] = [];
     setApplicants(prev => prev.map(a => {
       if (a.id === applicantId) {
+        prevNotes = a.notes;
         newNotes = [...a.notes, note];
         return { ...a, notes: newNotes };
       }
       return a;
     }));
-    if (newNotes.length > 0) {
-      const { error } = await supabase.functions.invoke("update-applicant", {
-        body: { sessionToken, applicantId, updates: { notes: newNotes } },
-      });
-      if (error) import.meta.env.DEV && console.error("addApplicantNote error:", error);
+    const { data, error } = await supabase.functions.invoke("update-applicant", {
+      body: { sessionToken, applicantId, updates: { notes: newNotes } },
+    });
+    if (error || data?.error) {
+      import.meta.env.DEV && console.error("addApplicantNote error:", error || data?.error);
+      if (prevNotes) setApplicants(prev => prev.map(a => a.id === applicantId ? { ...a, notes: prevNotes! } : a));
+      throw new Error(error?.message || data?.error || "Failed to save note");
     }
   }, [sessionToken]);
 
   const updateApplicantAI = useCallback(async (applicantId: string, analysis: AIAnalysis) => {
     if (!sessionToken) throw new Error("Not authenticated");
-    setApplicants(prev => prev.map(a => a.id === applicantId ? { ...a, aiAnalysis: analysis } : a));
-    const { error } = await supabase.functions.invoke("update-applicant", {
+    let prevAnalysis: AIAnalysis | undefined;
+    let found = false;
+    setApplicants(prev => prev.map(a => {
+      if (a.id === applicantId) { prevAnalysis = a.aiAnalysis; found = true; return { ...a, aiAnalysis: analysis }; }
+      return a;
+    }));
+    const { data, error } = await supabase.functions.invoke("update-applicant", {
       body: { sessionToken, applicantId, updates: { ai_analysis: analysis } },
     });
-    if (error) import.meta.env.DEV && console.error("updateApplicantAI error:", error);
+    if (error || data?.error) {
+      import.meta.env.DEV && console.error("updateApplicantAI error:", error || data?.error);
+      if (found) setApplicants(prev => prev.map(a => a.id === applicantId ? { ...a, aiAnalysis: prevAnalysis } : a));
+      throw new Error(error?.message || data?.error || "Failed to save analysis");
+    }
   }, [sessionToken]);
 
   const getJobById = useCallback((id: string) => jobs.find(j => j.id === id), [jobs]);

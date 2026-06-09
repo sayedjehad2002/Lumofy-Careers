@@ -333,7 +333,7 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
       salaryCurrency: salaryEnabled ? salaryCurrency : undefined,
       responsibilities: form.responsibilities.filter((r) => r.trim()),
       requirements: form.requirements.filter((r) => r.trim()),
-      benefits: [],
+      benefits: form.benefits ?? [],
       screeningQuestions,
       postedDate: job?.postedDate || new Date().toISOString().split("T")[0],
       jdFileName: jdResult?.name || jdFileName || undefined,
@@ -366,7 +366,7 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
               Draft it with AI, then refine.
             </DialogDescription>
           </div>
-          <Badge className="border-0 bg-primary/15 text-[10px] text-primary">AI by Lumofy · Pro</Badge>
+          <Badge className="border-0 bg-primary/15 text-[10px] text-primary">AI by Lumofy</Badge>
         </DialogHeader>
 
         {/* Scrollable body */}

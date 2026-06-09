@@ -15,6 +15,7 @@ import AIJobMatching from "./cvlibrary/AIJobMatching";
 import BulkReparse from "./cvlibrary/BulkReparse";
 import CandidateTags from "./cvlibrary/CandidateTags";
 import PipelineIntegration from "./cvlibrary/PipelineIntegration";
+import { useCareers } from "@/contexts/CareersContext";
 const ExportReporting = lazy(() => import("./cvlibrary/ExportReporting")); // lazy: defers xlsx (~94KB) to the Export sub-tab
 import DataCompleteness from "./cvlibrary/DataCompleteness";
 import GDPRRetention from "./cvlibrary/GDPRRetention";
@@ -116,6 +117,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
   const [sortBy, setSortBy] = useState("recent");
   const [selectedCandidate, setSelectedCandidate] = useState<CVCandidate | null>(null);
   const [editCandidate, setEditCandidate] = useState<CVCandidate | null>(null);
+  const { refreshData } = useCareers(); // refresh the dashboard's applicants after "Add to job"
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [analyzingIds, setAnalyzingIds] = useState<Set<string>>(new Set());
   const [folderOpen, setFolderOpen] = useState<Record<string, boolean>>({});
@@ -646,7 +648,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
               </Button>
               {jobs.length > 0 && (
                 <div className="pt-1">
-                  <PipelineIntegration candidate={c as any} jobs={jobs as any} sessionToken={sessionToken} />
+                  <PipelineIntegration candidate={c as any} jobs={jobs as any} sessionToken={sessionToken} onDone={refreshData} />
                 </div>
               )}
 
@@ -674,6 +676,24 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
             </div>
           </div>
         </div>
+
+        {/* Edit dialog must be mounted in THIS profile early-return too: its only
+            trigger ("Edit fields", above) lives here, but the dialog was rendered
+            only in the list-view return — so it never opened. */}
+        {editCandidate && (
+          <EditCandidateDialog
+            candidate={editCandidate}
+            onClose={() => setEditCandidate(null)}
+            onSave={async (updates) => {
+              const saved = await handleUpdateCandidate(editCandidate.id, updates);
+              if (saved) {
+                setEditCandidate(null);
+                addAudit(editCandidate.id, editCandidate.name || "Unknown", "edit", "Fields updated");
+              }
+              return saved;
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -721,7 +741,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
       </div>
 
       {/* Sub-Tab Navigation */}
-      <div className="flex gap-1 mb-4 overflow-x-auto pb-1 scrollbar-hide">
+      <div className="flex gap-1 mb-4 overflow-x-auto pb-1 scrollbar-none">
         {SUB_TABS.map(tab => (
           <button
             key={tab.id}
