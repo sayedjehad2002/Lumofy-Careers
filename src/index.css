@@ -23,6 +23,13 @@
     /* Base surface for "intelligence node" radials (cards/cores on the system
        panels) — white in light mode, deep navy in dark. */
     --node-base: 0 0% 100%;
+    /* Per-theme glow for intelligence cores/bars. Light mode uses a soft
+       DIRECTIONAL elevation (neon-style omnidirectional glow reads as a smudge
+       on white); dark mode keeps a restrained Sirius glow. */
+    --core-glow: 0 10px 36px -10px hsl(var(--primary) / 0.28);
+    --core-glow-strong: 0 14px 44px -10px hsl(var(--primary) / 0.38);
+    /* Accent-node ring glow alpha (hero impact icons) — barely-there on white. */
+    --node-ring-glow: 0.07;
 
     --secondary: 220 16% 92%;
     --secondary-foreground: 220 30% 12%;
@@ -124,6 +131,9 @@
     --primary-readable: 223 90% 66%;
     --destructive-readable: 0 84% 64%;
     --node-base: 222 30% 9%;
+    --core-glow: 0 0 44px hsl(var(--primary) / 0.25);
+    --core-glow-strong: 0 0 60px hsl(var(--primary) / 0.4);
+    --node-ring-glow: 0.15;
 
     --secondary: 222 14% 14%;
     --secondary-foreground: 220 9% 90%;

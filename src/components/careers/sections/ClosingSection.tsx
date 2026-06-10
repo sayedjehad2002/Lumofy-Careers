@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Linkedin } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import AuroraEffect from "@/components/careers/AuroraEffect";
 import { fadeUp, staggerContainer, revealViewport } from "@/lib/motion";
 
 // The closing "decision moment": label + a two-line statement, three conviction pillars,
@@ -18,8 +17,14 @@ const LINKEDIN_URL = "https://www.linkedin.com/company/lumofyinc/";
 
 const ClosingSection = () => (
   <section className="relative overflow-hidden px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-28">
-    <AuroraEffect />
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
+    {/* Same atmosphere language as every other section: the plain page background
+        with ONE faint Sirius radial behind the statement. (The old purple aurora
+        wash made the closing read like a different website.) */}
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0"
+      style={{ background: "radial-gradient(55% 45% at 50% 36%, hsl(var(--primary) / 0.08), transparent 70%)" }}
+    />
 
     <motion.div
       className="relative z-10 mx-auto max-w-4xl text-center"

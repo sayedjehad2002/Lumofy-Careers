@@ -139,20 +139,22 @@ const WorkforceSignal = () => {
                   show: { opacity: 1, x: 0, transition: { duration: 0.4, ease: brandEase } },
                 }}
               >
-                {/* glowing icon node */}
+                {/* icon node — a refined tinted ring, not a neon orb: the halo color
+                    is half-alpha and its breathing range is low; the ring glow alpha
+                    comes from the per-theme token (faint on white, calm on dark). */}
                 <span className="relative flex h-12 w-12 flex-shrink-0 items-center justify-center" aria-hidden="true">
                   <motion.span
                     className="absolute h-12 w-12 rounded-full blur-[10px]"
-                    style={{ background: `hsl(${s.accent})` }}
-                    animate={live ? { opacity: [0.22, 0.42, 0.22], scale: [1, 1.15, 1] } : { opacity: 0.3 }}
+                    style={{ background: `hsl(${s.accent} / 0.55)` }}
+                    animate={live ? { opacity: [0.12, 0.24, 0.12], scale: [1, 1.1, 1] } : { opacity: 0.16 }}
                     transition={{ duration: 4, ease: "easeInOut", repeat: Infinity, delay: i * 0.55 }}
                   />
                   <span
                     className="relative flex h-12 w-12 items-center justify-center rounded-full border"
                     style={{
-                      background: `radial-gradient(125% 125% at 50% 0%, hsl(${s.accent} / 0.22), hsl(var(--node-base)))`,
-                      borderColor: `hsl(${s.accent} / 0.5)`,
-                      boxShadow: `0 0 18px hsl(${s.accent} / 0.22), inset 0 1px 0 hsl(0 0% 100% / 0.08)`,
+                      background: `radial-gradient(125% 125% at 50% 0%, hsl(${s.accent} / 0.16), hsl(var(--node-base)))`,
+                      borderColor: `hsl(${s.accent} / 0.35)`,
+                      boxShadow: `0 0 14px hsl(${s.accent} / var(--node-ring-glow)), inset 0 1px 0 hsl(0 0% 100% / 0.08)`,
                     }}
                   >
                     <Icon className="h-5 w-5" style={{ color: `hsl(${s.accent})` }} aria-hidden="true" />
