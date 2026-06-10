@@ -1,12 +1,11 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { MapPin, Clock, ArrowRight, Bookmark, BookmarkCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { useSavedJobs } from "@/hooks/use-saved-jobs";
 import { deptClasses } from "@/lib/deptColor";
+import { brandEase, durations } from "@/lib/motion";
 import type { Job } from "@/types/careers";
-
-const ease = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
 interface JobCardProps {
   job: Job;
@@ -17,15 +16,17 @@ const JobCard = ({ job, index }: JobCardProps) => {
   const { isSaved, toggle } = useSavedJobs();
   const saved = isSaved(job.id);
   const c = deptClasses(job.department); // semantic hue per department
+  // Carry the list's active filters so JobDetails' back link can restore them.
+  const { search } = useLocation();
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.6, delay: Math.min(index, 6) * 0.06, ease }}
+      transition={{ duration: durations.slow, delay: Math.min(index, 6) * 0.06, ease: brandEase }}
     >
-      <Link to={`/jobs/${job.id}`} className="group block">
+      <Link to={`/jobs/${job.id}`} state={{ search }} className="group block">
         <div className="relative flex rounded-2xl border border-border bg-card p-5 light-glow transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 sm:p-6">
           {/* Save / bookmark toggle (does not navigate) */}
           <button
@@ -36,8 +37,8 @@ const JobCard = ({ job, index }: JobCardProps) => {
             className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           >
             {saved
-              ? <BookmarkCheck className="h-[18px] w-[18px] text-primary" aria-hidden="true" />
-              : <Bookmark className="h-[18px] w-[18px]" aria-hidden="true" />}
+              ? <BookmarkCheck className="h-4 w-4 text-primary" aria-hidden="true" />
+              : <Bookmark className="h-4 w-4" aria-hidden="true" />}
           </button>
 
           {/* Left accent line */}
@@ -81,7 +82,7 @@ const JobCard = ({ job, index }: JobCardProps) => {
                 </p>
 
                 {job.salaryRange && (
-                  <p className="mt-2.5 text-xs font-semibold text-primary">
+                  <p className="mt-2.5 text-xs font-semibold text-primary-readable">
                     {job.salaryRange} {job.salaryCurrency || "BHD"}
                   </p>
                 )}

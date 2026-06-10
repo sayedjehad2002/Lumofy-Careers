@@ -20,6 +20,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
   return (
     <motion.nav
       ref={ref as any}
+      aria-label="Primary"
       className="fixed top-0 left-0 right-0 z-50 glass"
       initial={{ y: -60, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
@@ -37,7 +38,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
             <span className="text-[1.6rem] font-extrabold leading-none tracking-tight text-foreground">
               Lumofy
             </span>
-            <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary-readable">
               Careers
             </span>
           </Link>
@@ -52,7 +53,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
               >
                 <Link
                   to={link.to}
-                  className="px-3 py-2 text-sm text-muted-foreground hover:text-primary transition-colors rounded-md relative group"
+                  className="px-3 py-2 text-sm text-muted-foreground hover:text-primary-readable transition-colors rounded-md relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {link.label}
                   <span className="absolute bottom-0.5 left-3 right-3 h-[2px] bg-primary/60 rounded-full scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
@@ -64,7 +65,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             >
-              <Button asChild size="sm" className="ml-2 rounded-lg btn-sheen">
+              <Button asChild size="sm" className="ml-2 rounded-xl btn-sheen">
                 <Link to="/jobs">View open roles</Link>
               </Button>
             </motion.div>
@@ -74,18 +75,16 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.7, duration: 0.3 }}
               >
-                <Link to="/dashboard">
-                  <Button size="sm" variant="outline" className="ml-1">
-                    HR Dashboard
-                  </Button>
-                </Link>
+                <Button asChild size="sm" variant="outline" className="ml-1 rounded-xl">
+                  <Link to="/dashboard">HR Dashboard</Link>
+                </Button>
               </motion.div>
             )}
           </div>
 
           <div className="flex items-center gap-2 md:hidden">
             <motion.button
-              className="text-foreground"
+              className="text-foreground p-3 -m-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => setMobileOpen(!mobileOpen)}
               whileTap={{ scale: 0.9 }}
               aria-label={mobileOpen ? "Close menu" : "Open menu"}
@@ -128,24 +127,24 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
                 >
                   <Link
                     to={link.to}
-                    className="block px-3 py-2 text-sm text-muted-foreground hover:text-foreground rounded-md"
+                    className="block px-3 py-2 text-sm text-muted-foreground hover:text-primary-readable rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     onClick={() => setMobileOpen(false)}
                   >
                     {link.label}
                   </Link>
                 </motion.div>
               ))}
-              <Link to="/jobs" onClick={() => setMobileOpen(false)}>
-                <Button size="sm" className="mt-2 w-full btn-sheen">
+              <Button asChild size="sm" className="mt-2 w-full rounded-xl btn-sheen">
+                <Link to="/jobs" onClick={() => setMobileOpen(false)}>
                   View open roles
-                </Button>
-              </Link>
-              {isHrUser && (
-                <Link to="/dashboard" onClick={() => setMobileOpen(false)}>
-                  <Button size="sm" variant="outline" className="mt-2 w-full">
-                    HR Dashboard
-                  </Button>
                 </Link>
+              </Button>
+              {isHrUser && (
+                <Button asChild size="sm" variant="outline" className="mt-2 w-full rounded-xl">
+                  <Link to="/dashboard" onClick={() => setMobileOpen(false)}>
+                    HR Dashboard
+                  </Link>
+                </Button>
               )}
             </div>
           </motion.div>

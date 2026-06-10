@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Clock, Calendar, Share2, Copy, Mail, CheckCircle2, Download, FileText, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
+import { ArrowLeft, ArrowRight, MapPin, Clock, Calendar, CalendarClock, Share2, Copy, Mail, CheckCircle2, Download, FileText, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { brandEase } from "@/lib/motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,9 +16,18 @@ import { toast } from "sonner";
 const JobDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  // JobCard passes the list's query string via location.state.search so "Back to all
+  // positions" returns to the same filters; direct/shared links fall back to /jobs.
+  const { state } = useLocation() as { state?: { search?: string } };
+  const backToJobs = `/jobs${state?.search ?? ""}`;
   const { getJobById, loading } = useCareers();
   const job = getJobById(id || "");
   const [downloading, setDownloading] = useState(false);
+
+  // Distinct title per job so tabs/history/screen readers can tell pages apart.
+  useEffect(() => {
+    if (job?.title) document.title = `${job.title} – Lumofy Careers`;
+  }, [job?.title]);
 
   if (loading) {
     return (
@@ -106,7 +116,7 @@ const JobDetails = () => {
       <main id="main" className="pt-24 pb-20 px-4">
         <div className="max-w-6xl mx-auto">
           <Link
-            to="/jobs"
+            to={backToJobs}
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" aria-hidden="true" />
@@ -121,7 +131,7 @@ const JobDetails = () => {
                 className="rounded-2xl bg-card border border-border p-6 light-glow"
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
+                transition={{ duration: 0.4, ease: brandEase }}
               >
                 <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-0 mb-3">
                   {job.department}
@@ -137,15 +147,21 @@ const JobDetails = () => {
                   <span className="flex items-center gap-1.5">
                     <Calendar className="w-4 h-4" aria-hidden="true" /> Posted {new Date(job.postedDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                   </span>
+                  {job.deadline && (
+                    <span className="flex items-center gap-1.5 font-medium text-foreground">
+                      <CalendarClock className="w-4 h-4 text-primary" aria-hidden="true" /> Apply by {new Date(job.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </span>
+                  )}
                 </div>
                 {job.salaryRange && (
-                  <p className="text-sm font-medium text-primary mb-4">
+                  <p className="text-sm font-medium text-primary-readable mb-4">
                     Salary: {job.salaryRange} {job.salaryCurrency || "BHD"}
                   </p>
                 )}
                 <div className="flex flex-wrap gap-3">
                   <Button
                     size="lg"
+                    className="h-12 rounded-xl px-8 text-base btn-sheen"
                     onClick={() => navigate(`/jobs/${job.id}/apply`)}
                   >
                     Apply for this position
@@ -154,6 +170,7 @@ const JobDetails = () => {
                     <Button
                       size="lg"
                       variant="outline"
+                      className="h-12 rounded-xl px-8 text-base"
                       onClick={handleDownloadJd}
                       disabled={downloading}
                     >
@@ -171,10 +188,10 @@ const JobDetails = () => {
               {/* About the Role */}
               {job.description && (
                 <motion.div
-                  className="rounded-2xl bg-card border border-border p-6"
+                  className="rounded-2xl bg-card border border-border p-6 light-glow"
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.1 }}
+                  transition={{ duration: 0.4, delay: 0.1, ease: brandEase }}
                 >
                   <h2 className="text-lg font-semibold mb-3">About the Role</h2>
                   <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>
@@ -184,10 +201,10 @@ const JobDetails = () => {
               {/* Responsibilities */}
               {(job.responsibilities ?? []).length > 0 && (job.responsibilities ?? []).some(r => r.trim()) && (
                 <motion.div
-                  className="rounded-2xl bg-card border border-border p-6"
+                  className="rounded-2xl bg-card border border-border p-6 light-glow"
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.15 }}
+                  transition={{ duration: 0.4, delay: 0.15, ease: brandEase }}
                 >
                   <h2 className="text-lg font-semibold mb-3">Key Responsibilities</h2>
                   <ul className="space-y-2">
@@ -204,10 +221,10 @@ const JobDetails = () => {
               {/* Requirements */}
               {(job.requirements ?? []).length > 0 && (job.requirements ?? []).some(r => r.trim()) && (
                 <motion.div
-                  className="rounded-2xl bg-card border border-border p-6"
+                  className="rounded-2xl bg-card border border-border p-6 light-glow"
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.2 }}
+                  transition={{ duration: 0.4, delay: 0.2, ease: brandEase }}
                 >
                   <h2 className="text-lg font-semibold mb-3">Requirements</h2>
                   <ul className="space-y-2">
@@ -224,10 +241,10 @@ const JobDetails = () => {
               {/* Screening Questions Preview */}
               {(job.screeningQuestions ?? []).length > 0 && (
                 <motion.div
-                  className="rounded-2xl bg-card border border-border p-6"
+                  className="rounded-2xl bg-card border border-border p-6 light-glow"
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.25 }}
+                  transition={{ duration: 0.4, delay: 0.25, ease: brandEase }}
                 >
                   <h2 className="text-lg font-semibold mb-3">Screening Questions</h2>
                   <p className="text-sm text-muted-foreground mb-4">
@@ -249,11 +266,21 @@ const JobDetails = () => {
             {/* Sidebar */}
             <div className="space-y-6">
               <motion.div
-                className="rounded-2xl bg-card border border-border p-5 sticky top-24"
+                className="rounded-2xl bg-card border border-border p-5 light-glow sticky top-24"
                 initial={{ opacity: 0, x: 15 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
+                transition={{ duration: 0.4, delay: 0.2, ease: brandEase }}
               >
+                {/* Apply persists beside the JD on desktop — the header CTA scrolls away
+                    exactly when a long description has done its convincing. */}
+                <Button
+                  className="w-full h-11 rounded-xl btn-sheen mb-4"
+                  onClick={() => navigate(`/jobs/${job.id}/apply`)}
+                >
+                  Apply for this position
+                  <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                </Button>
+
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
                   <Share2 className="w-4 h-4 text-primary" aria-hidden="true" />
                   Share This Job
@@ -288,7 +315,7 @@ const JobDetails = () => {
                 <div className="border-t border-border pt-4 mt-4">
                   <h3 className="font-semibold mb-2">Questions?</h3>
                   <p className="text-xs text-muted-foreground mb-1">{SITE.recruiter.title}</p>
-                  <p className="text-xs text-primary mb-3">{SITE.careersEmail}</p>
+                  <p className="text-xs text-primary-readable mb-3">{SITE.careersEmail}</p>
                   <Button variant="outline" size="sm" className="w-full" asChild>
                     <a href={`mailto:${SITE.careersEmail}`}>
                       <Mail className="w-3.5 h-3.5 mr-2" aria-hidden="true" />

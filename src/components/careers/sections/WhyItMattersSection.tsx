@@ -34,7 +34,7 @@ const WhyItMattersSection = () => (
         />
 
         {/* LEFT — Today's challenge */}
-        <motion.div variants={fadeUp} className="relative z-10 rounded-2xl border border-border bg-card/50 p-6 backdrop-blur-sm sm:p-7">
+        <motion.div variants={fadeUp} className="relative z-10 rounded-2xl border border-border bg-card/40 p-6 backdrop-blur-sm sm:p-7">
           <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Today's challenge</p>
           <ul className="space-y-3.5">
             {stakes.problems.map((p) => (
@@ -46,16 +46,22 @@ const WhyItMattersSection = () => (
           </ul>
         </motion.div>
 
-        {/* CENTER — Lumofy intelligence layer */}
+        {/* CENTER — Lumofy intelligence layer (the system's heart: halo + node treatment
+            matched to the WhatWeBuild Core so the mark reads identically across sections) */}
         <motion.div variants={fadeUp} className="relative z-20 flex items-center justify-center py-1 lg:px-6 lg:py-0">
-          <div className="flex flex-col items-center gap-2.5">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute left-1/2 top-1/2 h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{ background: "radial-gradient(circle, hsl(var(--primary) / 0.14), transparent 70%)" }}
+          />
+          <div className="relative flex flex-col items-center gap-2.5">
             <span
-              className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 shadow-[0_0_26px_hsl(var(--primary)/0.3)]"
-              style={{ background: "radial-gradient(120% 120% at 50% 0%, hsl(var(--primary) / 0.16), hsl(222 30% 9%))" }}
+              className="flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/40 shadow-[0_0_36px_hsl(var(--primary)/0.35)]"
+              style={{ background: "radial-gradient(130% 130% at 50% 0%, hsl(var(--primary) / 0.22), hsl(222 30% 9%))" }}
             >
-              <img src={lumofyLogo} alt="" aria-hidden="true" className="h-7 w-7 object-contain" />
+              <img src={lumofyLogo} alt="" aria-hidden="true" className="h-8 w-8 object-contain" />
             </span>
-            <span className="text-center font-mono text-[10px] uppercase leading-tight tracking-wider text-primary">
+            <span className="text-center font-mono text-[10px] uppercase leading-tight tracking-wider text-primary-readable">
               Lumofy
               <br />
               intelligence layer
@@ -64,8 +70,8 @@ const WhyItMattersSection = () => (
         </motion.div>
 
         {/* RIGHT — What we're building */}
-        <motion.div variants={fadeUp} className="relative z-10 rounded-2xl border border-primary/20 bg-primary/[0.05] p-6 backdrop-blur-sm sm:p-7">
-          <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.18em] text-primary">What we're building</p>
+        <motion.div variants={fadeUp} className="relative z-10 rounded-2xl border border-primary/20 bg-primary/5 p-6 backdrop-blur-sm sm:p-7">
+          <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.18em] text-primary-readable">What we're building</p>
           <ul className="space-y-3.5">
             {stakes.solutions.map((s) => (
               <li key={s} className="flex items-center gap-3 text-sm text-foreground">

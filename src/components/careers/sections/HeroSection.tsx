@@ -16,7 +16,7 @@ const HeroSection = () => {
       <div className="relative z-10 mx-auto grid w-full max-w-[1536px] items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
         {/* Left — the thesis */}
         <motion.div variants={staggerContainer()} initial="hidden" animate="show">
-          <motion.p variants={fadeUp} className="mb-5 font-mono text-xs uppercase tracking-[0.25em] text-primary">
+          <motion.p variants={fadeUp} className="mb-5 font-mono text-xs uppercase tracking-[0.2em] text-primary-readable">
             {hero.kicker}
           </motion.p>
           <motion.h1
@@ -33,13 +33,13 @@ const HeroSection = () => {
             {hero.subdeck}
           </motion.p>
           <motion.div variants={fadeUp} className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button asChild size="lg" className="group h-12 rounded-xl px-7 text-base btn-sheen">
+            <Button asChild size="lg" className="group h-12 rounded-xl px-8 text-base btn-sheen">
               <Link to={hero.ctaPrimary.to}>
                 {hero.ctaPrimary.label}
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="h-12 rounded-xl px-7 text-base">
+            <Button asChild size="lg" variant="outline" className="h-12 rounded-xl px-8 text-base">
               <a href={hero.ctaSecondary.to}>{hero.ctaSecondary.label}</a>
             </Button>
           </motion.div>

@@ -18,7 +18,10 @@ interface SectionShellProps {
 
 const SectionShell = ({ id, kicker, title, sub, className, headerClassName, children }: SectionShellProps) => (
   <section id={id} className={cn("scroll-mt-24 px-4 py-16 sm:px-6 sm:py-24 lg:px-8 lg:py-28", className)}>
-    <div className="mx-auto max-w-[1536px]">
+    {/* Content measure: sections keep a readable 72rem column (their compositions are
+        designed for it) while the page chrome (nav / hero / footer) spans 1536px.
+        At ≥1920px the wide shell + capped content is the intended editorial rhythm. */}
+    <div className="mx-auto max-w-6xl">
       {(kicker || title || sub) && (
         <motion.div
           variants={staggerContainer()}
@@ -28,7 +31,7 @@ const SectionShell = ({ id, kicker, title, sub, className, headerClassName, chil
           className={cn("mx-auto max-w-2xl text-center", headerClassName)}
         >
           {kicker && (
-            <motion.p variants={fadeUp} className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-primary">
+            <motion.p variants={fadeUp} className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-primary-readable">
               {kicker}
             </motion.p>
           )}

@@ -1,14 +1,18 @@
 import { motion } from "framer-motion";
+import { prefersReducedMotion } from "@/lib/motion";
 
 /**
  * Signature Lumofy "aurora" — a soft, slow-moving cosmic nebula behind the hero:
  * Sirius blue leads, with Eclipse purple + Nova pink accents (the brand palette).
- * GPU-only (transform / opacity / blur), pointer-events-none, paused under
- * prefers-reduced-motion via MotionConfig.
+ * GPU-only (transform / opacity / blur), pointer-events-none, decorative
+ * (aria-hidden). Bands 1–3 pause under prefers-reduced-motion via MotionConfig
+ * (transforms); band 4 animates opacity, which MotionConfig does NOT cover, so
+ * it is gated explicitly.
  */
 const AuroraEffect = ({ className = "" }: { className?: string }) => {
+  const reduced = prefersReducedMotion();
   return (
-    <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
+    <div aria-hidden="true" className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
       {/* Band 1 — Sirius blue (brand-led, dominant) */}
       <motion.div
         className="absolute top-[8%] left-[-20%] w-[140%] h-[42%] rounded-[50%] blur-[100px]"
@@ -48,8 +52,8 @@ const AuroraEffect = ({ className = "" }: { className?: string }) => {
         style={{
           background: "linear-gradient(180deg, transparent 30%, hsl(223 83% 60% / 0.05) 50%, transparent 70%)",
         }}
-        animate={{ opacity: [0.3, 0.7, 0.3] }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        animate={reduced ? { opacity: 0.5 } : { opacity: [0.3, 0.7, 0.3] }}
+        transition={reduced ? undefined : { duration: 6, repeat: Infinity, ease: "easeInOut" }}
       />
     </div>
   );

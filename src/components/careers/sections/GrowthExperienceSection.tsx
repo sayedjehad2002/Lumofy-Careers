@@ -31,7 +31,7 @@ const GrowthExperienceSection = () => {
       >
         {/* Left — editorial */}
         <motion.div variants={fadeUp}>
-          <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-primary">Growth experience</p>
+          <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-primary-readable">Growth experience</p>
           <h2 className="text-3xl font-extrabold leading-[1.1] tracking-tight sm:text-4xl">Designed for the person you're becoming.</h2>
           <p className="mt-5 max-w-md text-base leading-relaxed text-muted-foreground">
             We build workforce growth systems for organizations. Inside Lumofy, we design the same clarity, trust, and momentum for our own team.
@@ -62,8 +62,8 @@ const GrowthExperienceSection = () => {
                   onFocus={() => setSel(i)}
                   onClick={() => setSel(i)}
                   aria-pressed={isSel}
-                  className={`flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition-all duration-300 ${
-                    isSel ? "border-primary/40 bg-primary/[0.08]" : "border-border/60 bg-card/40 hover:border-border hover:bg-card/70"
+                  className={`flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    isSel ? "border-primary/40 bg-primary/10" : "border-border/60 bg-card/40 hover:border-primary/30 hover:bg-card/70"
                   }`}
                 >
                   <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${c.bgSoft}`}>
@@ -76,7 +76,7 @@ const GrowthExperienceSection = () => {
           </div>
 
           {/* detail panel */}
-          <div className="relative mt-3.5 min-h-[7.5rem] rounded-xl border border-border/60 bg-secondary/30 p-5" aria-live="polite">
+          <div className="relative mt-3.5 min-h-[7.5rem] rounded-xl border border-border/60 bg-card/40 p-5" aria-live="polite">
             <AnimatePresence mode="wait">
               <motion.div
                 key={sel}
@@ -86,7 +86,7 @@ const GrowthExperienceSection = () => {
                 transition={{ duration: 0.25, ease: brandEase }}
               >
                 <div className="mb-2 flex items-center gap-2.5">
-                  <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${ac.bgSoft}`}>
+                  <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${ac.bgSoft}`}>
                     <ActiveIcon className={`h-5 w-5 ${ac.text}`} aria-hidden="true" />
                   </span>
                   <h3 className="text-lg font-bold text-foreground">{active.title}</h3>

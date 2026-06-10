@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, forwardRef } from "react";
+import { useMemo, useCallback, useState, useEffect, forwardRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -31,8 +31,10 @@ import {
 } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 
-const ease = [0.22, 1, 0.36, 1] as [number, number, number, number];
-const fadeUp = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0, transition: { duration: 0.6, ease } } };
+// Motion comes from the shared tokens (brandEase + 0.4s fadeUp) so jobs-page
+// reveals run at the same rhythm as the rest of the site.
+import { brandEase as ease, fadeUp } from "@/lib/motion";
+import { SITE } from "@/data/site";
 
 // ─── URL param helpers ─────────────────────────────────────
 function getParamArray(params: URLSearchParams, key: string): string[] {
@@ -75,7 +77,7 @@ const FilterSection = forwardRef<HTMLDivElement, FilterSectionProps>(({ title, i
           {icon}
           {title}
           {selected.length > 0 && (
-            <Badge variant="secondary" className="h-5 border-0 bg-primary/10 px-1.5 text-[10px] text-primary">
+            <Badge variant="secondary" className="h-5 border-0 bg-primary/10 px-1.5 text-[10px] text-primary-readable">
               {selected.length}
             </Badge>
           )}
@@ -88,6 +90,7 @@ const FilterSection = forwardRef<HTMLDivElement, FilterSectionProps>(({ title, i
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <Input
               placeholder={`Search ${title.toLowerCase()}…`}
+              aria-label={`Search ${title.toLowerCase()}`}
               value={sectionSearch}
               onChange={e => setSectionSearch(e.target.value)}
               className="h-8 bg-muted/30 pl-8 text-xs"
@@ -132,13 +135,13 @@ const ActiveChip = ({ label, onRemove }: ActiveChipProps) => (
     initial={{ opacity: 0, scale: 0.9 }}
     animate={{ opacity: 1, scale: 1 }}
     exit={{ opacity: 0, scale: 0.9 }}
-    className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 py-1 pl-2.5 pr-1.5 text-xs font-medium text-primary"
+    className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 py-1 pl-2.5 pr-1 text-xs font-medium text-primary-readable"
   >
     {label}
     <button
       onClick={onRemove}
-      aria-label="Remove filter"
-      className="rounded-full p-0.5 transition-colors hover:bg-primary/20"
+      aria-label={`Remove ${label} filter`}
+      className="rounded-full p-1.5 transition-colors hover:bg-primary/20"
     >
       <X className="h-3 w-3" aria-hidden="true" />
     </button>
@@ -263,7 +266,11 @@ const JobsPage = () => {
   const filteredJobs = useMemo(() => {
     return openJobs.filter(job => {
       if (savedOnly && !savedIds.includes(job.id)) return false;
-      if (search && !job.title.toLowerCase().includes(search.toLowerCase()) && !job.summary.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        const haystack = [job.title, job.summary, job.department, job.location].join(" ").toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
       if (selectedDepartments.length > 0 && !selectedDepartments.includes(job.department)) return false;
       if (selectedLocations.length > 0 && !selectedLocations.includes(job.location)) return false;
       if (selectedTypes.length > 0 && !selectedTypes.includes(job.type)) return false;
@@ -312,6 +319,11 @@ const JobsPage = () => {
     toast.success("Filter link copied to clipboard!");
   }, []);
 
+  // Distinct title per route so tabs/history/screen readers can tell pages apart.
+  useEffect(() => {
+    document.title = "Open Positions – Lumofy Careers";
+  }, []);
+
   const sidebarProps = {
     departments, locations, jobTypes,
     selectedDepartments, selectedLocations, selectedTypes,
@@ -333,7 +345,7 @@ const JobsPage = () => {
             transition={{ duration: 0.6, ease }}
             className="text-center"
           >
-            <span className="font-mono text-xs uppercase tracking-[0.2em] text-primary">Open roles · Lumofy</span>
+            <span className="font-mono text-xs uppercase tracking-[0.2em] text-primary-readable">Open roles · Lumofy</span>
             <h1 className="mt-4 text-3xl font-extrabold tracking-[-0.02em] sm:text-4xl lg:text-5xl">Open Positions</h1>
             <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
               Explore opportunities at Lumofy and find the role that matches your skills and ambitions.
@@ -349,6 +361,7 @@ const JobsPage = () => {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                 <Input
                   placeholder="Search by title, keyword, or skill…"
+                  aria-label="Search jobs"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="h-11 bg-background pl-9 text-sm"
@@ -436,6 +449,9 @@ const JobsPage = () => {
 
             {/* Job Listings */}
             <div className="min-w-0 flex-1">
+              {/* SR landmark: the visible h2 lives in the desktop-only sidebar, which would
+                  leave mobile with an h1→h3 skip. */}
+              <h2 className="sr-only">Job listings</h2>
               {/* Results header */}
               <div className="mb-4 flex items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground" aria-live="polite">
@@ -452,7 +468,7 @@ const JobsPage = () => {
                     aria-pressed={savedOnly}
                     className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
                       savedOnly
-                        ? "border-primary/40 bg-primary/10 text-primary"
+                        ? "border-primary/40 bg-primary/10 text-primary-readable"
                         : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
                     }`}
                   >
@@ -504,15 +520,21 @@ const JobsPage = () => {
                       </div>
                       <h2 className="text-lg font-bold tracking-tight text-foreground">No open roles right now</h2>
                       <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
-                        We're not actively hiring at the moment, but new roles open often. Explore our teams and check back soon.
+                        We're not actively hiring at the moment, but new roles open often. Get to know
+                        Lumofy, or send us your CV and tell us where you'd add the most value.
                       </p>
-                      <Button size="sm" asChild className="mt-5 h-11 rounded-xl px-6">
-                        <Link to="/">
-                          <Compass className="mr-2 h-4 w-4" aria-hidden="true" />
-                          Browse by team
-                          <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-                        </Link>
-                      </Button>
+                      <div className="mt-5 flex flex-col items-center justify-center gap-2.5 sm:flex-row">
+                        <Button size="sm" asChild className="h-11 rounded-xl px-6">
+                          <Link to="/">
+                            <Compass className="mr-2 h-4 w-4" aria-hidden="true" />
+                            Learn about Lumofy
+                            <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                          </Link>
+                        </Button>
+                        <Button size="sm" variant="outline" asChild className="h-11 rounded-xl px-6">
+                          <a href={`mailto:${SITE.careersEmail}`}>Email us your CV</a>
+                        </Button>
+                      </div>
                     </>
                   )}
                 </motion.div>

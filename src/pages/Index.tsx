@@ -14,6 +14,12 @@ const Index = () => {
   // Anchor navigation: React Router doesn't auto-scroll to hashes, so do it here.
   // Works whether arriving from another route or changing hash while on `/`.
   const { hash } = useLocation();
+
+  // Restore the base title (job pages set their own).
+  useEffect(() => {
+    document.title = "Lumofy Careers – Join Our Team";
+  }, []);
+
   useEffect(() => {
     if (!hash) return;
     const el = document.querySelector(hash);

@@ -99,8 +99,8 @@ const WorkforceSignal = () => {
 
       {/* ===== Header ===== */}
       <div className="relative mb-5 flex items-center justify-between">
-        <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary">Lumofy Impact</span>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--brand-aurora)/0.25)] bg-[hsl(var(--brand-aurora)/0.08)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[hsl(var(--brand-aurora))]" aria-label="Live data">
+        <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary-readable">Lumofy Impact</span>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--brand-aurora)/0.25)] bg-[hsl(var(--brand-aurora)/0.08)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[hsl(var(--brand-aurora))]">
           <span className="relative flex h-1.5 w-1.5">
             {!reduced && <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: "hsl(var(--brand-aurora))" }} />}
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: "hsl(var(--brand-aurora))" }} />

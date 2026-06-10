@@ -27,25 +27,26 @@ const Footer = forwardRef<HTMLElement>((_, ref) => (
         {/* Link groups */}
         <div className="grid grid-cols-2 gap-10 sm:gap-16">
           <nav aria-label="Careers">
-            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-foreground">Careers</h4>
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-foreground">Careers</h2>
             <ul className="space-y-2.5">
-              <li><Link to="/jobs" className="text-sm text-muted-foreground transition-colors hover:text-primary">Open Positions</Link></li>
-              <li><Link to="/#growth" className="text-sm text-muted-foreground transition-colors hover:text-primary">Growth</Link></li>
+              <li><Link to="/jobs" className="text-sm text-muted-foreground transition-colors hover:text-primary-readable focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">Open Positions</Link></li>
+              <li><Link to="/#growth" className="text-sm text-muted-foreground transition-colors hover:text-primary-readable focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">Growth</Link></li>
             </ul>
           </nav>
           <div>
-            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-foreground">Get in touch</h4>
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-foreground">Get in touch</h2>
             <ul className="space-y-2.5">
               <li>
-                <a href={`mailto:${SITE.careersEmail}`} className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary">
+                <a href={`mailto:${SITE.careersEmail}`} className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary-readable focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
                   <Mail className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
                   {SITE.careersEmail}
                 </a>
               </li>
               <li>
-                <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary">
+                <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary-readable focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
                   <Linkedin className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
                   LinkedIn
+                  <span className="sr-only">(opens in new tab)</span>
                 </a>
               </li>
               <li className="flex items-center gap-2 text-sm text-muted-foreground">

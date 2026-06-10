@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, useNavigationType } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { CareersProvider } from "@/contexts/CareersContext";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
@@ -43,13 +43,15 @@ const pageVariants = {
 
 const pageTransition = {
   type: "tween" as const,
-  ease: [0.4, 0, 0.2, 1] as [number, number, number, number],
+  // Signature brand curve (= lib/motion brandEase) so route transitions speak the
+  // same easing language as every in-page reveal.
+  ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
   duration: 0.3,
 };
 
 const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
-    <Loader2 className="w-6 h-6 animate-spin text-primary" aria-label="Loading" />
+  <div role="status" aria-label="Loading" className="min-h-screen flex items-center justify-center bg-background">
+    <Loader2 className="w-6 h-6 animate-spin text-primary" aria-hidden="true" />
   </div>
 );
 
@@ -61,8 +63,12 @@ const PageLoader = () => (
 // links so in-page anchors (#building, #growth, …) still scroll to their target.
 function ScrollToTop() {
   const { hash } = useLocation();
+  // Browser back/forward (POP) keeps the browser's native scroll restoration so
+  // returning to the jobs list lands where the candidate left off; only PUSH/REPLACE
+  // navigations (links, buttons) reset to the top.
+  const navType = useNavigationType();
   useLayoutEffect(() => {
-    if (hash) return;
+    if (hash || navType === "POP") return;
     // Force an instant jump: index.css sets `scroll-behavior: smooth`, which would
     // otherwise animate a long scroll-up on each navigation.
     const html = document.documentElement;
@@ -70,7 +76,7 @@ function ScrollToTop() {
     html.style.scrollBehavior = "auto";
     window.scrollTo(0, 0);
     html.style.scrollBehavior = prev;
-  }, [hash]);
+  }, [hash, navType]);
   return null;
 }
 

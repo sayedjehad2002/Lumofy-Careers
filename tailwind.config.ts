@@ -56,7 +56,10 @@ export default {
   			foreground: 'hsl(var(--foreground))',
   			primary: {
   				DEFAULT: 'hsl(var(--primary))',
-  				foreground: 'hsl(var(--primary-foreground))'
+  				foreground: 'hsl(var(--primary-foreground))',
+  				/* AA-readable variant for SMALL primary-colored text on dark surfaces
+  				   (Sirius at 52% lightness is 3.3:1 there — fails 4.5:1). Same hue. */
+  				readable: 'hsl(var(--primary-readable))'
   			},
   			secondary: {
   				DEFAULT: 'hsl(var(--secondary))',
@@ -64,7 +67,9 @@ export default {
   			},
   			destructive: {
   				DEFAULT: 'hsl(var(--destructive))',
-  				foreground: 'hsl(var(--destructive-foreground))'
+  				foreground: 'hsl(var(--destructive-foreground))',
+  				/* AA-readable variant for small error TEXT (not buttons/borders). */
+  				readable: 'hsl(var(--destructive-readable))'
   			},
   			muted: {
   				DEFAULT: 'hsl(var(--muted))',

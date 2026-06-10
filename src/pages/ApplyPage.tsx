@@ -1,7 +1,8 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Upload, CheckCircle, Loader2, X, FileText, User, Briefcase, HelpCircle, Info } from "lucide-react";
-import { useState, useRef, useMemo, useCallback } from "react";
+import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -14,25 +15,22 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { NATIONALITIES } from "@/data/nationalities";
 import { getApplicationFieldErrors } from "@/lib/applicationSchema";
+import { brandEase as ease, fadeUp } from "@/lib/motion";
+import { hiringSteps } from "@/data/careers";
 import type { Applicant } from "@/types/careers";
 
-const ease = [0.22, 1, 0.36, 1] as [number, number, number, number];
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease } },
-};
-
 // ── Progress Steps ──
-const STEPS = [
+type Step = { label: string; icon: typeof User };
+const BASE_STEPS: Step[] = [
   { label: "Personal Info", icon: User },
   { label: "Upload CV", icon: FileText },
-  { label: "Questions", icon: HelpCircle },
 ];
+const QUESTIONS_STEP: Step = { label: "Questions", icon: HelpCircle };
 
-function ProgressIndicator({ current }: { current: number }) {
+function ProgressIndicator({ current, steps }: { current: number; steps: Step[] }) {
   return (
     <div className="mb-8 flex items-center justify-center gap-0">
-      {STEPS.map((step, i) => {
+      {steps.map((step, i) => {
         const Icon = step.icon;
         const isActive = i === current;
         const isDone = i < current;
@@ -44,17 +42,17 @@ function ProgressIndicator({ current }: { current: number }) {
                   isActive
                     ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
                     : isDone
-                    ? "bg-primary/15 text-primary"
+                    ? "bg-primary/15 text-primary-readable"
                     : "bg-muted text-muted-foreground"
                 }`}
               >
                 <Icon className="h-4 w-4" aria-hidden="true" />
               </div>
-              <span className={`mt-1.5 text-[11px] ${isActive ? "font-medium text-primary" : "text-muted-foreground"}`}>
+              <span className={`mt-1.5 text-[11px] ${isActive ? "font-medium text-primary-readable" : "text-muted-foreground"}`}>
                 {step.label}
               </span>
             </div>
-            {i < STEPS.length - 1 && (
+            {i < steps.length - 1 && (
               <div className={`mx-2 mb-5 h-0.5 w-12 sm:w-20 ${isDone ? "bg-primary/40" : "bg-border"}`} />
             )}
           </div>
@@ -83,11 +81,15 @@ function NationalitySelect({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
-  // Validate when the dropdown closes (the select-equivalent of blur).
+  // Validate when the dropdown closes (the select-equivalent of blur), and put
+  // focus back on the trigger — selecting an option unmounts the list, which
+  // otherwise drops keyboard/screen-reader focus to <body>.
   const close = () => {
     setOpen(false);
     onBlur?.();
+    window.setTimeout(() => triggerRef.current?.focus(), 0);
   };
 
   const filtered = useMemo(() => {
@@ -99,10 +101,12 @@ function NationalitySelect({
   return (
     <div className="relative">
       <button
+        ref={triggerRef}
         type="button"
         id={id}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-required="true"
         aria-invalid={!!error}
         aria-describedby={error && errorId ? errorId : undefined}
         className={`flex h-10 w-full items-center rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
@@ -127,7 +131,15 @@ function NationalitySelect({
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={close} />
-          <div className="absolute top-full z-50 mt-1 flex max-h-64 w-full flex-col overflow-hidden rounded-md border border-border bg-popover shadow-lg">
+          <div
+            className="absolute top-full z-50 mt-1 flex max-h-64 w-full flex-col overflow-hidden rounded-md border border-border bg-popover shadow-lg"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.stopPropagation();
+                close();
+              }
+            }}
+          >
             <div className="border-b border-border p-2">
               <Input
                 ref={inputRef}
@@ -149,7 +161,7 @@ function NationalitySelect({
                     role="option"
                     aria-selected={n === value}
                     className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground ${
-                      n === value ? "bg-primary/10 font-medium text-primary" : ""
+                      n === value ? "bg-primary/10 font-medium text-primary-readable" : ""
                     }`}
                     onClick={() => {
                       onChange(n);
@@ -165,7 +177,7 @@ function NationalitySelect({
           </div>
         </>
       )}
-      {error && <p id={errorId} role="alert" className="mt-1 text-xs text-destructive">{error}</p>}
+      {error && <p id={errorId} role="alert" className="mt-1 text-xs text-destructive-readable">{error}</p>}
     </div>
   );
 }
@@ -204,22 +216,58 @@ const ApplyPage = () => {
   const [screeningAnswers, setScreeningAnswers] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Distinct title per route so tabs/history/screen readers can tell pages apart.
+  useEffect(() => {
+    document.title = job?.title ? `Apply – ${job.title} – Lumofy Careers` : "Apply – Lumofy Careers";
+  }, [job?.title]);
+
+  // Steps: the "Questions" step only exists when this job actually asks questions.
+  const steps = useMemo(
+    () => ((job?.screeningQuestions ?? []).length > 0 ? [...BASE_STEPS, QUESTIONS_STEP] : BASE_STEPS),
+    [job],
+  );
+
   // Determine active step for progress indicator
   const activeStep = useMemo(() => {
     const hasPersonal = formData.fullName && formData.email && formData.phone && formData.location && formData.nationality;
     const hasCv = !!cvFile;
-    if (hasPersonal && hasCv) return 2;
+    if (hasPersonal && hasCv) return Math.min(2, steps.length - 1);
     if (hasPersonal) return 1;
     return 0;
-  }, [formData, cvFile]);
+  }, [formData, cvFile, steps]);
+
+  // Deep-linked apply pages (shared/emailed links) land here while jobs are still
+  // loading — without this gate they'd flash a terminal "Job not found" first.
+  if (ctxLoading && !job) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main id="main" className="px-4 py-12 pt-24 sm:py-16 sm:pt-28">
+          <div className="mx-auto max-w-2xl">
+            <Skeleton className="mb-6 h-4 w-40" />
+            <div className="mb-8 rounded-2xl border border-border bg-card p-6 sm:p-8">
+              <Skeleton className="mb-2 h-7 w-2/3" />
+              <Skeleton className="h-4 w-40" />
+            </div>
+            <div className="rounded-2xl border border-border bg-card p-6 sm:p-8" aria-busy="true">
+              <Skeleton className="mb-3 h-5 w-48" />
+              <Skeleton className="mb-2 h-10 w-full" />
+              <Skeleton className="mb-2 h-10 w-full" />
+              <Skeleton className="h-10 w-2/3" />
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (!job) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
         <main id="main" className="px-4 pt-32 text-center text-muted-foreground">
-          <p>Job not found.</p>
-          <Link to="/" className="mt-2 inline-block text-primary hover:underline">Back to positions</Link>
+          <h1 className="text-base font-semibold text-foreground">Job not found.</h1>
+          <Link to="/jobs" className="mt-2 inline-block text-primary-readable hover:underline">Browse open roles</Link>
         </main>
       </div>
     );
@@ -236,8 +284,8 @@ const ApplyPage = () => {
       <div className="min-h-screen bg-background">
         <Navbar />
         <main id="main" className="px-4 pt-32 text-center text-muted-foreground">
-          <p>This role is no longer accepting applications.</p>
-          <Link to="/jobs" className="mt-2 inline-block text-primary hover:underline">Browse open roles</Link>
+          <h1 className="text-base font-semibold text-foreground">This role is no longer accepting applications.</h1>
+          <Link to="/jobs" className="mt-2 inline-block text-primary-readable hover:underline">Browse open roles</Link>
         </main>
       </div>
     );
@@ -345,9 +393,10 @@ const ApplyPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) {
-      const msg = "Please fix the highlighted fields before submitting.";
-      setSubmitError(msg);
-      toast.error("Please fill in all required fields.");
+      // One message channel only: the inline summary by the submit button (plus the
+      // sr-only live region). A toast on top duplicated the same feedback — and
+      // validate() already scrolls/focuses the first invalid field.
+      setSubmitError("Please fix the highlighted fields before submitting.");
       return;
     }
     if (submitting) return;
@@ -395,7 +444,9 @@ const ApplyPage = () => {
         linkedin: formData.linkedin.trim() || undefined,
         portfolio: formData.portfolio.trim() || undefined,
         coverLetter: formData.coverLetter.trim() || undefined,
-        cvFileName: cvFile!.name,
+        // Collapse accidental doubled extensions ("Resume.pdf.pdf" — a common
+        // save-dialog artifact) so the HR-facing name stays clean.
+        cvFileName: cvFile!.name.replace(/(\.(pdf|docx?))(?:\1)+$/i, "$1"),
         cvStoragePath: storagePath,
         cvFileType: cvFile!.type,
         cvFileSize: cvFile!.size,
@@ -446,7 +497,7 @@ const ApplyPage = () => {
             className="pointer-events-none absolute left-1/2 top-28 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/15 blur-[120px]"
           />
           <motion.div
-            className="relative mx-auto max-w-md"
+            className="relative mx-auto max-w-xl"
             initial="hidden"
             animate="show"
             variants={{ hidden: {}, show: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } } }}
@@ -464,21 +515,51 @@ const ApplyPage = () => {
                 className="absolute inset-0 rounded-full ring-2 ring-primary/40"
                 initial={{ opacity: 0.7, scale: 0.85 }}
                 animate={{ opacity: 0, scale: 1.9 }}
-                transition={{ duration: 0.9, ease: "easeOut", delay: 0.2 }}
+                transition={{ duration: 0.9, ease, delay: 0.2 }}
               />
               <CheckCircle className="h-8 w-8 text-primary" aria-hidden="true" />
             </motion.div>
             <motion.h1 variants={reveal} className="mb-3 text-2xl font-extrabold tracking-tight sm:text-3xl">
               Application submitted
             </motion.h1>
-            <motion.p variants={reveal} className="mb-6 text-muted-foreground">
-              Thank you for applying to <strong className="text-foreground">{job.title}</strong> at Lumofy. We'll review your application and get back to you soon.
+            <motion.p variants={reveal} className="mx-auto mb-8 max-w-md text-muted-foreground">
+              Thank you for applying to <strong className="text-foreground">{job.title}</strong> at Lumofy.
+              You'll hear back from us within <strong className="text-foreground">five business days</strong>.
             </motion.p>
-            <motion.div variants={reveal}>
-              <Button onClick={() => navigate("/")} size="lg" className="h-12 rounded-xl px-8 text-base">Back to careers</Button>
+
+            {/* What happens next — the (approved) hiring steps, so expectations are set
+                at the exact moment the candidate is wondering "now what?" */}
+            <motion.div
+              variants={reveal}
+              className="mb-10 rounded-2xl border border-border bg-card/40 p-5 text-left sm:p-6"
+            >
+              <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.18em] text-primary-readable">What happens next</p>
+              <ol className="grid gap-4 sm:grid-cols-2">
+                {hiringSteps.map((s) => (
+                  <li key={s.n} className="flex items-start gap-3">
+                    <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-[11px] font-semibold text-primary-readable">
+                      {s.n}
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{s.title}</p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{s.desc}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </motion.div>
+
+            <motion.div variants={reveal} className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Button onClick={() => navigate("/jobs")} size="lg" className="h-12 rounded-xl px-8 text-base btn-sheen">
+                View more open roles
+              </Button>
+              <Button onClick={() => navigate("/")} size="lg" variant="outline" className="h-12 rounded-xl px-8 text-base">
+                Back to careers
+              </Button>
             </motion.div>
           </motion.div>
         </main>
+        <Footer />
       </div>
     );
   }
@@ -520,7 +601,7 @@ const ApplyPage = () => {
           </motion.div>
 
           {/* Progress */}
-          <ProgressIndicator current={activeStep} />
+          <ProgressIndicator current={activeStep} steps={steps} />
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* ── Card 1: Personal Information ── */}
@@ -535,27 +616,27 @@ const ApplyPage = () => {
 
               <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
                 <div data-field="fullName">
-                  <Label htmlFor="fullName" className="text-sm">Full Name <span className="text-destructive">*</span></Label>
-                  <Input id="fullName" {...field("fullName", formData.fullName)} className="mt-1.5" aria-invalid={!!errors.fullName} aria-describedby={errors.fullName ? "fullName-error" : undefined} />
-                  {errors.fullName && <p id="fullName-error" role="alert" className="mt-1 text-xs text-destructive">{errors.fullName}</p>}
+                  <Label htmlFor="fullName" className="text-sm">Full Name <span className="text-destructive-readable">*</span></Label>
+                  <Input id="fullName" autoComplete="name" aria-required="true" {...field("fullName", formData.fullName)} className="mt-1.5" aria-invalid={!!errors.fullName} aria-describedby={errors.fullName ? "fullName-error" : undefined} />
+                  {errors.fullName && <p id="fullName-error" role="alert" className="mt-1 text-xs text-destructive-readable">{errors.fullName}</p>}
                 </div>
                 <div data-field="email">
-                  <Label htmlFor="email" className="text-sm">Email <span className="text-destructive">*</span></Label>
-                  <Input id="email" type="email" {...field("email", formData.email)} className="mt-1.5" aria-invalid={!!errors.email} aria-describedby={errors.email ? "email-error" : undefined} />
-                  {errors.email && <p id="email-error" role="alert" className="mt-1 text-xs text-destructive">{errors.email}</p>}
+                  <Label htmlFor="email" className="text-sm">Email <span className="text-destructive-readable">*</span></Label>
+                  <Input id="email" type="email" autoComplete="email" aria-required="true" {...field("email", formData.email)} className="mt-1.5" aria-invalid={!!errors.email} aria-describedby={errors.email ? "email-error" : undefined} />
+                  {errors.email && <p id="email-error" role="alert" className="mt-1 text-xs text-destructive-readable">{errors.email}</p>}
                 </div>
                 <div data-field="phone">
-                  <Label htmlFor="phone" className="text-sm">Phone <span className="text-destructive">*</span></Label>
-                  <Input id="phone" type="tel" inputMode="tel" autoComplete="tel" {...field("phone", formData.phone)} className="mt-1.5" aria-invalid={!!errors.phone} aria-describedby={errors.phone ? "phone-error" : undefined} />
-                  {errors.phone && <p id="phone-error" role="alert" className="mt-1 text-xs text-destructive">{errors.phone}</p>}
+                  <Label htmlFor="phone" className="text-sm">Phone <span className="text-destructive-readable">*</span></Label>
+                  <Input id="phone" type="tel" inputMode="tel" autoComplete="tel" aria-required="true" {...field("phone", formData.phone)} className="mt-1.5" aria-invalid={!!errors.phone} aria-describedby={errors.phone ? "phone-error" : undefined} />
+                  {errors.phone && <p id="phone-error" role="alert" className="mt-1 text-xs text-destructive-readable">{errors.phone}</p>}
                 </div>
                 <div data-field="location">
-                  <Label htmlFor="location" className="text-sm">Current Location <span className="text-destructive">*</span></Label>
-                  <Input id="location" {...field("location", formData.location)} className="mt-1.5" aria-invalid={!!errors.location} aria-describedby={errors.location ? "location-error" : undefined} />
-                  {errors.location && <p id="location-error" role="alert" className="mt-1 text-xs text-destructive">{errors.location}</p>}
+                  <Label htmlFor="location" className="text-sm">Current Location <span className="text-destructive-readable">*</span></Label>
+                  <Input id="location" autoComplete="address-level2" aria-required="true" {...field("location", formData.location)} className="mt-1.5" aria-invalid={!!errors.location} aria-describedby={errors.location ? "location-error" : undefined} />
+                  {errors.location && <p id="location-error" role="alert" className="mt-1 text-xs text-destructive-readable">{errors.location}</p>}
                 </div>
                 <div data-field="nationality">
-                  <Label htmlFor="nationality" className="text-sm">Nationality <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="nationality" className="text-sm">Nationality <span className="text-destructive-readable">*</span></Label>
                   <div className="mt-1.5">
                     <NationalitySelect
                       id="nationality"
@@ -569,13 +650,13 @@ const ApplyPage = () => {
                 </div>
                 <div data-field="linkedin">
                   <Label htmlFor="linkedin" className="text-sm">LinkedIn Profile</Label>
-                  <Input id="linkedin" type="url" inputMode="url" placeholder="https://linkedin.com/in/..." {...field("linkedin", formData.linkedin)} className="mt-1.5" aria-invalid={!!errors.linkedin} aria-describedby={errors.linkedin ? "linkedin-error" : undefined} />
-                  {errors.linkedin && <p id="linkedin-error" role="alert" className="mt-1 text-xs text-destructive">{errors.linkedin}</p>}
+                  <Input id="linkedin" type="url" inputMode="url" autoComplete="url" placeholder="https://linkedin.com/in/..." {...field("linkedin", formData.linkedin)} className="mt-1.5" aria-invalid={!!errors.linkedin} aria-describedby={errors.linkedin ? "linkedin-error" : undefined} />
+                  {errors.linkedin && <p id="linkedin-error" role="alert" className="mt-1 text-xs text-destructive-readable">{errors.linkedin}</p>}
                 </div>
                 <div className="sm:col-span-2" data-field="portfolio">
                   <Label htmlFor="portfolio" className="text-sm">Portfolio / Website</Label>
                   <Input id="portfolio" type="url" inputMode="url" placeholder="https://..." {...field("portfolio", formData.portfolio)} className="mt-1.5" aria-invalid={!!errors.portfolio} aria-describedby={errors.portfolio ? "portfolio-error" : undefined} />
-                  {errors.portfolio && <p id="portfolio-error" role="alert" className="mt-1 text-xs text-destructive">{errors.portfolio}</p>}
+                  {errors.portfolio && <p id="portfolio-error" role="alert" className="mt-1 text-xs text-destructive-readable">{errors.portfolio}</p>}
                 </div>
                 <div className="sm:col-span-2">
                   <Label htmlFor="coverLetter" className="text-sm">Cover Letter</Label>
@@ -657,8 +738,8 @@ const ApplyPage = () => {
                 </button>
               )}
               {/* Inline validation feedback — surfaced immediately on file rejection */}
-              {cvError && <p id="cv-error" className="mt-2 text-xs text-destructive" role="alert">{cvError}</p>}
-              {errors.cv && !cvError && <p id="cv-error" role="alert" className="mt-2 text-xs text-destructive">{errors.cv}</p>}
+              {cvError && <p id="cv-error" className="mt-2 text-xs text-destructive-readable" role="alert">{cvError}</p>}
+              {errors.cv && !cvError && <p id="cv-error" role="alert" className="mt-2 text-xs text-destructive-readable">{errors.cv}</p>}
             </motion.div>
 
             {/* ── Card 3: Screening Questions ── */}
@@ -676,7 +757,7 @@ const ApplyPage = () => {
                   {(job.screeningQuestions ?? []).map((q, idx) => (
                     <div key={q.id} data-field={`sq_${q.id}`} className={idx > 0 ? "border-t border-border pt-6" : ""}>
                       <Label id={`sq-${q.id}-label`} htmlFor={`sq-${q.id}`} className="text-sm font-medium">
-                        {q.question} {q.required && <span className="text-destructive">*</span>}
+                        {q.question} {q.required && <span className="text-destructive-readable">*</span>}
                       </Label>
                       {q.type === "short_text" && (
                         <Input
@@ -757,7 +838,7 @@ const ApplyPage = () => {
                           ))}
                         </RadioGroup>
                       )}
-                      {errors[`sq_${q.id}`] && <p id={`sq-${q.id}-error`} role="alert" className="mt-1.5 text-xs text-destructive">{errors[`sq_${q.id}`]}</p>}
+                      {errors[`sq_${q.id}`] && <p id={`sq-${q.id}-error`} role="alert" className="mt-1.5 text-xs text-destructive-readable">{errors[`sq_${q.id}`]}</p>}
                     </div>
                   ))}
                 </div>
@@ -786,7 +867,7 @@ const ApplyPage = () => {
 
               {/* Inline submission-error summary (mirrors the toast) for sighted users. */}
               {submitError && !submitting && (
-                <p className="mt-3 text-center text-sm text-destructive">{submitError}</p>
+                <p className="mt-3 text-center text-sm text-destructive-readable">{submitError}</p>
               )}
 
               {/* Single polite live region announcing phase + errors to screen readers. */}

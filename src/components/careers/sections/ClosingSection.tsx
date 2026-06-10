@@ -28,7 +28,7 @@ const ClosingSection = () => (
       whileInView="show"
       viewport={revealViewport}
     >
-      <motion.p variants={fadeUp} className="mb-5 font-mono text-xs uppercase tracking-[0.25em] text-primary">
+      <motion.p variants={fadeUp} className="mb-5 font-mono text-xs uppercase tracking-[0.2em] text-primary-readable">
         Careers at Lumofy
       </motion.p>
 
@@ -61,10 +61,11 @@ const ClosingSection = () => (
             <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
           </Link>
         </Button>
-        <Button asChild size="lg" variant="outline" className="h-12 rounded-xl px-7 text-base">
+        <Button asChild size="lg" variant="outline" className="h-12 rounded-xl px-8 text-base">
           <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer">
             <Linkedin className="mr-2 h-4 w-4" aria-hidden="true" />
             Connect on LinkedIn
+            <span className="sr-only">(opens in new tab)</span>
           </a>
         </Button>
       </motion.div>

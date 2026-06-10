@@ -30,7 +30,7 @@ function ModuleNode({ index, side = "right" }: { index: number; side?: "left" | 
   const Icon = ICONS[index];
   return (
     <div
-      className={`group flex items-start gap-3 rounded-xl border border-border/70 bg-card/70 p-3.5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/30 ${
+      className={`group flex items-start gap-3 rounded-xl border border-border/60 bg-card/70 p-3.5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/30 ${
         side === "left" ? "lg:flex-row-reverse lg:text-right" : ""
       }`}
     >
@@ -49,10 +49,10 @@ function Core() {
   return (
     <div
       className="relative flex flex-col items-center gap-2 rounded-2xl border border-primary/40 px-5 py-4 text-center shadow-[0_0_44px_hsl(var(--primary)/0.3)] backdrop-blur-sm"
-      style={{ background: "radial-gradient(130% 130% at 50% 0%, hsl(var(--primary) / 0.22), hsl(222 32% 8%))" }}
+      style={{ background: "radial-gradient(130% 130% at 50% 0%, hsl(var(--primary) / 0.22), hsl(222 30% 9%))" }}
     >
       <img src={lumofyLogo} alt="" aria-hidden="true" className="h-9 w-9 object-contain" />
-      <span className="font-mono text-[10px] uppercase leading-tight tracking-wider text-primary">
+      <span className="font-mono text-[10px] uppercase leading-tight tracking-wider text-primary-readable">
         Workforce
         <br />
         intelligence layer
@@ -83,7 +83,7 @@ const WhatWeBuildSection = () => {
     >
       <motion.div
         ref={ref}
-        className="relative mt-10 overflow-hidden rounded-3xl border border-border bg-card/30 p-6 backdrop-blur-sm sm:p-8 lg:p-10"
+        className="relative mt-10 overflow-hidden rounded-2xl border border-border bg-card/40 p-6 backdrop-blur-sm sm:p-8 lg:p-10"
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={revealViewport}
