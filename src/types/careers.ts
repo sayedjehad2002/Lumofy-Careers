@@ -145,6 +145,20 @@ export interface AIAnalysis {
   offerAcceptanceProbability?: number;
   earlyTurnoverRisk?: number;
   growthPotentialScore?: number;
+  // Score transparency (newer analyses) — the exact weights the analysis was
+  // scored with (echoed server-side) + evidence per number.
+  weightsUsed?: AIScoringWeights;
+  /** v1 transparency: one-sentence rationale per dimension (superseded by scoreExplanations). */
+  scoreRationale?: Partial<Record<keyof AIScoreBreakdown, string>>;
+  /** @deprecated predictive-probability rationale — no longer generated or rendered. */
+  insightRationale?: { interviewSuccess?: string; offerAcceptance?: string; earlyTurnoverRisk?: string; growthPotential?: string };
+  // v2 explainability (AI Hiring Intelligence) — all optional; old analyses fall back.
+  scoreExplanations?: Partial<Record<keyof AIScoreBreakdown, { evidence?: string; missing?: string; reasoning?: string }>>;
+  evidenceQuality?: { level?: string; reasoning?: string };
+  positiveSignals?: { signal: string; source?: string; impact?: string; reasoning?: string }[];
+  riskSignals?: { signal: string; source?: string; impact?: string; reasoning?: string; verificationQuestion?: string }[];
+  verificationChecklist?: string[];
+  interviewGuide?: { category?: string; question: string; whyAsk?: string }[];
   // Recruiter-grade fields (Phase 3) — optional; older analyses won't have them.
   professionalIdentity?: { primary: string; primaryConfidence: number; secondary: string; secondaryConfidence: number; keyIdentity: string };
   recruiterVerdict?: { shortlistFor: string; reasoning: string };

@@ -150,7 +150,7 @@ const WorkforceSignal = () => {
                   <span
                     className="relative flex h-12 w-12 items-center justify-center rounded-full border"
                     style={{
-                      background: `radial-gradient(125% 125% at 50% 0%, hsl(${s.accent} / 0.22), hsl(222 30% 9%))`,
+                      background: `radial-gradient(125% 125% at 50% 0%, hsl(${s.accent} / 0.22), hsl(var(--node-base)))`,
                       borderColor: `hsl(${s.accent} / 0.5)`,
                       boxShadow: `0 0 18px hsl(${s.accent} / 0.22), inset 0 1px 0 hsl(0 0% 100% / 0.08)`,
                     }}

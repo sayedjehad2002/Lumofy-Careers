@@ -408,27 +408,29 @@ export function generateCandidateReport(applicant: Applicant, job: Job | undefin
       y += 2;
     }
 
-    // Predictive scores
-    if (ai.interviewSuccessProbability != null || ai.offerAcceptanceProbability != null || ai.earlyTurnoverRisk != null) {
-      y = checkNewPage(doc, y, 25);
-      const predData: string[][] = [];
-      if (ai.interviewSuccessProbability != null) predData.push(["Interview Success Probability", `${ai.interviewSuccessProbability}%`]);
-      if (ai.offerAcceptanceProbability != null) predData.push(["Offer Acceptance Probability", `${ai.offerAcceptanceProbability}%`]);
-      if (ai.earlyTurnoverRisk != null) predData.push(["Early Turnover Risk", `${ai.earlyTurnoverRisk}%`]);
-      if (ai.growthPotentialScore != null) predData.push(["Growth Potential Score", `${ai.growthPotentialScore}/100`]);
+    // NOTE: the former "Predictive scores" table (interview success / offer
+    // acceptance / turnover risk / growth potential) was deliberately removed —
+    // those were unvalidated AI guesses with no model behind them, and the AI
+    // trust policy bans unexplained probabilities from recruiter-facing output.
 
-      autoTable(doc, {
-        startY: y,
-        head: [["Predictive Metric", "Value"]],
-        body: predData,
-        margin: { left: 14, right: 14 },
-        styles: { fontSize: 8, cellPadding: 2.5, textColor: LUMOFY_DARK as unknown as number[] },
-        headStyles: { fillColor: LUMOFY_BLUE as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
-        theme: "grid",
-        tableLineColor: [226, 232, 240],
-        tableLineWidth: 0.2,
+    // Verification checklist (v2 explainability — render when present)
+    if (ai.verificationChecklist?.length) {
+      y = checkNewPage(doc, y, 12);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...LUMOFY_GRAY);
+      doc.text("VERIFY BEFORE DECIDING", 14, y);
+      y += 4;
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...LUMOFY_DARK);
+      doc.setFontSize(7.5);
+      ai.verificationChecklist.forEach((item, i) => {
+        y = checkNewPage(doc, y, 6);
+        const lines = doc.splitTextToSize(`${i + 1}. ${item}`, 180);
+        doc.text(lines, 16, y);
+        y += lines.length * 4;
       });
-      y = (doc as any).lastAutoTable.finalY + 6;
+      y += 2;
     }
 
     // Recommendation justification

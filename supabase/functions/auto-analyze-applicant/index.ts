@@ -127,7 +127,16 @@ serve(async (req) => {
 
     // AI calls now route through the shared OpenRouter helper (../_shared/ai.ts).
 
-    const weights = job.ai_scoring_weights || { skills: 35, tools: 25, experience: 20, industry: 10, education: 5, stability: 5 };
+    // Weights — sanitized server-side: only the six known keys, each a finite
+    // 0–100 number (per-key default otherwise). A partial/legacy job row must
+    // never leak junk into the prompt or the persisted weightsUsed echo.
+    const DEFAULT_WEIGHTS: Record<string, number> = { skills: 35, tools: 25, experience: 20, industry: 10, education: 5, stability: 5 };
+    const weights: Record<string, number> = Object.fromEntries(
+      Object.entries(DEFAULT_WEIGHTS).map(([k, dflt]) => {
+        const v = Number((job.ai_scoring_weights as Record<string, unknown> | null)?.[k]);
+        return [k, Number.isFinite(v) && v >= 0 && v <= 100 ? v : dflt];
+      }),
+    );
 
     // Download CV
     let cvBase64: string | null = null;
@@ -215,6 +224,18 @@ EVIDENCE RULES:
 - Focus ONLY on job-relevant qualifications.
 - Do NOT consider age, gender, nationality, religion, or any protected traits.
 
+SCORE TRANSPARENCY (required — HR sees these next to each number):
+- For EVERY scoreBreakdown dimension, fill scoreExplanations with the specific CV facts that produced that exact score: evidence found, evidence missing, and one-sentence reasoning (e.g. "Only 2 of 5 required skills evidenced (SEO, copywriting); no analytics or paid-media experience found").
+- Rationales must cite concrete facts from THIS CV — never generic filler like "based on the candidate's profile".
+- skillsCoveragePercent MUST equal the share of skillsAlignment requirements with evidence (Yes = 1, Partial = 0.5, No = 0), as a 0-100 percentage.
+
+AI TRUST RULES (mandatory):
+- Do NOT output predictions or probabilities of future outcomes (interview success, offer acceptance, turnover, attrition). No validated model exists for them; they must NOT appear anywhere in your output.
+- Distinguish EVIDENCE (facts verbatim from the CV/application) from INFERENCE (your judgment). Reasoning text must make clear which is which.
+- Where evidence is absent, write "Insufficient evidence" — never invent certainty.
+- Where a claim needs checking, mark it "requires verification" and add a concrete task to verificationChecklist.
+- positiveSignals/riskSignals must each name their source ("CV", "Application form", or "Screening answers") and an impact level reflecting how strongly they moved your scoring.
+
 You MUST respond with a single valid JSON object (no markdown, no code blocks) using this EXACT structure. EVERY field is REQUIRED — you MUST include "professionalIdentity" and "recruiterVerdict"; NEVER omit them.
 {
   "professionalIdentity": {"primary": "<candidate's TRUE primary role from evidence>", "primaryConfidence": <0-100>, "secondary": "<a genuinely different secondary role>", "secondaryConfidence": <0-100>, "keyIdentity": "<one sentence: who they really are>"},
@@ -253,12 +274,27 @@ You MUST respond with a single valid JSON object (no markdown, no code blocks) u
     "educationRelevance": <0-100>,
     "careerStability": <0-100>
   },
+  "scoreExplanations": {
+    "skillsMatch": {"evidence": "<specific evidence found in the CV>", "missing": "<required evidence NOT found, or 'None'>", "reasoning": "<one sentence>"},
+    "toolsMatch": {"evidence": "<...>", "missing": "<...>", "reasoning": "<...>"},
+    "relevantExperience": {"evidence": "<...>", "missing": "<...>", "reasoning": "<...>"},
+    "industryAlignment": {"evidence": "<...>", "missing": "<...>", "reasoning": "<...>"},
+    "educationRelevance": {"evidence": "<...>", "missing": "<...>", "reasoning": "<...>"},
+    "careerStability": {"evidence": "<...>", "missing": "<...>", "reasoning": "<...>"}
+  },
   "rankingTier": "<Top Match|Strong Match|Moderate Match|Weak Match>",
   "redFlags": ["<Missing Required Skills|Underqualified|Overqualified Risk|Career Instability|Tool Gaps|Industry Mismatch|Implausible Claims>"],
-  "interviewSuccessProbability": <0-100>,
-  "offerAcceptanceProbability": <0-100>,
-  "earlyTurnoverRisk": <0-100>,
-  "growthPotentialScore": <0-100>
+  "evidenceQuality": {"level": "<Strong|Moderate|Weak>", "reasoning": "<one sentence: how credible/complete the CV evidence is>"},
+  "positiveSignals": [
+    {"signal": "<short label, e.g. 'Relevant marketing degree'>", "source": "<CV|Application form|Screening answers>", "impact": "<High|Medium|Low>", "reasoning": "<one sentence>"}
+  ],
+  "riskSignals": [
+    {"signal": "<short label, e.g. 'Future-dated roles'>", "source": "<CV|Application form|Screening answers>", "impact": "<High|Medium|Low>", "reasoning": "<one sentence>", "verificationQuestion": "<what the recruiter should check or ask>"}
+  ],
+  "verificationChecklist": ["<concrete recruiter verification task, e.g. 'Verify the 2025-dated certification with the issuer'>"],
+  "interviewGuide": [
+    {"category": "<Role Fit|Experience Verification|Skills Validation|Motivation|Growth>", "question": "<targeted question>", "whyAsk": "<one sentence: which gap or concern this probes>"}
+  ]
 }`;
 
     const responsibilities = (job.responsibilities as string[]) || [];
@@ -301,7 +337,7 @@ Provide your structured evidence-based analysis as JSON.`;
       model: "google/gemini-3-flash-preview",
       messages,
       hasImages: cvBase64 != null && cvParsingStatus === "success",
-      max_tokens: 8000, // full recruiter-grade output (identity + verdict + scoring) — avoid truncation
+      max_tokens: 16000, // v2 explainability schema (scoreExplanations + signals + guide) is ~2× bigger — avoid truncation
     });
 
     if (!response.ok) {
@@ -318,7 +354,8 @@ Provide your structured evidence-based analysis as JSON.`;
 
     const analysis = parseJsonResponse<Record<string, unknown>>(content);
     if (!analysis) {
-      console.error("Failed to parse AI response:", content);
+      // Log a short prefix only — the full response is a candidate assessment (PII-adjacent).
+      console.error("Failed to parse AI response (first 200 chars):", typeof content === "string" ? content.slice(0, 200) : content);
       return new Response(JSON.stringify({ error: "Failed to parse AI analysis" }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -330,6 +367,35 @@ Provide your structured evidence-based analysis as JSON.`;
 
     // Clamp numeric outputs (fitScore 0-100, default on NaN) and derive tier.
     clampAnalysisScores(analysis);
+
+    // ── True-by-construction transparency numbers ──
+    // skillsCoveragePercent must summarize the skillsAlignment list (the UI
+    // explains it exactly that way): Yes = 1, Partial = 0.5, over the count.
+    const sa = Array.isArray(analysis.skillsAlignment) ? (analysis.skillsAlignment as { evidence?: string }[]) : [];
+    if (sa.length > 0) {
+      const covered = sa.reduce((acc, s) => acc + (s?.evidence === "Yes" ? 1 : s?.evidence === "Partial" ? 0.5 : 0), 0);
+      analysis.skillsCoveragePercent = Math.round((covered / sa.length) * 100);
+    }
+    // fitScore must equal the weighted average of the (clamped) breakdown — the
+    // model's own arithmetic drifts, and the UI shows this exact math. Re-derive
+    // the tier/level from the recomputed score so badges always reconcile.
+    const sb = analysis.scoreBreakdown as Record<string, unknown> | undefined;
+    const DIMS: [string, number][] = [
+      ["skillsMatch", weights.skills], ["toolsMatch", weights.tools],
+      ["relevantExperience", weights.experience], ["industryAlignment", weights.industry],
+      ["educationRelevance", weights.education], ["careerStability", weights.stability],
+    ];
+    if (sb && DIMS.every(([k]) => Number.isFinite(Number(sb[k])))) {
+      const total = DIMS.reduce((acc, [k, w]) => acc + (Number(sb[k]) * w) / 100, 0);
+      const fit = Math.round(Math.min(100, Math.max(0, total)));
+      analysis.fitScore = fit;
+      analysis.rankingTier = fit >= 85 ? "Top Match" : fit >= 70 ? "Strong Match" : fit >= 50 ? "Moderate Match" : "Weak Match";
+      analysis.fitLevel = fit >= 70 ? "Strong Fit" : fit >= 50 ? "Moderate Fit" : "Low Fit";
+    }
+    // Echo the exact weights this analysis was scored with (server-set, not
+    // AI-echoed) so the UI can show the true weighted calculation later even
+    // if HR changes the job's weights afterwards.
+    analysis.weightsUsed = weights;
 
     // Save analysis to applicant record
     const { error: updateError } = await supabase

@@ -2,7 +2,11 @@
 
 The official brand, sourced from the **Brand Guidelines Sheet** and the **Dark Theme** deck.
 Lumofy's identity is **cosmic and aspirational**: every color is a celestial body with a promise.
-The careers site is **dark-only**; tokens live in `src/index.css` under `.dark`.
+The careers site is **dark-FIRST with an optional light mode** (navbar toggle, persisted in
+localStorage via `ThemeProvider`; `index.html` pins `class="dark"` for the first paint).
+Dark tokens live in `src/index.css` under `.dark`; light tokens under `:root`. Theme-dependent
+surfaces must use tokens (e.g. `--node-base`, `.node-core-bg`, `.text-aurora` has per-theme
+variants) — never hard-coded dark colors.
 
 ## Color
 

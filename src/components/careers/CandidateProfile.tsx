@@ -1,14 +1,13 @@
-import { useState, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
   ArrowLeft, FileText, Download, Loader2, AlertCircle,
-  MessageSquare, Star, Clock, User, Brain, Activity,
+  MessageSquare, Star, User, Brain,
   Mail, Phone, MapPin, ExternalLink, Calendar, Globe, Trash2, FileDown } from
 "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from
 "@/components/ui/select";
@@ -38,6 +37,10 @@ APPLICANT_STATUSES.find((s) => s.value === status) || APPLICANT_STATUSES[0];
 const TIMELINE_STAGES: ApplicantStatus[] = ["new", "reviewing", "shortlisted", "interview"];
 const TERMINAL_STAGES: ApplicantStatus[] = ["rejected", "hired"];
 
+// Decision-first layout: a full-width Candidate Decision Header (identity + AI fit
+// + status + actions), then judgment on the left (AI Hiring Intelligence, screening
+// answers, interview prep) and action on the right (notes, email, CV, metadata,
+// rating, timeline). Replaces the old five-cards-before-the-analysis stack.
 const CandidateProfile = ({
   applicant, job, sessionToken, onBack,
   onStatusUpdate, onAddNote, onAIComplete, onApplicantChange, onDelete
@@ -56,6 +59,17 @@ const CandidateProfile = ({
   (applicant.rating.overallRecommendation ?? 0)) / 5).
   toFixed(1) :
   null;
+
+  // Collapse exact duplicate notes into one entry with a count (graceful dupes).
+  const dedupedNotes = useMemo(() => {
+    const seen = new Map<string, { note: string; count: number; firstIndex: number }>();
+    applicant.notes.forEach((note, i) => {
+      const existing = seen.get(note);
+      if (existing) existing.count += 1;
+      else seen.set(note, { note, count: 1, firstIndex: i });
+    });
+    return Array.from(seen.values());
+  }, [applicant.notes]);
 
   const handleCvDownload = useCallback(async () => {
     if (!applicant.cvStoragePath) {
@@ -77,7 +91,7 @@ const CandidateProfile = ({
     } finally {
       setCvLoading(false);
     }
-  }, [applicant.cvStoragePath, sessionToken]);
+  }, [applicant.cvStoragePath, applicant.id, sessionToken]);
 
   const handleAddNote = async () => {
     if (!noteInput.trim()) return;
@@ -97,7 +111,7 @@ const CandidateProfile = ({
     onApplicantChange({ ...applicant, status });
   };
 
-  // Build timeline
+  // Stage strip state
   const stageIndex = TIMELINE_STAGES.indexOf(applicant.status);
   const isTerminal = TERMINAL_STAGES.includes(applicant.status);
 
@@ -105,290 +119,158 @@ const CandidateProfile = ({
     <div>
       <button
         onClick={onBack}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
-        
-        <ArrowLeft className="w-4 h-4" />
+        className="mb-6 flex items-center gap-1.5 rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <ArrowLeft className="w-4 h-4" aria-hidden="true" />
         Back
       </button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Column */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* A) Candidate Overview */}
-          <motion.div
-            className="rounded-xl bg-card border border-border p-6"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}>
-            
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xl font-bold">
-                  {applicant.fullName.charAt(0)}
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold">{applicant.fullName}</h1>
-                  <p className="text-sm text-muted-foreground">
-                    {job?.title || "Unknown Position"}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className={`border-0 ${statusInfo.color}`}>
-                  {statusInfo.label}
-                </Badge>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 px-2.5 text-muted-foreground hover:text-primary hover:border-primary/30 transition-colors"
-                  onClick={async () => {
-                    // Defer the ~205KB jspdf/html2canvas stack until an export is actually requested.
-                    const { generateCandidateReport } = await import("@/utils/candidateReportPdf");
-                    generateCandidateReport(applicant, job);
-                  }}
-                  title="Export PDF report">
-                  
-                  <FileDown className="w-4 h-4" />
-                </Button>
-                {onDelete &&
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                  onClick={() => {
-                    if (window.confirm(`Delete ${applicant.fullName}'s application permanently?`)) {
-                      onDelete(applicant.id).then(() => {
-                        toast.success(`${applicant.fullName} has been removed`);
-                        onBack();
-                      }).catch(() => toast.error("Failed to delete applicant"));
-                    }
-                  }}
-                  title="Delete applicant">
-                  
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+      {/* ===== Candidate Decision Header — identity, AI fit, status, actions ===== */}
+      <motion.div
+        className="mb-6 rounded-2xl border border-border bg-card p-5 light-glow"
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}>
+
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex min-w-0 items-center gap-3.5">
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary">
+              {applicant.fullName.charAt(0)}
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-bold">{applicant.fullName}</h1>
+              <p className="truncate text-sm text-muted-foreground">
+                {job?.title || "Unknown Position"} · Applied {new Date(applicant.appliedDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </p>
+            </div>
+          </div>
+
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {applicant.aiAnalysis && (
+              <span className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5">
+                <Brain className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                <span className="text-sm font-semibold tabular-nums text-primary-readable">
+                  {applicant.aiAnalysis.fitScore}/100
+                </span>
+                {applicant.aiAnalysis.confidence && (
+                  <span className="text-[11px] text-muted-foreground">· {applicant.aiAnalysis.confidence} confidence</span>
+                )}
+              </span>
+            )}
+            {avgRating && (
+              <span className="flex items-center gap-1.5 rounded-lg bg-[hsl(var(--intel-warning)/0.1)] px-2.5 py-1.5">
+                <Star className="h-3.5 w-3.5 fill-[hsl(var(--intel-warning))] text-[hsl(var(--intel-warning))]" aria-hidden="true" />
+                <span className="text-sm font-semibold text-[hsl(var(--intel-warning))]">{avgRating}/5</span>
+              </span>
+            )}
+            <Select
+              value={applicant.status}
+              onValueChange={(v) => handleStatusChange(v as ApplicantStatus)}>
+              <SelectTrigger aria-label="Update status" className={`h-9 w-36 border-0 text-xs font-medium ${statusInfo.color}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {APPLICANT_STATUSES.map((s) =>
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            {applicant.cvStoragePath && (
+              <Button size="sm" variant="outline" className="h-9" onClick={handleCvDownload} disabled={cvLoading}>
+                {cvLoading ?
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> :
+                <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />}
+                CV
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 px-2.5 text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary-readable"
+              onClick={async () => {
+                // Defer the ~205KB jspdf/html2canvas stack until an export is actually requested.
+                const { generateCandidateReport } = await import("@/utils/candidateReportPdf");
+                generateCandidateReport(applicant, job);
+              }}
+              aria-label="Export PDF report"
+              title="Export PDF report">
+              <FileDown className="w-4 h-4" aria-hidden="true" />
+            </Button>
+            {onDelete &&
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-9 w-9 p-0 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => {
+                if (window.confirm(`Delete ${applicant.fullName}'s application permanently?`)) {
+                  onDelete(applicant.id).then(() => {
+                    toast.success(`${applicant.fullName} has been removed`);
+                    onBack();
+                  }).catch(() => toast.error("Failed to delete applicant"));
                 }
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Mail className="w-3.5 h-3.5" />
-                <a href={`mailto:${applicant.email}`} className="hover:text-primary transition-colors">{applicant.email}</a>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Phone className="w-3.5 h-3.5" />
-                {applicant.phone}
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MapPin className="w-3.5 h-3.5" />
-                {applicant.location}
-              </div>
-              {applicant.nationality &&
-              <div className="flex items-center gap-2 text-muted-foreground">
-                  <Globe className="w-3.5 h-3.5" />
-                  {applicant.nationality}
-                </div>
-              }
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Calendar className="w-3.5 h-3.5" />
-                Applied {new Date(applicant.appliedDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-              </div>
-            </div>
-
-            {(applicant.linkedin || applicant.portfolio) &&
-            <div className="flex flex-wrap gap-3 mt-3">
-                {applicant.linkedin &&
-              <a
-                href={applicant.linkedin.startsWith("http") ? applicant.linkedin : `https://${applicant.linkedin}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-primary hover:underline">
-                
-                    <ExternalLink className="w-3 h-3" /> LinkedIn
-                  </a>
-              }
-                {applicant.portfolio &&
-              <a
-                href={applicant.portfolio.startsWith("http") ? applicant.portfolio : `https://${applicant.portfolio}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-primary hover:underline">
-                
-                    <ExternalLink className="w-3 h-3" /> Portfolio
-                  </a>
-              }
-              </div>
+              }}
+              aria-label="Delete applicant"
+              title="Delete applicant">
+                <Trash2 className="w-4 h-4" aria-hidden="true" />
+              </Button>
             }
+          </div>
+        </div>
 
-            {/* Quick Stats Row */}
-            <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-border">
-              {applicant.aiAnalysis &&
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10">
-                  <Brain className="w-3.5 h-3.5 text-primary" />
-                  <span className="text-sm font-medium text-primary">
-                    AI Score: {applicant.aiAnalysis.fitScore}/100
+        {/* Slim pipeline strip */}
+        <div className="mt-4 flex items-center gap-0 border-t border-border pt-3.5">
+          {TIMELINE_STAGES.map((stage, i) => {
+            const isPast = stageIndex >= i || isTerminal;
+            const isCurrent = applicant.status === stage;
+            const info = getStatusInfo(stage);
+            return (
+              <div key={stage} className="flex flex-1 items-center">
+                <div className="flex flex-1 flex-col items-center">
+                  <div
+                    className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-medium transition-all ${
+                    isCurrent ?
+                    "bg-primary text-primary-foreground ring-4 ring-primary/20" :
+                    isPast ?
+                    "bg-primary/20 text-primary-readable" :
+                    "bg-secondary text-muted-foreground"}`}>
+                    {i + 1}
+                  </div>
+                  <span className={`mt-1 text-[10px] ${isCurrent ? "font-medium text-primary-readable" : "text-muted-foreground"}`}>
+                    {info.label}
                   </span>
                 </div>
-              }
-              {avgRating &&
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[hsl(var(--intel-warning)/0.1)]">
-                  <Star className="w-3.5 h-3.5 text-[hsl(var(--intel-warning))] fill-[hsl(var(--intel-warning))]" />
-                  <span className="text-sm font-medium text-[hsl(var(--intel-warning))]">
-                    {avgRating}/5
-                  </span>
-                </div>
-              }
-            </div>
-          </motion.div>
+                {i < TIMELINE_STAGES.length - 1 &&
+                <div className={`-mx-1 h-0.5 flex-1 ${stageIndex > i || isTerminal ? "bg-primary/40" : "bg-border"}`} />
+                }
+              </div>);
+          })}
+          <div className="ml-2 flex flex-col items-center">
+            {applicant.status === "rejected" ?
+            <>
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-destructive/20 text-[10px] font-medium text-destructive-readable ring-4 ring-destructive/10">✕</div>
+                <span className="mt-1 text-[10px] font-medium text-destructive-readable">Rejected</span>
+              </> :
+            applicant.status === "hired" ?
+            <>
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[hsl(var(--intel-success)/0.2)] text-[10px] font-medium text-[hsl(var(--intel-success))] ring-4 ring-[hsl(var(--intel-success)/0.1)]">✓</div>
+                <span className="mt-1 text-[10px] font-medium text-[hsl(var(--intel-success))]">Hired</span>
+              </> :
+            <>
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-[10px] text-muted-foreground">?</div>
+                <span className="mt-1 text-[10px] text-muted-foreground">Outcome</span>
+              </>
+            }
+          </div>
+        </div>
+      </motion.div>
 
-          {/* D) Timeline View */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* ===== Left column — judgment ===== */}
+        <div className="space-y-6 lg:col-span-2">
+          {/* AI Hiring Intelligence — the decision-support core, straight under the header */}
           <motion.div
-            className="rounded-xl bg-card border border-border p-6"
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.05 }}>
-            
-            <h2 className="font-semibold mb-4 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-primary" />
-              Application Timeline
-            </h2>
-            <div className="flex items-center gap-0">
-              {TIMELINE_STAGES.map((stage, i) => {
-                const isPast = stageIndex >= i || isTerminal;
-                const isCurrent = applicant.status === stage;
-                const info = getStatusInfo(stage);
-                return (
-                  <div key={stage} className="flex items-center flex-1">
-                    <div className="flex flex-col items-center flex-1">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
-                        isCurrent ?
-                        "bg-primary text-primary-foreground ring-4 ring-primary/20" :
-                        isPast ?
-                        "bg-primary/20 text-primary" :
-                        "bg-secondary text-muted-foreground"}`
-                        }>
-                        
-                        {i + 1}
-                      </div>
-                      <span className={`text-[10px] mt-1 ${isCurrent ? "text-primary font-medium" : "text-muted-foreground"}`}>
-                        {info.label}
-                      </span>
-                    </div>
-                    {i < TIMELINE_STAGES.length - 1 &&
-                    <div
-                      className={`h-0.5 flex-1 -mx-1 ${
-                      stageIndex > i || isTerminal ? "bg-primary/40" : "bg-border"}`
-                      } />
-
-                    }
-                  </div>);
-
-              })}
-
-              {/* Terminal states */}
-              <div className="flex flex-col items-center ml-2">
-                {applicant.status === "rejected" ?
-                <>
-                    <div className="w-8 h-8 rounded-full bg-destructive/20 text-destructive flex items-center justify-center text-xs font-medium ring-4 ring-destructive/10">
-                      ✕
-                    </div>
-                    <span className="text-[10px] mt-1 text-destructive font-medium">Rejected</span>
-                  </> :
-                applicant.status === "hired" ?
-                <>
-                    <div className="w-8 h-8 rounded-full bg-[hsl(var(--intel-success)/0.2)] text-[hsl(var(--intel-success))] flex items-center justify-center text-xs font-medium ring-4 ring-[hsl(var(--intel-success)/0.1)]">
-                      ✓
-                    </div>
-                    <span className="text-[10px] mt-1 text-[hsl(var(--intel-success))] font-medium">Hired</span>
-                  </> :
-
-                <>
-                    <div className="w-8 h-8 rounded-full bg-secondary text-muted-foreground flex items-center justify-center text-xs">
-                      ?
-                    </div>
-                    <span className="text-[10px] mt-1 text-muted-foreground">Outcome</span>
-                  </>
-                }
-              </div>
-            </div>
-          </motion.div>
-
-          {/* B) CV Preview */}
-          <motion.div
-            className="rounded-xl bg-card border border-border p-6"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 }}>
-            
-            <h2 className="font-semibold mb-3 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary" />
-              CV / Resume
-            </h2>
-            {applicant.cvStoragePath ?
-            <div className="space-y-3">
-                <div className="flex items-center justify-between bg-secondary rounded-lg p-4">
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm font-medium truncate block">{applicant.cvFileName}</span>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                      {applicant.cvFileSize != null && applicant.cvFileSize > 0 &&
-                    <span>{applicant.cvFileSize < 1024 * 1024 ? `${(applicant.cvFileSize / 1024).toFixed(1)} KB` : `${(applicant.cvFileSize / 1024 / 1024).toFixed(2)} MB`}</span>
-                    }
-                      {applicant.cvFileType && <span>{applicant.cvFileType}</span>}
-                    </div>
-                  </div>
-                  <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleCvDownload}
-                  disabled={cvLoading}>
-                  
-                    {cvLoading ?
-                  <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> :
-
-                  <Download className="w-3.5 h-3.5 mr-1" />
-                  }
-                    {cvLoading ? "Loading..." : "Download"}
-                  </Button>
-                </div>
-              </div> :
-
-            <div className="flex items-center gap-2 bg-secondary rounded-lg p-3 text-muted-foreground">
-                <AlertCircle className="w-4 h-4" />
-                <span className="text-sm">No CV uploaded</span>
-              </div>
-            }
-          </motion.div>
-
-          {/* Screening Answers */}
-          {job && job.screeningQuestions.length > 0 &&
-          <motion.div
-            className="rounded-xl bg-card border border-border p-6"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.15 }}>
-            
-              <h2 className="font-semibold mb-3">Screening Answers</h2>
-              <div className="space-y-4">
-                {job.screeningQuestions.map((q) =>
-              <div key={q.id}>
-                    <p className="text-sm font-medium mb-1">{q.question}</p>
-                    <p className="text-sm text-muted-foreground bg-secondary rounded-lg p-3">
-                      {applicant.screeningAnswers[q.id] || "—"}
-                    </p>
-                  </div>
-              )}
-              </div>
-            </motion.div>
-          }
-
-          {/* C) AI Rating & Feedback */}
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.2 }}>
-            
             <AIAnalysisPanel
               applicant={applicant}
               job={job}
@@ -399,93 +281,54 @@ const CandidateProfile = ({
               }} />
           </motion.div>
 
-
-
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* H) Status Editor */}
+          {/* Screening answers — what the candidate actually said */}
+          {job && job.screeningQuestions.length > 0 &&
           <motion.div
-            className="rounded-xl bg-card border border-border p-5"
-            initial={{ opacity: 0, x: 15 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}>
-            
-            <h3 className="font-semibold mb-3 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" />
-              Update Status
-            </h3>
-            <Select
-              value={applicant.status}
-              onValueChange={(v) => handleStatusChange(v as ApplicantStatus)}>
-              
-              <SelectTrigger className="bg-secondary border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {APPLICANT_STATUSES.map((s) =>
-                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </motion.div>
-
-          {/* Rating */}
-          {applicant.rating &&
-          <motion.div
-            className="rounded-xl bg-card border border-border p-5"
-            initial={{ opacity: 0, x: 15 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3, delay: 0.05 }}>
-            
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <Star className="w-4 h-4 text-[hsl(var(--intel-warning))]" />
-                Rating
-              </h3>
-              <div className="space-y-2 text-sm">
-                {Object.entries(applicant.rating).map(([key, val]) =>
-              <div key={key} className="flex items-center justify-between">
-                    <span className="text-muted-foreground capitalize">
-                      {key.replace(/([A-Z])/g, " $1").trim()}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map((i) =>
-                  <Star
-                    key={i}
-                    className={`w-3.5 h-3.5 ${
-                    i <= val ? "text-[hsl(var(--intel-warning))] fill-[hsl(var(--intel-warning))]" : "text-muted"}`
-                    } />
-
-                  )}
-                    </div>
+            className="rounded-2xl border border-border bg-card p-5 light-glow sm:p-6"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}>
+              <h2 className="mb-3 font-semibold">Screening Answers</h2>
+              <div className="space-y-4">
+                {job.screeningQuestions.map((q) =>
+              <div key={q.id}>
+                    <p className="mb-1 text-sm font-medium">{q.question}</p>
+                    <p className="rounded-lg bg-secondary p-3 text-sm text-muted-foreground">
+                      {applicant.screeningAnswers[q.id] || "—"}
+                    </p>
                   </div>
               )}
-                <div className="pt-2 border-t border-border flex items-center justify-between font-medium">
-                  <span>Average</span>
-                  <span className="text-primary">{avgRating}/5</span>
-                </div>
               </div>
             </motion.div>
           }
 
-          {/* E) Internal Notes */}
+          {/* Interview prep kit — judgment support for the next stage */}
           <motion.div
-            className="rounded-xl bg-card border border-border p-5"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.15 }}>
+            <InterviewPrep applicant={applicant} job={job} />
+          </motion.div>
+        </div>
+
+        {/* ===== Right column — action ===== */}
+        <div className="space-y-6">
+          {/* Internal notes */}
+          <motion.div
+            className="rounded-2xl border border-border bg-card p-5 light-glow"
             initial={{ opacity: 0, x: 15 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 }}>
-            
-            <h3 className="font-semibold mb-3 flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-primary" />
+            transition={{ duration: 0.3 }}>
+            <h3 className="mb-3 flex items-center gap-2 font-semibold">
+              <MessageSquare className="w-4 h-4 text-primary" aria-hidden="true" />
               Internal Notes
             </h3>
-            <div className="space-y-2 mb-3 max-h-64 overflow-y-auto">
-              {applicant.notes.map((note, i) =>
-              <div key={i} className="text-sm text-muted-foreground bg-secondary rounded-lg p-2.5">
-                  <p>{note}</p>
-                  <p className="text-[10px] text-muted-foreground/60 mt-1">
-                    Note #{i + 1}
+            <div className="mb-3 max-h-64 space-y-2 overflow-y-auto">
+              {dedupedNotes.map((n) =>
+              <div key={n.firstIndex} className="rounded-lg bg-secondary p-2.5 text-sm text-muted-foreground">
+                  <p>{n.note}</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground/60">
+                    Note #{n.firstIndex + 1}{n.count > 1 ? ` · added ${n.count}×` : ""}
                   </p>
                 </div>
               )}
@@ -496,37 +339,157 @@ const CandidateProfile = ({
             <div className="flex gap-2">
               <Input
                 placeholder="Add a note..."
+                aria-label="Add a note"
                 value={noteInput}
                 onChange={(e) => setNoteInput(e.target.value)}
-                className="bg-secondary border-border text-sm"
+                className="border-border bg-secondary text-sm"
                 onKeyDown={(e) => e.key === "Enter" && handleAddNote()} />
-              
               <Button size="sm" onClick={handleAddNote}>Add</Button>
             </div>
           </motion.div>
 
-          {/* F) Candidate Timeline */}
+          {/* Quick email */}
           <motion.div
+            initial={{ opacity: 0, x: 15 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3, delay: 0.05 }}>
+            <EmailTemplates applicant={applicant} job={job} />
+          </motion.div>
+
+          {/* CV / attachments */}
+          <motion.div
+            className="rounded-2xl border border-border bg-card p-5 light-glow"
+            initial={{ opacity: 0, x: 15 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}>
+            <h3 className="mb-3 flex items-center gap-2 font-semibold">
+              <FileText className="w-4 h-4 text-primary" aria-hidden="true" />
+              CV / Resume
+            </h3>
+            {applicant.cvStoragePath ?
+            <div className="flex items-center justify-between gap-3 rounded-lg bg-secondary p-3">
+                <div className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{applicant.cvFileName}</span>
+                  <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+                    {applicant.cvFileSize != null && applicant.cvFileSize > 0 &&
+                  <span>{applicant.cvFileSize < 1024 * 1024 ? `${(applicant.cvFileSize / 1024).toFixed(1)} KB` : `${(applicant.cvFileSize / 1024 / 1024).toFixed(2)} MB`}</span>
+                  }
+                  </div>
+                </div>
+                <Button size="sm" variant="outline" onClick={handleCvDownload} disabled={cvLoading}>
+                  {cvLoading ?
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> :
+                <Download className="mr-1 h-3.5 w-3.5" aria-hidden="true" />}
+                  {cvLoading ? "Loading…" : "Download"}
+                </Button>
+              </div> :
+            <div className="flex items-center gap-2 rounded-lg bg-secondary p-3 text-muted-foreground">
+                <AlertCircle className="w-4 h-4" aria-hidden="true" />
+                <span className="text-sm">No CV uploaded</span>
+              </div>
+            }
+          </motion.div>
+
+          {/* Candidate details (metadata) */}
+          <motion.div
+            className="rounded-2xl border border-border bg-card p-5 light-glow"
             initial={{ opacity: 0, x: 15 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3, delay: 0.15 }}>
-            <CandidateTimeline applicant={applicant} />
+            <h3 className="mb-3 flex items-center gap-2 font-semibold">
+              <User className="w-4 h-4 text-primary" aria-hidden="true" />
+              Candidate Details
+            </h3>
+            <div className="space-y-2.5 text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Mail className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                <a href={`mailto:${applicant.email}`} className="truncate transition-colors hover:text-primary-readable">{applicant.email}</a>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Phone className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                {applicant.phone}
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                {applicant.location}
+              </div>
+              {applicant.nationality &&
+              <div className="flex items-center gap-2 text-muted-foreground">
+                  <Globe className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                  {applicant.nationality}
+                </div>
+              }
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Calendar className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                Applied {new Date(applicant.appliedDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </div>
+              {(applicant.linkedin || applicant.portfolio) &&
+              <div className="flex flex-wrap gap-3 border-t border-border pt-2.5">
+                  {applicant.linkedin &&
+                <a
+                  href={applicant.linkedin.startsWith("http") ? applicant.linkedin : `https://${applicant.linkedin}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-primary-readable hover:underline">
+                      <ExternalLink className="w-3 h-3" aria-hidden="true" /> LinkedIn<span className="sr-only"> (opens in new tab)</span>
+                    </a>
+                }
+                  {applicant.portfolio &&
+                <a
+                  href={applicant.portfolio.startsWith("http") ? applicant.portfolio : `https://${applicant.portfolio}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-primary-readable hover:underline">
+                      <ExternalLink className="w-3 h-3" aria-hidden="true" /> Portfolio<span className="sr-only"> (opens in new tab)</span>
+                    </a>
+                }
+                </div>
+              }
+            </div>
           </motion.div>
 
-          {/* G) Interview Prep Kit */}
+          {/* Rating (when present) */}
+          {applicant.rating &&
           <motion.div
+            className="rounded-2xl border border-border bg-card p-5 light-glow"
             initial={{ opacity: 0, x: 15 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3, delay: 0.2 }}>
-            <InterviewPrep applicant={applicant} job={job} />
-          </motion.div>
+              <h3 className="mb-3 flex items-center gap-2 font-semibold">
+                <Star className="w-4 h-4 text-[hsl(var(--intel-warning))]" aria-hidden="true" />
+                Rating
+              </h3>
+              <div className="space-y-2 text-sm">
+                {Object.entries(applicant.rating).map(([key, val]) =>
+              <div key={key} className="flex items-center justify-between">
+                    <span className="capitalize text-muted-foreground">
+                      {key.replace(/([A-Z])/g, " $1").trim()}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((i) =>
+                  <Star
+                    key={i}
+                    aria-hidden="true"
+                    className={`h-3.5 w-3.5 ${
+                    i <= val ? "fill-[hsl(var(--intel-warning))] text-[hsl(var(--intel-warning))]" : "text-muted"}`} />
+                  )}
+                    </div>
+                  </div>
+              )}
+                <div className="flex items-center justify-between border-t border-border pt-2 font-medium">
+                  <span>Average</span>
+                  <span className="text-primary-readable">{avgRating}/5</span>
+                </div>
+              </div>
+            </motion.div>
+          }
 
-          {/* H) Quick Email */}
+          {/* Candidate timeline */}
           <motion.div
             initial={{ opacity: 0, x: 15 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3, delay: 0.25 }}>
-            <EmailTemplates applicant={applicant} job={job} />
+            <CandidateTimeline applicant={applicant} />
           </motion.div>
         </div>
       </div>

@@ -88,6 +88,13 @@ CRITICAL RULES:
 - When a TITLE conflicts with the actual RESPONSIBILITIES, prioritize responsibilities (e.g. an HR-titled person who mostly does retention/onboarding/renewals/account growth is Customer Success or Account Management, NOT HR). Avoid keyword bias entirely.
 - Do NOT consider age, gender, nationality, religion, or any protected traits.
 
+AI TRUST RULES (mandatory):
+- Do NOT output predictions or probabilities of future outcomes (interview success, offer acceptance, turnover, attrition). No validated model exists for them; they must NOT appear anywhere in your output.
+- Distinguish EVIDENCE (facts verbatim from the CV) from INFERENCE (your judgment). Reasoning text must make clear which is which.
+- Where evidence is absent, write "Insufficient evidence" — never invent certainty.
+- Where a claim needs checking, mark it "requires verification" and add a concrete task to verificationChecklist.
+- positiveSignals/riskSignals must each name their source (always "CV" here) and an impact level reflecting how strongly they moved your assessment.
+
 The candidate was pre-classified as: Department="${suggestedDept}", Role="${suggestedTitle}". Treat that as a HINT, not ground truth — confirm or CORRECT it from the CV evidence.
 
 You MUST respond with a single valid JSON object (no markdown, no code blocks). EVERY field below is REQUIRED — you MUST include "professionalIdentity", "careerTrackAnalysis", "evidenceFor", "evidenceAgainst", "alternativesConsidered", "departmentMatches", and "recruiterVerdict". NEVER omit them.
@@ -128,7 +135,19 @@ You MUST respond with a single valid JSON object (no markdown, no code blocks). 
   "growthPotential": "<based on promotions/increasing responsibility or 'Limited evidence'>",
   "evidenceCitations": ["<direct quotes from CV, e.g. 'As stated: Managed 50+ hires annually'>"],
   "interviewQuestions": ["<targeted question based on CV findings>"],
-  "feedback": "<3-4 sentence final evidence-based feedback>"
+  "feedback": "<3-4 sentence final evidence-based feedback>",
+  "confidence": "<High|Medium|Low — your certainty given how complete/credible the CV evidence is>",
+  "evidenceQuality": {"level": "<Strong|Moderate|Weak>", "reasoning": "<one sentence: how credible/complete the CV evidence is>"},
+  "positiveSignals": [
+    {"signal": "<short label>", "source": "CV", "impact": "<High|Medium|Low>", "reasoning": "<one sentence>"}
+  ],
+  "riskSignals": [
+    {"signal": "<short label>", "source": "CV", "impact": "<High|Medium|Low>", "reasoning": "<one sentence>", "verificationQuestion": "<what the recruiter should check or ask>"}
+  ],
+  "verificationChecklist": ["<concrete recruiter verification task>"],
+  "interviewGuide": [
+    {"category": "<Role Fit|Experience Verification|Skills Validation|Motivation|Growth>", "question": "<targeted question>", "whyAsk": "<one sentence: which gap or concern this probes>"}
+  ]
 }`;
 
     const messages: any[] = [
@@ -146,7 +165,7 @@ You MUST respond with a single valid JSON object (no markdown, no code blocks). 
       model: "google/gemini-3-flash-preview",
       messages,
       hasImages: true,
-      max_tokens: 8000, // full recruiter-grade output (identity + evidence + verdict + skills) — avoid truncation
+      max_tokens: 16000, // v2 explainability schema (signals + guide + checklist) is much bigger — avoid truncation
     });
 
     if (!response.ok) {
@@ -170,7 +189,8 @@ You MUST respond with a single valid JSON object (no markdown, no code blocks). 
 
     const analysis = parseJsonResponse<Record<string, any>>(content);
     if (!analysis) {
-      console.error("Parse failed:", content);
+      // Log a short prefix only — the full response is a candidate assessment (PII-adjacent).
+      console.error("Parse failed (first 200 chars):", typeof content === "string" ? content.slice(0, 200) : content);
       throw new Error("Failed to parse AI response");
     }
 
@@ -178,6 +198,13 @@ You MUST respond with a single valid JSON object (no markdown, no code blocks). 
     analysis.fitScore = clampNumber(analysis.fitScore, 0, 100, 0);
     if (analysis.skillsCoveragePercent != null) {
       analysis.skillsCoveragePercent = clampNumber(analysis.skillsCoveragePercent, 0, 100, 0);
+    }
+    // skillsCoveragePercent must summarize the skillsAlignment list (the UI's
+    // info popover explains it exactly that way): Yes = 1, Partial = 0.5.
+    const sa = Array.isArray(analysis.skillsAlignment) ? (analysis.skillsAlignment as { evidence?: string }[]) : [];
+    if (sa.length > 0) {
+      const covered = sa.reduce((acc, s) => acc + (s?.evidence === "Yes" ? 1 : s?.evidence === "Partial" ? 0.5 : 0), 0);
+      analysis.skillsCoveragePercent = Math.round((covered / sa.length) * 100);
     }
     analysis.analyzedAt = new Date().toISOString();
 

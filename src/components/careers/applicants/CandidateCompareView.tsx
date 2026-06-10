@@ -96,9 +96,11 @@ const CandidateCompareView = ({ applicants, pinnedIds, onUnpin, onClearAll }: Ca
       ) : "—",
     },
     {
-      label: "Interview Success %",
-      getValue: (a) => a.aiAnalysis?.interviewSuccessProbability != null ? (
-        <span className="text-sm font-semibold">{a.aiAnalysis.interviewSuccessProbability}%</span>
+      // Replaced the former "Interview Success %" row — an unvalidated AI-guessed
+      // probability — with the evidence-backed skills-coverage figure.
+      label: "Skills Coverage",
+      getValue: (a) => a.aiAnalysis?.skillsCoveragePercent != null ? (
+        <span className="text-sm font-semibold">{a.aiAnalysis.skillsCoveragePercent}%</span>
       ) : "—",
     },
     {

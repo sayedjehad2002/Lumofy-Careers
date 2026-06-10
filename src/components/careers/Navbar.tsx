@@ -3,6 +3,7 @@ import { Menu, X } from "lucide-react";
 import { useState, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import ThemeToggle from "@/components/ThemeToggle";
 import { useCareers } from "@/contexts/CareersContext";
 import lumofyLogo from "@/assets/lumofy-mark.png";
 
@@ -63,9 +64,16 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.55, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <ThemeToggle />
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             >
-              <Button asChild size="sm" className="ml-2 rounded-xl btn-sheen">
+              <Button asChild size="sm" className="ml-1 rounded-xl btn-sheen">
                 <Link to="/jobs">View open roles</Link>
               </Button>
             </motion.div>
@@ -83,6 +91,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
           </div>
 
           <div className="flex items-center gap-2 md:hidden">
+            <ThemeToggle />
             <motion.button
               className="text-foreground p-3 -m-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => setMobileOpen(!mobileOpen)}
