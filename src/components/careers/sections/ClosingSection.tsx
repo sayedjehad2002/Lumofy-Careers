@@ -4,9 +4,9 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { fadeUp, staggerContainer, revealViewport } from "@/lib/motion";
 
-// The closing "decision moment": label + a two-line statement, three conviction pillars,
-// and a clear choice (apply, or connect). Aurora atmosphere + one calm staggered reveal;
-// MotionConfig keeps it reduced-motion safe. Tight padding — no dead space.
+// The closing "decision moment" in the main site's ctacard language: a big
+// dark rounded canvas (grid + Sirius aurora) floating on the light page,
+// carrying the statement, three conviction pillars, and the pill CTAs.
 const PILLARS = [
   { title: "Meaningful Work", body: "Build products that help organizations invest in their people.", hue: "--brand-sirius" },
   { title: "Real Ownership", body: "Help shape the product, the company, and the way we work.", hue: "--brand-eclipse" },
@@ -16,64 +16,65 @@ const PILLARS = [
 const LINKEDIN_URL = "https://www.linkedin.com/company/lumofyinc/";
 
 const ClosingSection = () => (
-  <section className="relative overflow-hidden px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-28">
-    {/* Same atmosphere language as every other section: the plain page background
-        with ONE faint Sirius radial behind the statement. (The old purple aurora
-        wash made the closing read like a different website.) */}
-    <div
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0"
-      style={{ background: "radial-gradient(55% 45% at 50% 36%, hsl(var(--primary) / 0.08), transparent 70%)" }}
-    />
-
+  <section className="px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
     <motion.div
-      className="relative z-10 mx-auto max-w-4xl text-center"
+      className="dark-canvas relative mx-auto max-w-6xl rounded-[clamp(20px,2.4vw,32px)] px-6 py-14 text-center shadow-[0_40px_80px_-24px_rgba(11,16,32,0.4)] sm:px-10 sm:py-16 lg:py-20"
       variants={staggerContainer()}
       initial="hidden"
       whileInView="show"
       viewport={revealViewport}
     >
-      <motion.p variants={fadeUp} className="mb-5 font-mono text-xs uppercase tracking-[0.2em] text-primary-readable">
-        Careers at Lumofy
-      </motion.p>
+      <div className="grid-lines" aria-hidden="true" />
+      <div className="lx-aurora !opacity-40" aria-hidden="true" />
 
-      <motion.h2 variants={fadeUp} className="text-4xl font-extrabold leading-[1.08] tracking-[-0.02em] sm:text-5xl lg:text-[3.5rem]">
-        Some careers follow change.
-        <br />
-        <span className="text-aurora">Others create it.</span>
-      </motion.h2>
+      <div className="relative z-10">
+        <motion.p variants={fadeUp}>
+          <span className="eyebrow-pill">Careers at Lumofy</span>
+        </motion.p>
 
-      <motion.p variants={fadeUp} className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-        Join the team building the systems helping organizations understand, develop, and grow their people.
-      </motion.p>
+        <motion.h2 variants={fadeUp} className="sec-title mt-6 text-white">
+          Some careers follow change.
+          <br />
+          <span className="text-[hsl(var(--lx-blue-soft))]">Others create it.</span>
+        </motion.h2>
 
-      {/* three conviction pillars — clean columns, not cards */}
-      <motion.div variants={fadeUp} className="mx-auto mt-14 grid max-w-3xl gap-8 text-left sm:grid-cols-3 sm:gap-7">
-        {PILLARS.map((p) => (
-          <div key={p.title}>
-            <div className="mb-3 h-0.5 w-9 rounded-full" style={{ background: `hsl(var(${p.hue}))` }} aria-hidden="true" />
-            <h3 className="text-base font-bold text-foreground">{p.title}</h3>
-            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{p.body}</p>
-          </div>
-        ))}
-      </motion.div>
+        <motion.p variants={fadeUp} className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[hsl(var(--lx-on-dark-2))]">
+          Join the team building the systems helping organizations understand, develop, and grow their people.
+        </motion.p>
 
-      {/* the decision */}
-      <motion.div variants={fadeUp} className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
-        <Button asChild size="lg" className="h-12 rounded-xl px-8 text-base btn-sheen">
-          <Link to="/jobs">
-            View Open Roles
-            <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-          </Link>
-        </Button>
-        <Button asChild size="lg" variant="outline" className="h-12 rounded-xl px-8 text-base">
-          <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer">
-            <Linkedin className="mr-2 h-4 w-4" aria-hidden="true" />
-            Connect on LinkedIn
-            <span className="sr-only">(opens in new tab)</span>
-          </a>
-        </Button>
-      </motion.div>
+        {/* three conviction pillars — clean columns inside the card */}
+        <motion.div variants={fadeUp} className="mx-auto mt-12 grid max-w-3xl gap-8 text-left sm:grid-cols-3 sm:gap-7">
+          {PILLARS.map((p) => (
+            <div key={p.title}>
+              <div className="mb-3 h-0.5 w-9 rounded-full" style={{ background: `hsl(var(${p.hue}))` }} aria-hidden="true" />
+              <h3 className="text-base font-bold text-white">{p.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-[hsl(var(--lx-on-dark-2))]">{p.body}</p>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* the decision */}
+        <motion.div variants={fadeUp} className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Button asChild size="lg" className="h-[52px] rounded-full px-8 text-[17px] font-semibold btn-sheen shadow-sirius">
+            <Link to="/jobs">
+              View Open Roles
+              <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+            </Link>
+          </Button>
+          <Button
+            asChild
+            size="lg"
+            variant="outline"
+            className="h-[52px] rounded-full border-white/25 bg-transparent px-8 text-[17px] font-semibold text-[hsl(var(--lx-on-dark))] hover:bg-white/10 hover:text-white"
+          >
+            <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer">
+              <Linkedin className="mr-2 h-4 w-4" aria-hidden="true" />
+              Connect on LinkedIn
+              <span className="sr-only">(opens in new tab)</span>
+            </a>
+          </Button>
+        </motion.div>
+      </div>
     </motion.div>
   </section>
 );

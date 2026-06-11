@@ -21,6 +21,8 @@ export function deptColor(name: string): BrandHue {
 
 export type HueClassSet = {
   text: string;
+  /** AA-safe variant for SMALL text on white / hue-tinted chips (≥4.5:1). */
+  textReadable: string;
   bg: string;
   bgSoft: string;
   border: string;
@@ -33,11 +35,11 @@ export type HueClassSet = {
 // Complete literal class strings per hue (JIT-safe). Semantic color is always
 // paired with text in the UI, never used as the only signal.
 export const hueClasses: Record<BrandHue, HueClassSet> = {
-  sirius: { text: "text-brand-sirius", bg: "bg-brand-sirius", bgSoft: "bg-brand-sirius/10", border: "border-brand-sirius/30", ring: "ring-brand-sirius/40", from: "from-brand-sirius/20", glow: "group-hover:shadow-[0_0_18px_hsl(var(--brand-sirius)/0.35)]" },
-  eclipse: { text: "text-brand-eclipse", bg: "bg-brand-eclipse", bgSoft: "bg-brand-eclipse/10", border: "border-brand-eclipse/30", ring: "ring-brand-eclipse/40", from: "from-brand-eclipse/20", glow: "group-hover:shadow-[0_0_18px_hsl(var(--brand-eclipse)/0.35)]" },
-  aurora: { text: "text-brand-aurora", bg: "bg-brand-aurora", bgSoft: "bg-brand-aurora/10", border: "border-brand-aurora/30", ring: "ring-brand-aurora/40", from: "from-brand-aurora/20", glow: "group-hover:shadow-[0_0_18px_hsl(var(--brand-aurora)/0.35)]" },
-  stellar: { text: "text-brand-stellar", bg: "bg-brand-stellar", bgSoft: "bg-brand-stellar/10", border: "border-brand-stellar/30", ring: "ring-brand-stellar/40", from: "from-brand-stellar/20", glow: "group-hover:shadow-[0_0_18px_hsl(var(--brand-stellar)/0.35)]" },
-  nova: { text: "text-brand-nova", bg: "bg-brand-nova", bgSoft: "bg-brand-nova/10", border: "border-brand-nova/30", ring: "ring-brand-nova/40", from: "from-brand-nova/20", glow: "group-hover:shadow-[0_0_18px_hsl(var(--brand-nova)/0.35)]" },
+  sirius: { text: "text-brand-sirius", textReadable: "text-[hsl(var(--brand-sirius-readable))]", bg: "bg-brand-sirius", bgSoft: "bg-brand-sirius/10", border: "border-brand-sirius/30", ring: "ring-brand-sirius/40", from: "from-brand-sirius/20", glow: "group-hover:shadow-[0_0_18px_hsl(var(--brand-sirius)/0.35)]" },
+  eclipse: { text: "text-brand-eclipse", textReadable: "text-[hsl(var(--brand-eclipse-readable))]", bg: "bg-brand-eclipse", bgSoft: "bg-brand-eclipse/10", border: "border-brand-eclipse/30", ring: "ring-brand-eclipse/40", from: "from-brand-eclipse/20", glow: "group-hover:shadow-[0_0_18px_hsl(var(--brand-eclipse)/0.35)]" },
+  aurora: { text: "text-brand-aurora", textReadable: "text-[hsl(var(--brand-aurora-readable))]", bg: "bg-brand-aurora", bgSoft: "bg-brand-aurora/10", border: "border-brand-aurora/30", ring: "ring-brand-aurora/40", from: "from-brand-aurora/20", glow: "group-hover:shadow-[0_0_18px_hsl(var(--brand-aurora)/0.35)]" },
+  stellar: { text: "text-brand-stellar", textReadable: "text-[hsl(var(--brand-stellar-readable))]", bg: "bg-brand-stellar", bgSoft: "bg-brand-stellar/10", border: "border-brand-stellar/30", ring: "ring-brand-stellar/40", from: "from-brand-stellar/20", glow: "group-hover:shadow-[0_0_18px_hsl(var(--brand-stellar)/0.35)]" },
+  nova: { text: "text-brand-nova", textReadable: "text-[hsl(var(--brand-nova-readable))]", bg: "bg-brand-nova", bgSoft: "bg-brand-nova/10", border: "border-brand-nova/30", ring: "ring-brand-nova/40", from: "from-brand-nova/20", glow: "group-hover:shadow-[0_0_18px_hsl(var(--brand-nova)/0.35)]" },
 };
 
 // Convenience: hue → class set for a department/pillar name.

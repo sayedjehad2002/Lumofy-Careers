@@ -10,7 +10,7 @@ const ScrollThread = () => {
   return (
     <motion.div
       aria-hidden="true"
-      className="fixed left-0 right-0 top-16 z-40 h-[2px] origin-left bg-primary"
+      className="fixed left-0 right-0 top-[68px] z-40 h-[2px] origin-left bg-primary"
       style={{ scaleX }}
     />
   );

@@ -6,9 +6,11 @@ import type { BrandHue } from "@/lib/deptColor";
 
 export const hero = {
   kicker: "CAREERS AT LUMOFY · MENA",
-  headline: "Join the team transforming how organizations develop talent.",
+  // PM-led, mirroring the main site's positioning ("AI-Powered Performance
+  // Management That Builds Workforce Readiness") in a careers frame.
+  headline: "Join the team transforming how organizations manage performance.",
   subdeck:
-    "We build the AI platform helping enterprises across MENA understand, develop, and grow their people. Join the team turning workforce data into human potential.",
+    "Lumofy combines AI-powered performance management with skills development to help organizations across MENA improve performance and prepare their workforces for the future. We're the team building it.",
   ctaPrimary: { label: "View open roles", to: "/jobs" },
   ctaSecondary: { label: "See what we're building", to: "#building" },
 };
@@ -16,7 +18,7 @@ export const hero = {
 export const stakes = {
   kicker: "The problem worth joining",
   lead: "Work is changing faster than organizations can understand their talent.",
-  sub: "Lumofy is building the intelligence layer that connects skills, learning, performance, and goals so companies can grow their people with clarity.",
+  sub: "Lumofy is building the intelligence layer that connects performance, goals, skills, and learning so companies can grow their people with clarity.",
   problems: ["Skills are hard to see", "Learning is disconnected", "Performance data is underused"],
   solutions: ["Capabilities become visible", "Development becomes personalized", "Growth becomes measurable"],
   // "100+ organizations across N countries" is existing approved proof (100+ clients: real).
@@ -24,12 +26,13 @@ export const stakes = {
 };
 
 export type Pillar = { name: string; hue: BrandHue; line: string };
-// PLACEHOLDER: pillar names drafted from known Lumofy platform context — confirm.
+// Mirrors the lumofy.ai offerings row: Performance Management leads as THE CORE
+// pillar of the platform; lines are adapted from the main site's own card copy.
 export const pillars: Pillar[] = [
-  { name: "Competency Frameworks", hue: "sirius", line: "Define the capabilities that matter, role by role." },
-  { name: "Performance Management", hue: "eclipse", line: "Turn goals, feedback, and progress into measurable growth." },
-  { name: "Assessments & Learning", hue: "aurora", line: "Identify gaps and build capability with targeted development." },
-  { name: "Engagement", hue: "nova", line: "Understand how people experience work and where culture needs support." },
+  { name: "Performance Management", hue: "sirius", line: "Set goals, measure performance, and drive accountability through reviews and continuous feedback." },
+  { name: "Competency Frameworks", hue: "eclipse", line: "Define the skills, behaviors, and job architecture every role needs." },
+  { name: "Assessments & Learning", hue: "aurora", line: "Close gaps with development plans mapped to each person's competencies." },
+  { name: "Engagement", hue: "nova", line: "Continuous visibility into satisfaction and engagement through pulse surveys and eNPS." },
 ];
 
 export type Principle = { n: string; title: string; body: string; hue: BrandHue };

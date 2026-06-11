@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, useNavigationType } from "react-router-dom";
-import { ThemeProvider } from "@/components/ThemeProvider";
+import { ThemeProvider, useTheme } from "@/components/ThemeProvider";
 import { CareersProvider } from "@/contexts/CareersContext";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { Suspense, lazy, useLayoutEffect } from "react";
@@ -80,6 +80,28 @@ function ScrollToTop() {
   return null;
 }
 
+// The public careers pages are art-directed in the lumofy.ai master-brand
+// light look (dark nav/hero/footer bookends are styled explicitly), so they
+// always render the light tokens. The stored dark/light preference applies
+// only inside the HR app surfaces (/dashboard, /hr/*).
+//
+// `pathname` arrives as a PROP (not useLocation) on purpose: this component
+// renders inside the keyed AnimatePresence wrapper, whose exiting clone keeps
+// frozen props — so the class flips exactly when the NEW page mounts (after
+// mode="wait" finishes the exit) instead of repainting the still-visible old
+// page in the wrong theme mid-transition.
+function ThemeRouteSync({ pathname }: { pathname: string }) {
+  const { theme } = useTheme();
+  useLayoutEffect(() => {
+    const isHrApp = pathname.startsWith("/dashboard") || pathname.startsWith("/hr/");
+    const cls = isHrApp ? theme : "light";
+    const root = document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(cls);
+  }, [theme, pathname]);
+  return null;
+}
+
 function AnimatedRoutes() {
   const location = useLocation();
 
@@ -101,6 +123,7 @@ function AnimatedRoutes() {
           transition={pageTransition}
         >
           <ScrollToTop />
+          <ThemeRouteSync pathname={location.pathname} />
           <Suspense fallback={<PageLoader />}>
             <Routes location={location}>
               <Route path="/" element={<Index />} />

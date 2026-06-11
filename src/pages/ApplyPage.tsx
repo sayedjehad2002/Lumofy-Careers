@@ -533,11 +533,11 @@ const ApplyPage = () => {
               variants={reveal}
               className="mb-10 rounded-2xl border border-border bg-card/40 p-5 text-left sm:p-6"
             >
-              <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.18em] text-primary-readable">What happens next</p>
+              <p className="mb-4 font-display text-[11px] font-bold uppercase tracking-[0.18em] text-primary-readable">What happens next</p>
               <ol className="grid gap-4 sm:grid-cols-2">
                 {hiringSteps.map((s) => (
                   <li key={s.n} className="flex items-start gap-3">
-                    <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-[11px] font-semibold text-primary-readable">
+                    <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 font-display text-[11px] font-bold tabular-nums text-primary-readable">
                       {s.n}
                     </span>
                     <div>
@@ -550,10 +550,10 @@ const ApplyPage = () => {
             </motion.div>
 
             <motion.div variants={reveal} className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Button onClick={() => navigate("/jobs")} size="lg" className="h-12 rounded-xl px-8 text-base btn-sheen">
+              <Button onClick={() => navigate("/jobs")} size="lg" className="h-12 rounded-full px-8 text-base btn-sheen shadow-sirius">
                 View more open roles
               </Button>
-              <Button onClick={() => navigate("/")} size="lg" variant="outline" className="h-12 rounded-xl px-8 text-base">
+              <Button onClick={() => navigate("/")} size="lg" variant="outline" className="h-12 rounded-full px-8 text-base">
                 Back to careers
               </Button>
             </motion.div>
@@ -847,7 +847,7 @@ const ApplyPage = () => {
 
             {/* ── Submit Button ── */}
             <div className="pt-2">
-              <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base" disabled={submitting}>
+              <Button type="submit" size="lg" className="h-12 w-full rounded-full text-base btn-sheen shadow-sirius" disabled={submitting}>
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
                 {submitPhase === "uploading"
                   ? "Uploading CV…"

@@ -162,7 +162,7 @@ const JobDetails = () => {
                 <div className="flex flex-wrap gap-3">
                   <Button
                     size="lg"
-                    className="h-12 rounded-xl px-8 text-base btn-sheen"
+                    className="h-12 rounded-full px-8 text-base btn-sheen shadow-sirius"
                     onClick={() => navigate(`/jobs/${job.id}/apply`)}
                   >
                     Apply for this position
@@ -171,7 +171,7 @@ const JobDetails = () => {
                     <Button
                       size="lg"
                       variant="outline"
-                      className="h-12 rounded-xl px-8 text-base"
+                      className="h-12 rounded-full px-8 text-base"
                       onClick={handleDownloadJd}
                       disabled={downloading}
                     >
@@ -275,7 +275,7 @@ const JobDetails = () => {
                 {/* Apply persists beside the JD on desktop — the header CTA scrolls away
                     exactly when a long description has done its convincing. */}
                 <Button
-                  className="w-full h-11 rounded-xl btn-sheen mb-4"
+                  className="w-full h-11 rounded-full btn-sheen mb-4"
                   onClick={() => navigate(`/jobs/${job.id}/apply`)}
                 >
                   Apply for this position

@@ -21,7 +21,7 @@ const GrowthExperienceSection = () => {
   const ac = hueClasses[BRAND_HUES[sel % BRAND_HUES.length]];
 
   return (
-    <SectionShell id="growth">
+    <SectionShell id="growth" className="band-mint">
       <motion.div
         className="grid items-center gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-14"
         variants={staggerContainer()}
@@ -31,12 +31,12 @@ const GrowthExperienceSection = () => {
       >
         {/* Left — editorial */}
         <motion.div variants={fadeUp}>
-          <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-primary-readable">Growth experience</p>
-          <h2 className="text-3xl font-extrabold leading-[1.1] tracking-tight sm:text-4xl">Designed for the person you're becoming.</h2>
-          <p className="mt-5 max-w-md text-base leading-relaxed text-muted-foreground">
+          <p><span className="eyebrow-pill">Growth experience</span></p>
+          <h2 className="sec-title mt-5 text-foreground">Designed for the person you're becoming.</h2>
+          <p className="mt-5 max-w-md text-base leading-relaxed text-[hsl(var(--lx-ink-2))] dark:text-muted-foreground sm:text-[1.0625rem]">
             We build workforce growth systems for organizations. Inside Lumofy, we design the same clarity, trust, and momentum for our own team.
           </p>
-          <p className="mt-6 text-sm text-muted-foreground">
+          <p className="mt-6 text-sm text-[hsl(var(--lx-ink-3))] dark:text-muted-foreground">
             Growth here is part of <span className="font-semibold text-foreground">how the company works</span>, not a side benefit.
           </p>
         </motion.div>
@@ -44,7 +44,7 @@ const GrowthExperienceSection = () => {
         {/* Right — Growth OS panel */}
         <motion.div
           variants={fadeUp}
-          className="relative overflow-hidden rounded-2xl border border-border bg-card/40 p-5 backdrop-blur-sm sm:p-6"
+          className="lx-card relative overflow-hidden p-5 sm:p-6"
         >
           <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 85% 0%, hsl(var(--primary) / 0.07), transparent 70%)" }} />
 
@@ -63,7 +63,9 @@ const GrowthExperienceSection = () => {
                   onClick={() => setSel(i)}
                   aria-pressed={isSel}
                   className={`flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                    isSel ? "border-primary/40 bg-primary/10" : "border-border/60 bg-card/40 hover:border-primary/30 hover:bg-card/70"
+                    isSel
+                      ? "border-primary/40 bg-accent"
+                      : "border-[hsl(var(--lx-line))] dark:border-border/60 bg-card hover:border-primary/30 hover:bg-[hsl(var(--lx-surface-2))] dark:hover:bg-card/70"
                   }`}
                 >
                   <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${c.bgSoft}`}>
@@ -76,7 +78,7 @@ const GrowthExperienceSection = () => {
           </div>
 
           {/* detail panel */}
-          <div className="relative mt-3.5 min-h-[7.5rem] rounded-xl border border-border/60 bg-card/40 p-5" aria-live="polite">
+          <div className="relative mt-3.5 min-h-[7.5rem] rounded-xl border border-[hsl(var(--lx-line))] dark:border-border/60 bg-[hsl(var(--lx-surface-2))] dark:bg-card/40 p-5" aria-live="polite">
             <AnimatePresence mode="wait">
               <motion.div
                 key={sel}

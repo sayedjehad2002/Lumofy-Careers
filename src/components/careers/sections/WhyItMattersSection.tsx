@@ -3,7 +3,7 @@ import { ArrowRight, Check } from "lucide-react";
 import SectionShell from "./SectionShell";
 import { stakes } from "@/data/careers";
 import { staggerContainer, revealViewport, brandEase } from "@/lib/motion";
-import lumofyLogo from "@/assets/lumofy-mark.png";
+import lumofyLogo from "@/assets/brand/lumofy-mark.svg";
 
 // "The problem worth joining" — an editorial transformation ledger built around
 // a CENTER AXIS: problems converge (right-aligned) into an arrow node on a
@@ -42,27 +42,27 @@ const WhyItMattersSection = () => (
     >
       {/* column headers — labels hug the center axis; the chip crowns the spine */}
       <motion.div variants={fadeIn} className="hidden grid-cols-[1fr_5.5rem_1fr] items-center gap-5 pb-6 lg:grid">
-        <p className="text-right font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Today's challenge</p>
+        <p className="text-right font-display text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Today's challenge</p>
         <div className="flex flex-col items-center gap-2">
-          <span className="node-core-bg flex h-10 w-10 items-center justify-center rounded-xl border border-primary/30 [box-shadow:var(--core-glow)]">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[hsl(var(--lx-line))] dark:border-border bg-card shadow-md">
             <img src={lumofyLogo} alt="" aria-hidden="true" className="h-5 w-5 object-contain" />
           </span>
-          <span className="whitespace-nowrap text-center font-mono text-[9px] uppercase leading-tight tracking-wider text-muted-foreground">
+          <span className="whitespace-nowrap text-center font-display text-[9px] font-bold uppercase leading-tight tracking-wider text-muted-foreground">
             Lumofy
             <br />
             intelligence layer
           </span>
         </div>
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">What we're building</p>
+        <p className="font-display text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">What we're building</p>
       </motion.div>
 
       {/* mobile/tablet header — the same three pieces, compact */}
       <motion.div variants={fadeIn} className="flex items-center justify-between gap-3 pb-5 lg:hidden">
-        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Today's challenge</p>
-        <span className="node-core-bg flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-primary/30" title="Lumofy intelligence layer">
+        <p className="font-display text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Today's challenge</p>
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[hsl(var(--lx-line))] dark:border-border bg-card shadow-sm" title="Lumofy intelligence layer">
           <img src={lumofyLogo} alt="Lumofy intelligence layer" className="h-4 w-4 object-contain" />
         </span>
-        <p className="text-right font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">What we're building</p>
+        <p className="text-right font-display text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">What we're building</p>
       </motion.div>
 
       {/* the ledger — one row per transformation, threaded on the center spine */}
@@ -86,7 +86,7 @@ const WhyItMattersSection = () => (
           >
             {/* problem — converges toward the axis */}
             <motion.div variants={fromLeft} className="flex items-center gap-3.5 lg:justify-end lg:text-right">
-              <span className="font-mono text-[11px] tabular-nums text-muted-foreground/50 transition-colors duration-300 group-hover:text-primary-readable">
+              <span className="font-display text-[11px] font-bold tabular-nums text-muted-foreground transition-colors duration-300 group-hover:text-primary-readable">
                 0{i + 1}
               </span>
               <span className="text-[15px] leading-relaxed text-muted-foreground">{p}</span>

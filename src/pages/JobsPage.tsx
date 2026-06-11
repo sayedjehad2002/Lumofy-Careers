@@ -346,9 +346,9 @@ const JobsPage = () => {
             transition={{ duration: 0.6, ease }}
             className="text-center"
           >
-            <span className="font-mono text-xs uppercase tracking-[0.2em] text-primary-readable">Open roles · Lumofy</span>
-            <h1 className="mt-4 text-3xl font-extrabold tracking-[-0.02em] sm:text-4xl lg:text-5xl">Open Positions</h1>
-            <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+            <span className="eyebrow-pill">Open roles · Lumofy</span>
+            <h1 className="sec-title mt-5 text-foreground">Open Positions</h1>
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-[hsl(var(--lx-ink-2))] dark:text-muted-foreground sm:text-lg">
               Explore opportunities at Lumofy and find the role that matches your skills and ambitions.
             </p>
           </motion.div>
@@ -467,7 +467,7 @@ const JobsPage = () => {
                     type="button"
                     onClick={() => setSavedOnly(v => !v)}
                     aria-pressed={savedOnly}
-                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                       savedOnly
                         ? "border-primary/40 bg-primary/10 text-primary-readable"
                         : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
@@ -509,7 +509,7 @@ const JobsPage = () => {
                       <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
                         Try adjusting your search or clearing a filter or two to see more openings.
                       </p>
-                      <Button variant="outline" size="sm" onClick={resetFilters} className="mt-5 rounded-xl">
+                      <Button variant="outline" size="sm" onClick={resetFilters} className="mt-5 rounded-full">
                         <RotateCcw className="mr-1.5 h-4 w-4" aria-hidden="true" />
                         Reset all filters
                       </Button>
@@ -525,14 +525,14 @@ const JobsPage = () => {
                         Lumofy, or send us your CV and tell us where you'd add the most value.
                       </p>
                       <div className="mt-5 flex flex-col items-center justify-center gap-2.5 sm:flex-row">
-                        <Button size="sm" asChild className="h-11 rounded-xl px-6">
+                        <Button size="sm" asChild className="h-11 rounded-full px-6 btn-sheen">
                           <Link to="/">
                             <Compass className="mr-2 h-4 w-4" aria-hidden="true" />
                             Learn about Lumofy
                             <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
                           </Link>
                         </Button>
-                        <Button size="sm" variant="outline" asChild className="h-11 rounded-xl px-6">
+                        <Button size="sm" variant="outline" asChild className="h-11 rounded-full px-6">
                           <a href={`mailto:${SITE.careersEmail}`}>Email us your CV</a>
                         </Button>
                       </div>

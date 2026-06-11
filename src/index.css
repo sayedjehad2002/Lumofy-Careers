@@ -6,20 +6,40 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 0 0% 9%;
+    /* ── Lumofy.ai master-brand light palette (extracted from the main website's
+       lx design system) — page #fcfdff, ink #141720, Sirius #215bea. ── */
+    --background: 220 100% 99%;
+    --foreground: 225 23% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 35% 8%;
+    --card-foreground: 225 23% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 35% 8%;
+    --popover-foreground: 225 23% 10%;
 
-    --primary: 223 83% 50%;
+    --primary: 223 83% 52%;
     --primary-foreground: 0 0% 100%;
     /* Readable text variants (light mode: darken for white surfaces). */
-    --primary-readable: 223 83% 45%;
+    --primary-readable: 223 83% 46%;
     --destructive-readable: 0 72% 45%;
+
+    /* ── lx structural tokens (theme-independent — the dark-canvas moments on the
+       main site stay dark in both modes). Hex sources in the comments. ── */
+    --lx-ink: 0 0% 5%;             /* #0c0c0c */
+    --lx-ink-2: 225 23% 31%;       /* #3d4661 */
+    --lx-ink-3: 226 15% 47%;       /* #666f8b — one step under #6b7491 so 14px text clears AA on the tint bands too */
+    --lx-on-dark: 225 57% 97%;     /* #f4f6fc */
+    --lx-on-dark-2: 227 40% 80%;   /* #b6bfe0 */
+    --lx-on-dark-3: 229 23% 59%;   /* #7e87ae */
+    --lx-surface-2: 220 50% 98%;   /* #f6f8fc tint band */
+    --lx-surface-3: 226 100% 97%;  /* #eef2ff mint band */
+    --lx-line: 222 33% 92%;        /* #e5e9f2 hairline */
+    --lx-dark: 240 9% 4%;          /* #0a0a0c dark canvas */
+    --lx-dark-2: 231 18% 8%;       /* #101117 */
+    --lx-nav: 228 38% 3%;          /* #040509 nav / cta card */
+    --lx-foot: 240 7% 3%;          /* #070708 footer */
+    --lx-blue-soft: 223 85% 65%;   /* #5c86f2 headline highlight on dark */
+    --lx-blue-glow: 225 100% 81%;  /* #9db6ff */
     /* Base surface for "intelligence node" radials (cards/cores on the system
        panels) — white in light mode, deep navy in dark. */
     --node-base: 0 0% 100%;
@@ -31,23 +51,23 @@
     /* Accent-node ring glow alpha (hero impact icons) — barely-there on white. */
     --node-ring-glow: 0.07;
 
-    --secondary: 220 16% 92%;
-    --secondary-foreground: 220 30% 12%;
+    --secondary: 223 33% 96%;
+    --secondary-foreground: 225 23% 10%;
 
-    --muted: 220 16% 92%;
-    --muted-foreground: 220 12% 40%;
+    --muted: 223 33% 96%;
+    --muted-foreground: 220 10% 35%;
 
-    --accent: 220 16% 92%;
-    --accent-foreground: 220 30% 12%;
+    --accent: 221 100% 96%;
+    --accent-foreground: 222 61% 34%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 14% 86%;
-    --input: 220 14% 86%;
-    --ring: 223 83% 50%;
+    --border: 218 13% 88%;
+    --input: 218 13% 88%;
+    --ring: 223 83% 52%;
 
-    --radius: 0.5rem;
+    --radius: 0.7rem;
 
     --sidebar-background: 220 20% 97%;
     --sidebar-foreground: 220 35% 8%;
@@ -70,6 +90,14 @@
     --brand-aurora: 149 64% 38%;   /* green  */
     --brand-stellar: 38 92% 42%;   /* amber/yellow (darkened for white-bg contrast) */
     --brand-nova: 336 68% 50%;     /* pink   */
+    /* TEXT-safe hue variants: small bold text on white / hue-10% tints needs ≥4.5:1,
+       which the fill values above miss for aurora/stellar/nova. Fills/dots/icons
+       keep the vivid values; text chips use these. */
+    --brand-sirius-readable: 223 83% 46%;
+    --brand-eclipse-readable: 264 70% 50%;
+    --brand-aurora-readable: 149 64% 29%;
+    --brand-stellar-readable: 38 92% 30%;
+    --brand-nova-readable: 336 68% 46%;
     --chart-1: 223 83% 52%;
     --chart-2: 149 65% 45%;
     --chart-3: 264 75% 64%;
@@ -96,7 +124,8 @@
     --intel-tab-bg: 220 16% 94%;
     --intel-tab-active: 0 0% 100%;
     --intel-gauge-track: 220 14% 90%;
-    --font-sans: 'Source Sans 3', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    /* Main-site type pairing: Source Sans 3 carries display, IBM Plex Sans carries body. */
+    --font-sans: 'IBM Plex Sans', 'Source Sans 3', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --font-display: 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
     --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -162,6 +191,12 @@
     --brand-aurora: 149 70% 62%;   /* green  #5AE29C */
     --brand-stellar: 59 70% 62%;   /* yellow #E2E05A */
     --brand-nova: 336 68% 62%;     /* pink   #E05A90 */
+    /* On dark surfaces the vivid hues are already text-safe. */
+    --brand-sirius-readable: 223 90% 66%;
+    --brand-eclipse-readable: 264 100% 70%;
+    --brand-aurora-readable: 149 70% 62%;
+    --brand-stellar-readable: 59 70% 62%;
+    --brand-nova-readable: 336 68% 62%;
 
     --neon-blue: 223 83% 64%;
     --neon-purple: 264 100% 70%;
@@ -220,7 +255,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Source Sans 3', system-ui, sans-serif;
+    font-family: var(--font-sans);
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
@@ -233,9 +268,9 @@
        over-offset every #anchor jump (heading lands too far below the navbar). */
   }
 
-  /* Headings use Source Sans 3 (Lumofy brand primary), heavy weight for display */
+  /* Headings use Source Sans 3 (Lumofy brand display face), heavy weight */
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Source Sans 3', system-ui, sans-serif;
+    font-family: var(--font-display);
     font-weight: 800;
     letter-spacing: -0.02em;
   }
@@ -253,6 +288,133 @@
       scroll-behavior: auto !important;
     }
   }
+}
+
+@layer components {
+  /* ═══════════════════════════════════════════════════════════════
+     lx — the main lumofy.ai website's section language, ported here so
+     the careers page reads as the same brand. Light corporate canvas,
+     dark-canvas bookends, Sirius-blue accents, pill controls.
+     ═══════════════════════════════════════════════════════════════ */
+
+  /* A dark "bookend" moment (hero / CTA card / footer) — stays dark in BOTH themes. */
+  .dark-canvas {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    background: hsl(var(--lx-dark));
+    color: hsl(var(--lx-on-dark));
+  }
+
+  /* The main site's faint 72px grid, masked to fade at the edges (dark canvas). */
+  .grid-lines {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(hsl(0 0% 100% / 0.043) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(0 0% 100% / 0.043) 1px, transparent 1px);
+    background-size: 72px 72px;
+    -webkit-mask-image: radial-gradient(78% 75% at 50% 42%, #000 30%, transparent 88%);
+    mask-image: radial-gradient(78% 75% at 50% 42%, #000 30%, transparent 88%);
+  }
+
+  /* Drifting Sirius aurora wash used behind the main site's dark hero. */
+  .lx-aurora {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.6;
+    filter: blur(58px);
+    background-image:
+      radial-gradient(circle at 24% 34%, hsl(223 83% 52% / 0.5), transparent 25%),
+      radial-gradient(circle at 76% 52%, hsl(222 66% 48% / 0.45), transparent 27%),
+      radial-gradient(circle at 54% 82%, hsl(220 100% 62% / 0.34), transparent 23%);
+    background-size: 200% 200%;
+    background-repeat: no-repeat;
+    animation: lx-aurora-move 17s ease-in-out infinite alternate;
+  }
+  @keyframes lx-aurora-move {
+    from { background-position: 0% 0%, 0% 0%, 0% 0%; }
+    to { background-position: 30% 18%, -22% 10%, 12% -16%; }
+  }
+
+  /* Eyebrow pill — the main site's section kicker chip. */
+  .eyebrow-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 15px;
+    border-radius: 999px;
+    background: hsl(var(--primary) / 0.09);
+    color: hsl(var(--primary-readable));
+    font-family: var(--font-display);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+  .eyebrow-pill::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: hsl(var(--primary));
+  }
+  .dark-canvas .eyebrow-pill {
+    background: hsl(var(--lx-blue-soft) / 0.14);
+    color: hsl(var(--lx-blue-glow));
+  }
+  .dark-canvas .eyebrow-pill::before {
+    background: hsl(var(--lx-blue-soft));
+  }
+
+  /* Section display title — clamp(32→54px), 800, tight. */
+  .sec-title {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4.4vw, 3.375rem);
+    font-weight: 800;
+    line-height: 1.06;
+    letter-spacing: -0.028em;
+    text-wrap: balance;
+  }
+
+  /* Light band variants from the main site. */
+  .band-tint { background: hsl(var(--lx-surface-2)); }
+  .band-mint { background: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(var(--lx-surface-3)) 100%); }
+  .band-bluegrad { background: linear-gradient(hsl(0 0% 100%) 0%, hsl(222 100% 97%) 46%, hsl(222 100% 94%) 100%); }
+  .dark .band-tint { background: hsl(var(--card)); }
+  .dark .band-mint { background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--card)) 100%); }
+  .dark .band-bluegrad { background: linear-gradient(hsl(var(--background)), hsl(223 50% 12%)); }
+
+  /* White content card on light bands — hairline + soft elevation. */
+  .lx-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--lx-line));
+    border-radius: 22px;
+    box-shadow: 0 2px 4px hsl(228 45% 8% / 0.04), 0 12px 32px -10px hsl(228 45% 8% / 0.14);
+  }
+  .dark .lx-card {
+    border-color: hsl(var(--border));
+    box-shadow: 0 2px 4px hsl(0 0% 0% / 0.2), 0 12px 32px -10px hsl(0 0% 0% / 0.35);
+  }
+
+  /* The main site's blue CTA shadow. */
+  .shadow-sirius { box-shadow: 0 18px 50px -12px hsl(223 83% 52% / 0.45); }
+
+  /* Browser-chrome header dots for product/console shots. */
+  .chrome-dots { display: inline-flex; gap: 6px; }
+  .chrome-dots i {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: hsl(var(--lx-line));
+  }
+  .chrome-dots i:nth-child(1) { background: #f87171; }
+  .chrome-dots i:nth-child(2) { background: #fbbf24; }
+  .chrome-dots i:nth-child(3) { background: #34d399; }
 }
 
 @layer utilities {

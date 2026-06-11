@@ -14,8 +14,8 @@ const NotFound = () => {
       <Navbar />
       <main id="main" className="flex min-h-[60vh] items-center justify-center px-4 pt-24 pb-16">
         <div className="text-center">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-primary">404</p>
-          <h1 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
+          <p><span className="eyebrow-pill">404</span></p>
+          <h1 className="sec-title mt-5 text-foreground">
             This page took a different career path
           </h1>
           <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted-foreground">
@@ -23,10 +23,10 @@ const NotFound = () => {
             back to exploring opportunities at Lumofy.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button asChild size="lg" className="h-12 rounded-xl px-8 text-base btn-sheen">
+            <Button asChild size="lg" className="h-12 rounded-full px-8 text-base btn-sheen shadow-sirius">
               <Link to="/jobs">View open roles</Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="h-12 rounded-xl px-8 text-base">
+            <Button asChild size="lg" variant="outline" className="h-12 rounded-full px-8 text-base">
               <Link to="/">
                 <Compass className="mr-2 h-4 w-4" aria-hidden="true" />
                 Back to careers

@@ -41,6 +41,7 @@ const sidebarItemVariants = {
   }),
 };
 import { toast } from "sonner";
+import ThemeToggle from "@/components/ThemeToggle";
 import DashboardAuth from "@/components/careers/DashboardAuth";
 import JobFormModal from "@/components/careers/JobFormModal";
 const DashboardOverview = lazy(() => import("@/components/careers/DashboardOverview")); // lazy: defers the recharts (~108KB) chunk off the dashboard's initial paint
@@ -341,6 +342,10 @@ const Dashboard = () => {
             <ExternalLink className="w-4 h-4" />
             View Careers Page
           </Link>
+          <div className="flex items-center justify-between px-3 py-1">
+            <span className="text-sm text-muted-foreground">Theme</span>
+            <ThemeToggle />
+          </div>
           <button onClick={handleSignOut} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-destructive transition-colors">
             <LogOut className="w-4 h-4" />
             Sign out
@@ -356,7 +361,9 @@ const Dashboard = () => {
             <span className="text-sm font-extrabold tracking-tight text-foreground">
               Lumofy <span className="font-semibold text-muted-foreground">HR</span>
             </span>
-          </Link>        </div>
+          </Link>
+          <ThemeToggle />
+        </div>
         {/* Horizontally scrollable tab strip — keeps all tabs reachable with
             ≥44px tap targets instead of cramming them into the header row. */}
         <nav

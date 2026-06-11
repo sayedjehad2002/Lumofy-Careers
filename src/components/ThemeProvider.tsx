@@ -1,10 +1,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-// Lumofy careers ships dark-first (the cosmic brand theme) with an optional
-// light mode. The choice persists per-browser in localStorage and defaults to
-// dark — deliberately NOT the OS preference, so first impressions stay on the
-// brand default. index.html sets class="dark" so the first paint is always
-// dark; this provider then applies the stored choice.
+// Lumofy careers ships LIGHT-first to match the lumofy.ai master brand (light
+// corporate canvas with dark-canvas hero/footer bookends). Dark remains an
+// option for the HR dashboard; the choice persists per-browser in localStorage.
 type Theme = "dark" | "light";
 
 interface ThemeContextType {
@@ -14,24 +12,25 @@ interface ThemeContextType {
 
 const STORAGE_KEY = "lumofy-theme";
 
-const ThemeContext = createContext<ThemeContextType>({ theme: "dark", toggleTheme: () => {} });
+const ThemeContext = createContext<ThemeContextType>({ theme: "light", toggleTheme: () => {} });
 
 export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "dark";
+    if (typeof window === "undefined") return "light";
     try {
-      return localStorage.getItem(STORAGE_KEY) === "light" ? "light" : "dark";
+      return localStorage.getItem(STORAGE_KEY) === "dark" ? "dark" : "light";
     } catch {
-      return "dark";
+      return "light";
     }
   });
 
+  // NOTE: the <html> class is applied by ThemeRouteSync (App.tsx), which forces
+  // the public careers pages to the light master-brand look and applies the
+  // stored preference only inside the HR dashboard. This provider just owns the
+  // state + persistence.
   useEffect(() => {
-    const root = document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(theme);
     try {
       localStorage.setItem(STORAGE_KEY, theme);
     } catch {
