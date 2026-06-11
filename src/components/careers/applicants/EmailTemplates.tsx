@@ -75,8 +75,9 @@ const EmailTemplates = ({ applicant, job }: EmailTemplatesProps) => {
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(`Subject: ${subject}\n\n${body}`);
-    toast.success("Email copied to clipboard");
+    navigator.clipboard.writeText(`Subject: ${subject}\n\n${body}`)
+      .then(() => toast.success("Email copied to clipboard"))
+      .catch(() => toast.error("Couldn't copy to clipboard"));
   };
 
   const handleMailTo = () => {

@@ -12,8 +12,8 @@ const navItems = [
 const MobileBottomNav = forwardRef<HTMLElement>((_, ref) => {
   const location = useLocation();
 
-  // Don't show on dashboard or apply pages
-  if (location.pathname.startsWith("/dashboard") || location.pathname.includes("/apply") || location.pathname.includes("/respond")) {
+  // Don't show on dashboard, apply, or HR pages
+  if (location.pathname.startsWith("/dashboard") || location.pathname.includes("/apply") || location.pathname.startsWith("/hr/")) {
     return null;
   }
 

@@ -105,8 +105,9 @@ const InterviewPrep = ({ applicant, job }: InterviewPrepProps) => {
   }, [applicant, job]);
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard");
+    navigator.clipboard.writeText(text)
+      .then(() => toast.success("Copied to clipboard"))
+      .catch(() => toast.error("Couldn't copy to clipboard"));
   };
 
   return (
@@ -118,18 +119,16 @@ const InterviewPrep = ({ applicant, job }: InterviewPrepProps) => {
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${TONE_SUBTLE.success}`}>
                 <ClipboardList className={`w-4 h-4 ${TONE_TEXT.success}`} aria-hidden="true" />
               </div>
-              AI Interview Prep Kit
+              Interview Prep Kit
             </CardTitle>
             <CardDescription className="ml-[42px]">
-              Tailored questions &amp; scorecard based on {applicant.fullName}'s CV gaps
+              Questions &amp; scorecard assembled from {applicant.fullName}'s stored AI analysis
             </CardDescription>
           </div>
-          {!kit && (
-            <Button size="sm" onClick={generateKit} disabled={loading} className="text-xs h-9">
-              {loading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Brain className="w-3.5 h-3.5 mr-1.5" />}
-              Generate kit
-            </Button>
-          )}
+          <Button size="sm" onClick={generateKit} disabled={loading} className="text-xs h-9">
+            {loading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Brain className="w-3.5 h-3.5 mr-1.5" />}
+            {kit ? "Regenerate" : "Generate kit"}
+          </Button>
         </div>
       </CardHeader>
 

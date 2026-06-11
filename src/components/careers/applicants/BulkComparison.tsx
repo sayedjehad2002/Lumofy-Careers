@@ -1,13 +1,11 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
-import { Brain, GitCompareArrows, Loader2, CheckCircle2, XCircle, Minus } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Brain, GitCompareArrows, CheckCircle2, XCircle, Minus } from "lucide-react";
 import { toast } from "sonner";
 import type { Applicant, Job } from "@/types/careers";
 import { TONE_TEXT, TONE_SOFT, TONE_SUBTLE } from "@/components/careers/statusColors";
@@ -17,10 +15,11 @@ interface BulkComparisonProps {
   job: Job | undefined;
 }
 
-const BulkComparison = ({ applicants, job }: BulkComparisonProps) => {
+// The matrix derives entirely from each candidate's STORED AI analysis — no
+// fresh AI call is made here (the old "Compare" button fired a doomed request
+// to a nonexistent bulkCompare mode and toasted success on failure).
+const BulkComparison = ({ applicants }: BulkComparisonProps) => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [comparing, setComparing] = useState(false);
-  const [comparisonResult, setComparisonResult] = useState<any | null>(null);
 
   const withAI = useMemo(() => applicants.filter(a => a.aiAnalysis), [applicants]);
 
@@ -38,39 +37,6 @@ const BulkComparison = ({ applicants, job }: BulkComparisonProps) => {
     () => applicants.filter(a => selected.has(a.id)),
     [applicants, selected]
   );
-
-  const runComparison = useCallback(async () => {
-    if (selectedApplicants.length < 2) { toast.error("Select at least 2 candidates"); return; }
-    setComparing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("analyze-cv", {
-        body: {
-          bulkCompare: true,
-          candidates: selectedApplicants.map(a => ({
-            name: a.fullName,
-            score: a.aiAnalysis?.fitScore,
-            strengths: a.aiAnalysis?.strengths,
-            gaps: a.aiAnalysis?.gaps,
-            skills: a.aiAnalysis?.detectedSkills,
-            missingSkills: a.aiAnalysis?.missingSkills,
-            experience: a.aiAnalysis?.experienceVerification,
-            recommendation: a.aiAnalysis?.recommendation,
-          })),
-          jobTitle: job?.title,
-          jobRequirements: job?.requirements,
-        },
-      });
-      if (error) throw error;
-      setComparisonResult(data);
-      toast.success("Comparison complete");
-    } catch {
-      // Fall back to local comparison
-      setComparisonResult({ local: true });
-      toast.success("Comparison generated from existing AI data");
-    } finally {
-      setComparing(false);
-    }
-  }, [selectedApplicants, job]);
 
   // Build comparison matrix from local AI data
   const matrix = useMemo(() => {
@@ -104,21 +70,12 @@ const BulkComparison = ({ applicants, job }: BulkComparisonProps) => {
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${TONE_SUBTLE.ai}`}>
                   <GitCompareArrows className={`w-4 h-4 ${TONE_TEXT.ai}`} aria-hidden="true" />
                 </div>
-                Bulk AI Comparison
+                Candidate Comparison
               </CardTitle>
               <CardDescription className="ml-[42px]">
-                Select 2-5 candidates to compare side-by-side · {selected.size} selected
+                Select 2-5 candidates — their stored AI analyses appear side-by-side below · {selected.size} selected
               </CardDescription>
             </div>
-            <Button
-              size="sm"
-              onClick={runComparison}
-              disabled={comparing || selected.size < 2}
-              className="bg-gradient-to-r from-[hsl(var(--chart-3))] to-primary text-xs h-9"
-            >
-              {comparing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" aria-hidden="true" /> : <Brain className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />}
-              Compare
-            </Button>
           </div>
         </CardHeader>
         <CardContent>

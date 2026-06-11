@@ -144,8 +144,10 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
         body: { action: "list", sessionToken },
       });
       if (error) {
-        // Check for session expiry
-        if (error.message?.includes("401") || error.message?.includes("non-2xx") || (data && data.error?.includes("expired"))) {
+        // Sign out ONLY on real auth failures (401/403). supabase-js reports every
+        // non-2xx as "non-2xx", so a transient 500/429 must NOT end the session.
+        const status = (error as { context?: { status?: number } })?.context?.status;
+        if (status === 401 || status === 403 || (data && data.error?.includes("expired"))) {
           onSessionExpired?.();
           return;
         }
@@ -285,7 +287,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
       const { data, error } = await supabase.functions.invoke("cv-library-manage", {
         body: { action: "download", sessionToken, candidateId },
       });
-      if (error) throw error;
+      if (error || data?.error || !data?.url) throw error || new Error(data?.error || "No URL");
       window.open(data.url, "_blank");
     } catch {
       toast.error("Download failed");
@@ -310,12 +312,16 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
       if ("manual_department" in updates || "suggested_department" in updates) manualOverrides.department = true;
       if ("manual_job_title" in updates || "suggested_job_title" in updates) manualOverrides.job_title = true;
 
-      const finalUpdates = {
-        ...updates,
-        manual_department: updates.manual_department ?? updates.suggested_department ?? null,
-        manual_job_title: updates.manual_job_title ?? updates.suggested_job_title ?? null,
-        manual_overrides: manualOverrides,
-      };
+      // Only touch the manual classification columns when this update is actually
+      // about classification — otherwise a status/tag change would send
+      // manual_department: null and silently wipe HR's override in the DB.
+      const finalUpdates: typeof updates = { ...updates, manual_overrides: manualOverrides };
+      if ("manual_department" in updates || "suggested_department" in updates) {
+        finalUpdates.manual_department = updates.manual_department ?? updates.suggested_department ?? null;
+      }
+      if ("manual_job_title" in updates || "suggested_job_title" in updates) {
+        finalUpdates.manual_job_title = updates.manual_job_title ?? updates.suggested_job_title ?? null;
+      }
 
       const { error } = await supabase.functions.invoke("cv-library-manage", {
         body: { action: "update", sessionToken, candidateId, updates: finalUpdates },

@@ -108,42 +108,47 @@ Deno.serve(async (req) => {
     }
 
     let cvBase64: string | null = null;
-    let cvMimeType = "application/pdf";
+    const cvMimeType = "application/pdf"; // doc/docx never reach the AI call (skipped above)
     let cvParsingStatus: "success" | "partial" | "failed" = "failed";
 
     if (resolvedPath) {
-      try {
-        const { data: fileData, error: downloadError } = await supabase.storage
-          .from("cvs")
-          .download(resolvedPath);
+      // Word documents are NOT readable by Gemini — attaching them 400s the AI
+      // call. Skip the attachment and let the screening-answers-only branch run
+      // so the UI shows the honest "CV could not be parsed" state.
+      const ext = resolvedPath.split(".").pop()?.toLowerCase();
+      if (ext === "doc" || ext === "docx") {
+        console.error("Word CV cannot be auto-analyzed:", resolvedPath);
+      } else {
+        try {
+          // `library/` paths come from CV-library candidates promoted to a job.
+          const bucket = resolvedPath.startsWith("library/") ? "cv-library" : "cvs";
+          const { data: fileData, error: downloadError } = await supabase.storage
+            .from(bucket)
+            .download(resolvedPath);
 
-        if (!downloadError && fileData) {
-          // Enforce a max size BEFORE base64-encoding.
-          if (fileData.size > MAX_CV_BYTES) {
-            console.error("CV too large to analyze:", fileData.size);
-            return new Response(JSON.stringify({ error: "CV file is too large to analyze" }), {
-              status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
+          if (!downloadError && fileData) {
+            // Enforce a max size BEFORE base64-encoding.
+            if (fileData.size > MAX_CV_BYTES) {
+              console.error("CV too large to analyze:", fileData.size);
+              return new Response(JSON.stringify({ error: "CV file is too large to analyze" }), {
+                status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+
+            const arrayBuffer = await fileData.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            let binary = "";
+            for (let i = 0; i < bytes.length; i++) {
+              binary += String.fromCharCode(bytes[i]);
+            }
+            cvBase64 = btoa(binary);
+            cvParsingStatus = "success";
+          } else {
+            console.error("CV download error:", downloadError);
           }
-
-          const arrayBuffer = await fileData.arrayBuffer();
-          const bytes = new Uint8Array(arrayBuffer);
-          let binary = "";
-          for (let i = 0; i < bytes.length; i++) {
-            binary += String.fromCharCode(bytes[i]);
-          }
-          cvBase64 = btoa(binary);
-
-          const ext = resolvedPath.split(".").pop()?.toLowerCase();
-          if (ext === "doc") cvMimeType = "application/msword";
-          else if (ext === "docx") cvMimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-
-          cvParsingStatus = "success";
-        } else {
-          console.error("CV download error:", downloadError);
+        } catch (e) {
+          console.error("CV download exception:", e);
         }
-      } catch (e) {
-        console.error("CV download exception:", e);
       }
     }
 
@@ -309,6 +314,7 @@ Provide your structured evidence-based analysis as JSON.`;
       messages,
       hasImages: cvBase64 != null && cvParsingStatus === "success",
       max_tokens: 16000, // v2 explainability schema (scoreExplanations + signals + guide) is ~2× bigger — avoid truncation
+      temperature: 0.2, // scoring must be repeatable — default (~1.0) gave ±20-point swings on the same CV
     });
 
     if (!response.ok) {

@@ -64,6 +64,7 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
           applicant: {
             id: applicantId,
             job_id: selectedJob.id,
+            job_title: selectedJob.title,
             full_name: candidate.name || "Unknown",
             email: candidate.email,
             phone: candidate.phone || "",
@@ -86,7 +87,7 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
       setOpen(false);
       onDone?.();
     } catch (e: any) {
-      console.error("Pipeline integration error:", e);
+      if (import.meta.env.DEV) console.error("Pipeline integration error:", e);
       toast.error("Failed to add candidate to job pipeline");
     } finally {
       setSubmitting(false);

@@ -76,9 +76,13 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Applicants promoted from the CV Library keep their `library/<id>.<ext>` path,
+    // which lives in the cv-library bucket — everything else is in cvs.
+    const bucket = resolvedPath.startsWith("library/") ? "cv-library" : "cvs";
+
     // Short-lived signed URL (5 minutes)
     const { data, error } = await auth.supabase.storage
-      .from("cvs")
+      .from(bucket)
       .createSignedUrl(resolvedPath, 300, downloadName ? { download: downloadName } : undefined);
 
     if (error) {

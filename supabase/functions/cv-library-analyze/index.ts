@@ -166,6 +166,7 @@ You MUST respond with a single valid JSON object (no markdown, no code blocks). 
       messages,
       hasImages: true,
       max_tokens: 16000, // v2 explainability schema (signals + guide + checklist) is much bigger — avoid truncation
+      temperature: 0.2, // scoring must be repeatable — default (~1.0) gave ±20-point swings on the same CV
     });
 
     if (!response.ok) {

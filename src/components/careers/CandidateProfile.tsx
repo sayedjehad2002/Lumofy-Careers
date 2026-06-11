@@ -46,6 +46,7 @@ const CandidateProfile = ({
   onStatusUpdate, onAddNote, onAIComplete, onApplicantChange, onDelete
 }: CandidateProfileProps) => {
   const [noteInput, setNoteInput] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
   const [cvLoading, setCvLoading] = useState(false);
 
   const statusInfo = getStatusInfo(applicant.status);
@@ -94,8 +95,9 @@ const CandidateProfile = ({
   }, [applicant.cvStoragePath, applicant.id, sessionToken]);
 
   const handleAddNote = async () => {
-    if (!noteInput.trim()) return;
+    if (!noteInput.trim() || noteSaving) return; // guard re-entry (double click / Enter+click)
     const text = noteInput.trim();
+    setNoteSaving(true);
     try {
       await onAddNote(applicant.id, text);
       onApplicantChange({ ...applicant, notes: [...applicant.notes, text] });
@@ -103,12 +105,18 @@ const CandidateProfile = ({
       toast.success("Note added");
     } catch {
       toast.error("Couldn't save the note. Please try again.");
+    } finally {
+      setNoteSaving(false);
     }
   };
 
   const handleStatusChange = async (status: ApplicantStatus) => {
-    await onStatusUpdate(applicant.id, status);
-    onApplicantChange({ ...applicant, status });
+    try {
+      await onStatusUpdate(applicant.id, status);
+      onApplicantChange({ ...applicant, status, stageEnteredAt: new Date().toISOString() });
+    } catch {
+      // onStatusUpdate already toasted; keep the profile showing the REAL status.
+    }
   };
 
   // Stage strip state
@@ -139,7 +147,7 @@ const CandidateProfile = ({
             <div className="min-w-0">
               <h1 className="truncate text-xl font-bold">{applicant.fullName}</h1>
               <p className="truncate text-sm text-muted-foreground">
-                {job?.title || "Unknown Position"} · Applied {new Date(applicant.appliedDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                {job?.title || applicant.jobTitle || "Unknown Position"} · Applied {new Date(applicant.appliedDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
               </p>
             </div>
           </div>
@@ -344,7 +352,9 @@ const CandidateProfile = ({
                 onChange={(e) => setNoteInput(e.target.value)}
                 className="border-border bg-secondary text-sm"
                 onKeyDown={(e) => e.key === "Enter" && handleAddNote()} />
-              <Button size="sm" onClick={handleAddNote}>Add</Button>
+              <Button size="sm" onClick={handleAddNote} disabled={noteSaving}>
+                {noteSaving ? "Saving…" : "Add"}
+              </Button>
             </div>
           </motion.div>
 

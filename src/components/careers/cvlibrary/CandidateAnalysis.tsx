@@ -379,11 +379,13 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
       why: `Derived from the overall fit score of ${ai.fitScore}/100.`,
     });
   }
-  signals.push({
-    label: "Skills coverage", value: `${ai.skillsCoveragePercent}%`, tone: ai.skillsCoveragePercent >= 70 ? TONE_TEXT.success : ai.skillsCoveragePercent >= 40 ? TONE_TEXT.warning : TONE_TEXT.danger,
-    how: "The share of this job's required skills the AI found real evidence for in the CV (each requirement checked Yes / Partial / No — full list in the Skills tab).",
-    why: saTotal > 0 ? `Evidence found for ${saYes} of ${saTotal} required skills${saPartial > 0 ? `, partial evidence for ${saPartial} more` : ""}.` : undefined,
-  });
+  if (ai.skillsCoveragePercent != null) { // pre-evidence-era analyses may lack it — avoid "undefined%"
+    signals.push({
+      label: "Skills coverage", value: `${ai.skillsCoveragePercent}%`, tone: ai.skillsCoveragePercent >= 70 ? TONE_TEXT.success : ai.skillsCoveragePercent >= 40 ? TONE_TEXT.warning : TONE_TEXT.danger,
+      how: "The share of this job's required skills the AI found real evidence for in the CV (each requirement checked Yes / Partial / No — full list in the Skills tab).",
+      why: saTotal > 0 ? `Evidence found for ${saYes} of ${saTotal} required skills${saPartial > 0 ? `, partial evidence for ${saPartial} more` : ""}.` : undefined,
+    });
+  }
   if (expBucket) {
     signals.push({
       label: "Experience relevance", value: expBucket, tone: levelTone(expBucket),
@@ -489,6 +491,7 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
             {ai.professionalIdentity?.keyIdentity && (
               <p className="text-xs italic text-muted-foreground">"{ai.professionalIdentity.keyIdentity}"</p>
             )}
+            {ai.skillsCoveragePercent != null && (
             <div>
               <div className="mb-1 flex items-center justify-between text-xs">
                 <span className="flex items-center gap-1 text-muted-foreground">
@@ -505,6 +508,7 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
               </div>
               <Progress value={ai.skillsCoveragePercent} className="h-2" />
             </div>
+            )}
             {ai.recruiterVerdict?.shortlistFor && (
               <p className="flex items-start gap-1.5 text-sm">
                 <Target className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" aria-hidden="true" />

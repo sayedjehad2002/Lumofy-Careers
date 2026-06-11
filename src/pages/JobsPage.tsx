@@ -315,8 +315,9 @@ const JobsPage = () => {
   ], [selectedDepartments, selectedLocations, selectedTypes]);
 
   const copyShareLink = useCallback(() => {
-    navigator.clipboard.writeText(window.location.href);
-    toast.success("Filter link copied to clipboard!");
+    navigator.clipboard.writeText(window.location.href)
+      .then(() => toast.success("Filter link copied to clipboard!"))
+      .catch(() => toast.error("Couldn't copy — copy the URL from the address bar."));
   }, []);
 
   // Distinct title per route so tabs/history/screen readers can tell pages apart.

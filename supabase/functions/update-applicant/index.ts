@@ -56,6 +56,32 @@ Deno.serve(async (req) => {
       });
     }
 
+    // APPEND NOTE: atomic server-side append so the client never sends the whole
+    // notes array (full-array writes caused duplicated notes and last-writer-wins
+    // loss between concurrent HR sessions).
+    if (typeof updates.appendNote === "string" && updates.appendNote.trim()) {
+      const note = updates.appendNote.trim().slice(0, 2000);
+      const { data: row, error: readErr } = await auth.supabase
+        .from("applicants").select("notes").eq("id", applicantId).single();
+      if (readErr || !row) {
+        return new Response(JSON.stringify({ error: "Applicant not found" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const notes = Array.isArray(row.notes) ? [...row.notes, note] : [note];
+      const { error: noteErr } = await auth.supabase
+        .from("applicants").update({ notes }).eq("id", applicantId);
+      if (noteErr) {
+        console.error("Append note error:", noteErr);
+        return new Response(JSON.stringify({ error: "Failed to save note" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ success: true, notes }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const allowedFields = ["status", "notes", "rating", "ai_analysis", "stage_entered_at"];
     const sanitizedUpdates: Record<string, unknown> = {};
     for (const key of allowedFields) {

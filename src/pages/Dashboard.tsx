@@ -109,11 +109,12 @@ const Dashboard = () => {
     try {
       await updateApplicantStatus(applicantId, status);
       if (selectedApplicant?.id === applicantId) {
-        setSelectedApplicant(prev => prev ? { ...prev, status } : null);
+        setSelectedApplicant(prev => prev ? { ...prev, status, stageEnteredAt: new Date().toISOString() } : null);
       }
       toast.success(`Status updated to ${APPLICANT_STATUSES.find(s => s.value === status)?.label || status}`);
-    } catch {
+    } catch (e) {
       toast.error("Update failed. Please retry.");
+      throw e; // let callers (profile select, batch move) know it did NOT stick
     }
   };
 
@@ -381,7 +382,7 @@ const Dashboard = () => {
       </div>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
+      <main id="main" className="flex-1 overflow-y-auto">
         <div className="p-6 lg:p-8 pt-28 lg:pt-8">
           <AnimatePresence mode="wait">
             <motion.div
@@ -567,9 +568,15 @@ const Dashboard = () => {
               onStatusUpdate={handleStatusUpdate}
               onAddNote={addApplicantNote}
               onAIComplete={(applicantId, analysis) => {
-                updateApplicantAI(applicantId, analysis).catch(() => {});
+                updateApplicantAI(applicantId, analysis).catch(() => {
+                  toast.error("Analysis finished but could not be saved — please re-run it.");
+                });
               }}
-              onApplicantChange={setSelectedApplicant}
+              onApplicantChange={(a) =>
+                // Async completions (AI run, note save) may resolve after the user
+                // navigated away — only refresh the profile if it's still the one open.
+                setSelectedApplicant(prev => (prev && prev.id === a.id ? a : prev))
+              }
               onDelete={async (id) => {
                 await deleteApplicant(id);
                 setSelectedApplicant(null);

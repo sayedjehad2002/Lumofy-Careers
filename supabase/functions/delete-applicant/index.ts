@@ -30,8 +30,9 @@ Deno.serve(async (req) => {
       .eq("id", applicantId)
       .single();
 
-    // Delete CV from storage if exists
-    if (applicant?.cv_storage_path) {
+    // Delete CV from storage if exists. `library/` paths belong to the CV-library
+    // record (cv-library bucket) and must survive the applicant's deletion.
+    if (applicant?.cv_storage_path && !applicant.cv_storage_path.startsWith("library/")) {
       await auth.supabase.storage.from("cvs").remove([applicant.cv_storage_path]);
     }
 

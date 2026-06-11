@@ -444,7 +444,7 @@ export default function ApplicantsListView({
                           </div>
 
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs text-muted-foreground truncate max-w-[180px]">{getJobTitle(applicant.jobId)}</span>
+                            <span className="text-xs text-muted-foreground truncate max-w-[180px]">{applicant.jobTitle || getJobTitle(applicant.jobId)}</span>
                             <span className="text-muted-foreground/30">·</span>
                             <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 h-[18px] border-0 ${statusInfo.color}`}>
                               {statusInfo.label}

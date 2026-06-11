@@ -88,8 +88,9 @@ const JobDetails = () => {
   }
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    toast.success("Link copied to clipboard!");
+    navigator.clipboard.writeText(window.location.href)
+      .then(() => toast.success("Link copied to clipboard!"))
+      .catch(() => toast.error("Couldn't copy — copy the URL from the address bar."));
   };
 
   const handleDownloadJd = async () => {

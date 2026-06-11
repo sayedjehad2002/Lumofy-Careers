@@ -331,23 +331,28 @@ export function CareersProvider({ children }: { children: ReactNode }) {
 
   const addApplicantNote = useCallback(async (applicantId: string, note: string) => {
     if (!sessionToken) throw new Error("Not authenticated");
+    // Server-side atomic append: sending the whole notes array from client state
+    // duplicated notes (re-entrant updates) and let stale tabs erase other users'
+    // notes (last-writer-wins). The server appends ONE note and returns the truth.
     let prevNotes: string[] | null = null;
-    let newNotes: string[] = [];
     setApplicants(prev => prev.map(a => {
       if (a.id === applicantId) {
         prevNotes = a.notes;
-        newNotes = [...a.notes, note];
-        return { ...a, notes: newNotes };
+        return { ...a, notes: [...a.notes, note] };
       }
       return a;
     }));
     const { data, error } = await supabase.functions.invoke("update-applicant", {
-      body: { sessionToken, applicantId, updates: { notes: newNotes } },
+      body: { sessionToken, applicantId, updates: { appendNote: note } },
     });
     if (error || data?.error) {
       import.meta.env.DEV && console.error("addApplicantNote error:", error || data?.error);
       if (prevNotes) setApplicants(prev => prev.map(a => a.id === applicantId ? { ...a, notes: prevNotes! } : a));
       throw new Error(error?.message || data?.error || "Failed to save note");
+    }
+    // Reconcile with the server's authoritative array (includes notes added elsewhere).
+    if (Array.isArray(data?.notes)) {
+      setApplicants(prev => prev.map(a => a.id === applicantId ? { ...a, notes: data.notes } : a));
     }
   }, [sessionToken]);
 

@@ -140,13 +140,18 @@ serve(async (req) => {
 
     // Download CV
     let cvBase64: string | null = null;
-    let cvMimeType = "application/pdf";
+    const cvMimeType = "application/pdf"; // doc/docx never reach the AI call (skipped below)
     let cvParsingStatus: "success" | "partial" | "failed" = "failed";
 
-    if (applicant.cv_storage_path) {
+    const cvExt = applicant.cv_storage_path?.split(".").pop()?.toLowerCase();
+    if (applicant.cv_storage_path && cvExt !== "doc" && cvExt !== "docx") {
+      // Word docs are NOT readable by Gemini — attaching one 400s the AI call;
+      // leaving cvParsingStatus="failed" routes to the screening-answers branch.
       try {
+        // `library/` paths come from CV-library candidates promoted to a job.
+        const bucket = applicant.cv_storage_path.startsWith("library/") ? "cv-library" : "cvs";
         const { data: fileData, error: downloadError } = await supabase.storage
-          .from("cvs")
+          .from(bucket)
           .download(applicant.cv_storage_path);
 
         if (!downloadError && fileData && fileData.size <= MAX_CV_BYTES) {
@@ -157,11 +162,6 @@ serve(async (req) => {
             binary += String.fromCharCode(bytes[i]);
           }
           cvBase64 = btoa(binary);
-
-          const ext = applicant.cv_storage_path.split(".").pop()?.toLowerCase();
-          if (ext === "doc") cvMimeType = "application/msword";
-          else if (ext === "docx") cvMimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-
           cvParsingStatus = "success";
         } else if (fileData && fileData.size > MAX_CV_BYTES) {
           console.error("CV too large to analyze:", fileData.size);
@@ -171,6 +171,8 @@ serve(async (req) => {
       } catch (e) {
         console.error("CV download exception:", e);
       }
+    } else if (cvExt === "doc" || cvExt === "docx") {
+      console.error("Word CV cannot be auto-analyzed:", applicant.cv_storage_path);
     }
 
     const systemPrompt = `You are a STRICT, calibrated talent-evaluation AI analyst for Lumofy, fair across ALL job functions (not just HR). You produce structured, evidence-based candidate evaluations with WEIGHTED SCORING and a recruiter-grade verdict.
@@ -338,6 +340,7 @@ Provide your structured evidence-based analysis as JSON.`;
       messages,
       hasImages: cvBase64 != null && cvParsingStatus === "success",
       max_tokens: 16000, // v2 explainability schema (scoreExplanations + signals + guide) is ~2× bigger — avoid truncation
+      temperature: 0.2, // scoring must be repeatable — default (~1.0) gave ±20-point swings on the same CV
     });
 
     if (!response.ok) {
@@ -397,11 +400,14 @@ Provide your structured evidence-based analysis as JSON.`;
     // if HR changes the job's weights afterwards.
     analysis.weightsUsed = weights;
 
-    // Save analysis to applicant record
+    // Save analysis to applicant record — but only into an EMPTY slot. The AI
+    // call takes 30-60s; if HR ran a manual analysis in that window, the manual
+    // result is newer and must not be clobbered by this background job.
     const { error: updateError } = await supabase
       .from("applicants")
       .update({ ai_analysis: analysis })
-      .eq("id", applicantId);
+      .eq("id", applicantId)
+      .is("ai_analysis", null);
 
     if (updateError) {
       console.error("Failed to save AI analysis:", updateError);
