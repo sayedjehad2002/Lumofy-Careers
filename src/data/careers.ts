@@ -25,14 +25,35 @@ export const stakes = {
   proof: { lead: "100+ organizations", rest: `across ${SITE.stats.countries} countries already build with Lumofy.` },
 };
 
-export type Pillar = { name: string; hue: BrandHue; line: string };
-// Mirrors the lumofy.ai offerings row: Performance Management leads as THE CORE
-// pillar of the platform; lines are adapted from the main site's own card copy.
+export type Pillar = { name: string; hue: BrandHue; line: string; tags: string[] };
+// Platform-accurate, sourced from the lumofy.ai offerings row: real product
+// names, real card copy, real capability tags. Performance Management System
+// leads as THE CORE pillar of the platform.
 export const pillars: Pillar[] = [
-  { name: "Performance Management", hue: "sirius", line: "Set goals, measure performance, and drive accountability through reviews and continuous feedback." },
-  { name: "Competency Frameworks", hue: "eclipse", line: "Define the skills, behaviors, and job architecture every role needs." },
-  { name: "Assessments & Learning", hue: "aurora", line: "Close gaps with development plans mapped to each person's competencies." },
-  { name: "Engagement", hue: "nova", line: "Continuous visibility into satisfaction and engagement through pulse surveys and eNPS." },
+  {
+    name: "Performance Management System",
+    hue: "sirius",
+    line: "Set goals, measure performance, and drive accountability through KPIs, reviews, and continuous feedback.",
+    tags: ["Goals & KPIs", "Appraisals", "9-Box Grid", "Calibration"],
+  },
+  {
+    name: "Competency Framework",
+    hue: "eclipse",
+    line: "Define the skills, behaviors, and job architecture every role needs, creating a shared foundation for talent decisions.",
+    tags: ["Competency Definition", "Proficiency Levels", "Behavioral Indicators"],
+  },
+  {
+    name: "Learning & Development Plans",
+    hue: "aurora",
+    line: "Close gaps with personalized development plans, mapped straight to each employee's competencies.",
+    tags: ["100k+ Courses", "ENG & AR", "PDP & PIP", "Custom Content"],
+  },
+  {
+    name: "Engagement & eNPS",
+    hue: "nova",
+    line: "Gain continuous visibility into employee satisfaction, loyalty, and engagement through pulse surveys and eNPS.",
+    tags: ["Engagement Insights", "Pulse Surveys", "eNPS"],
+  },
 ];
 
 export type Principle = { n: string; title: string; body: string; hue: BrandHue };

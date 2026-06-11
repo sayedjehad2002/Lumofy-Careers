@@ -3,7 +3,6 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import WorkforceSignal from "@/components/careers/WorkforceSignal";
-import AwardsMarquee from "@/components/careers/AwardsMarquee";
 import { hero } from "@/data/careers";
 import { fadeUp, staggerContainer } from "@/lib/motion";
 
@@ -39,7 +38,7 @@ const HeroSection = () => {
       <div className="grid-lines" aria-hidden="true" />
       <div className="lx-aurora" aria-hidden="true" />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1200px] px-4 pt-32 pb-14 sm:px-6 sm:pt-36 lg:px-8">
+      <div className="relative z-10 mx-auto w-full max-w-[1200px] px-4 pt-28 pb-16 sm:px-6 sm:pt-36 sm:pb-20 lg:px-8 3xl:max-w-[1400px] 3xl:pt-44 3xl:pb-28 4xl:max-w-[1560px]">
         <motion.div
           className="mx-auto max-w-4xl text-center"
           variants={staggerContainer()}
@@ -51,14 +50,13 @@ const HeroSection = () => {
           </motion.p>
           <motion.h1
             variants={fadeUp}
-            className="mt-6 font-extrabold leading-[1.05] tracking-[-0.028em] text-white"
-            style={{ fontSize: "clamp(2.5rem, 5.6vw, 4.25rem)" }}
+            className="mt-6 text-[clamp(2.5rem,5.6vw,4.25rem)] font-extrabold leading-[1.05] tracking-[-0.028em] text-white 3xl:text-[4.75rem] 4xl:text-[5.25rem]"
           >
             {renderHighlighted(hero.headline)}
           </motion.h1>
           <motion.p
             variants={fadeUp}
-            className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[hsl(var(--lx-on-dark-2))] sm:text-[1.35rem] sm:leading-normal"
+            className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[hsl(var(--lx-on-dark-2))] sm:text-[1.35rem] sm:leading-normal 3xl:max-w-3xl 3xl:text-2xl"
           >
             {hero.subdeck}
           </motion.p>
@@ -86,7 +84,7 @@ const HeroSection = () => {
           initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.45, ease: [0.22, 1, 0.36, 1] }}
-          className="relative mx-auto mt-14 max-w-4xl sm:mt-16"
+          className="relative mx-auto mt-12 max-w-4xl sm:mt-16 3xl:mt-20 3xl:max-w-5xl"
         >
           {/* blue glow bed under the card, like the demo's hero shot */}
           <div
@@ -97,9 +95,6 @@ const HeroSection = () => {
           <WorkforceSignal />
         </motion.div>
       </div>
-
-      {/* Award strip — the team you'd join is an awarded one (logos from lumofy.ai). */}
-      <AwardsMarquee />
     </section>
   );
 };

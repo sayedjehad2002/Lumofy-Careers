@@ -34,7 +34,7 @@ const JobDetails = () => {
       <div className="min-h-screen bg-background">
         <Navbar />
         <main id="main" className="pt-24 pb-20 px-4">
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-6xl 3xl:max-w-7xl mx-auto">
             <Skeleton className="mb-6 h-4 w-40" />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Main column */}
@@ -115,7 +115,7 @@ const JobDetails = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main id="main" className="pt-24 pb-20 px-4">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl 3xl:max-w-7xl mx-auto">
           <Link
             to={backToJobs}
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"

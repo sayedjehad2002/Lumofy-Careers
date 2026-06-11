@@ -339,7 +339,7 @@ const JobsPage = () => {
 
       <main id="main" className="px-4 pb-16 pt-28 sm:pt-32">
         {/* Header */}
-        <section className="mx-auto mb-8 max-w-6xl">
+        <section className="mx-auto mb-8 max-w-6xl 3xl:max-w-7xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -355,7 +355,7 @@ const JobsPage = () => {
         </section>
 
         {/* Search Bar — full width */}
-        <section className="mx-auto mb-6 max-w-6xl">
+        <section className="mx-auto mb-6 max-w-6xl 3xl:max-w-7xl">
           <div className="rounded-2xl border border-border bg-card p-3 light-glow">
             <div className="flex items-center gap-3">
               <div className="relative flex-1">
@@ -435,7 +435,7 @@ const JobsPage = () => {
         </section>
 
         {/* Main Layout: Sidebar + Grid */}
-        <section className="mx-auto max-w-6xl">
+        <section className="mx-auto max-w-6xl 3xl:max-w-7xl">
           <div className="flex gap-6">
             {/* Desktop Sidebar */}
             <aside className="hidden w-64 shrink-0 lg:block">

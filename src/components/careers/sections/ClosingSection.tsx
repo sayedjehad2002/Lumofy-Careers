@@ -16,9 +16,9 @@ const PILLARS = [
 const LINKEDIN_URL = "https://www.linkedin.com/company/lumofyinc/";
 
 const ClosingSection = () => (
-  <section className="px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+  <section className="px-4 py-[clamp(4rem,7vw,6.5rem)] sm:px-6 lg:px-8">
     <motion.div
-      className="dark-canvas relative mx-auto max-w-6xl rounded-[clamp(20px,2.4vw,32px)] px-6 py-14 text-center shadow-[0_40px_80px_-24px_rgba(11,16,32,0.4)] sm:px-10 sm:py-16 lg:py-20"
+      className="dark-canvas relative mx-auto max-w-6xl rounded-[clamp(20px,2.4vw,32px)] px-6 py-14 text-center shadow-[0_40px_80px_-24px_rgba(11,16,32,0.4)] sm:px-10 sm:py-16 lg:py-20 3xl:max-w-7xl 3xl:py-24 4xl:max-w-[88rem]"
       variants={staggerContainer()}
       initial="hidden"
       whileInView="show"

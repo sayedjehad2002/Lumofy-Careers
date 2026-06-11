@@ -371,7 +371,8 @@
     background: hsl(var(--lx-blue-soft));
   }
 
-  /* Section display title — clamp(32→54px), 800, tight. */
+  /* Section display title — clamp(32→54px), 800, tight; keeps scaling on
+     monitors / ultrawides / TVs instead of freezing at the laptop cap. */
   .sec-title {
     font-family: var(--font-display);
     font-size: clamp(2rem, 4.4vw, 3.375rem);
@@ -379,6 +380,9 @@
     line-height: 1.06;
     letter-spacing: -0.028em;
     text-wrap: balance;
+  }
+  @media (min-width: 1920px) {
+    .sec-title { font-size: clamp(3.375rem, 2.2vw, 4.25rem); }
   }
 
   /* Light band variants from the main site. */
@@ -403,6 +407,21 @@
 
   /* The main site's blue CTA shadow. */
   .shadow-sirius { box-shadow: 0 18px 50px -12px hsl(223 83% 52% / 0.45); }
+
+  /* Light-canvas sibling of .grid-lines — the faint 72px grid the main site
+     runs behind its white bands, masked so it dissolves at the edges. */
+  .grid-lines-light {
+    position: absolute;
+    inset: 0;
+    z-index: -1; /* under the section's static content (headings) — never over text */
+    pointer-events: none;
+    background-image:
+      linear-gradient(hsl(var(--lx-line) / 0.55) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--lx-line) / 0.55) 1px, transparent 1px);
+    background-size: 72px 72px;
+    -webkit-mask-image: radial-gradient(75% 70% at 50% 42%, #000 25%, transparent 86%);
+    mask-image: radial-gradient(75% 70% at 50% 42%, #000 25%, transparent 86%);
+  }
 
   /* Browser-chrome header dots for product/console shots. */
   .chrome-dots { display: inline-flex; gap: 6px; }

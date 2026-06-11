@@ -18,10 +18,12 @@ interface SectionShellProps {
 }
 
 const SectionShell = ({ id, kicker, title, sub, className, headerClassName, children }: SectionShellProps) => (
-  <section id={id} className={cn("scroll-mt-24 px-4 py-16 sm:px-6 sm:py-24 lg:px-8 lg:py-28", className)}>
-    {/* Content measure: sections keep a readable 72rem column (their compositions are
-        designed for it) while the page chrome (nav / hero / footer) spans 1536px. */}
-    <div className="mx-auto max-w-6xl">
+  // Band rhythm is FLUID like the main site (padding-block clamp(72→128px)), so
+  // laptops aren't over-padded and monitors aren't cramped; 4K gets one more step.
+  <section id={id} className={cn("scroll-mt-24 px-4 py-[clamp(4.5rem,9vw,8rem)] sm:px-6 lg:px-8 3xl:px-10 4xl:py-40", className)}>
+    {/* Content measure: a readable 72rem column on laptops, widening with the
+        screen (80rem at 1920+, 88rem at 4K) so big displays don't feel hollow. */}
+    <div className="mx-auto max-w-6xl 3xl:max-w-7xl 4xl:max-w-[88rem]">
       {(kicker || title || sub) && (
         <motion.div
           variants={staggerContainer()}
@@ -41,7 +43,7 @@ const SectionShell = ({ id, kicker, title, sub, className, headerClassName, chil
             </motion.h2>
           )}
           {sub && (
-            <motion.p variants={fadeUp} className="mt-5 text-[1.0625rem] leading-relaxed text-[hsl(var(--lx-ink-2))] dark:text-muted-foreground sm:text-lg">
+            <motion.p variants={fadeUp} className="mt-5 text-[1.0625rem] leading-relaxed text-[hsl(var(--lx-ink-2))] dark:text-muted-foreground sm:text-lg 3xl:text-xl">
               {sub}
             </motion.p>
           )}

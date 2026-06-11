@@ -30,7 +30,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 3xl:max-w-[1800px] 4xl:max-w-[2000px]">
         <div className="flex items-center justify-between h-[68px]">
           <Link to="/" className="flex items-center gap-2.5 group" aria-label="Lumofy Careers — home">
             <img
@@ -53,7 +53,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
               >
                 <Link
                   to={link.to}
-                  className="px-3.5 py-2 text-[15px] font-medium text-[hsl(var(--lx-on-dark-2))] hover:text-white transition-colors rounded-md relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--lx-blue-soft))]"
+                  className="whitespace-nowrap px-3.5 py-2 text-[15px] font-medium text-[hsl(var(--lx-on-dark-2))] hover:text-white transition-colors rounded-md relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--lx-blue-soft))]"
                 >
                   {link.label}
                   <span className="absolute bottom-0.5 left-3.5 right-3.5 h-[2px] bg-[hsl(var(--lx-blue-soft))] rounded-full scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />

@@ -13,7 +13,7 @@ const LINKEDIN_URL = "https://www.linkedin.com/company/lumofyinc/";
 // bottom nav.)
 const Footer = forwardRef<HTMLElement>((_, ref) => (
   <footer ref={ref} className="bg-[hsl(var(--lx-foot))] text-[hsl(var(--lx-on-dark-2))]">
-    <div className="mx-auto max-w-[1200px] px-4 pb-24 pt-16 sm:px-6 md:pb-12 lg:px-8">
+    <div className="mx-auto max-w-[1200px] px-4 pb-24 pt-16 sm:px-6 md:pb-12 lg:px-8 3xl:max-w-[1400px] 3xl:pt-20 4xl:max-w-[1560px]">
       <div className="flex flex-col gap-12 md:flex-row md:items-start md:justify-between">
         {/* Brand */}
         <div className="max-w-xs">
