@@ -33,12 +33,17 @@ const renderHighlighted = (text: string) => {
 };
 
 const HeroSection = () => {
+  // min-h fills the dark canvas to the fold on tall PC/monitor screens so the
+  // next (light) section starts BELOW the fold instead of peeking as empty
+  // white space; justify-center balances the content. On short laptops the
+  // content is taller than the viewport, so the section grows to fit and the
+  // content simply flows from the top (nav-safe) — no centering, no clipping.
   return (
-    <section className="dark-canvas">
+    <section className="dark-canvas flex min-h-[100svh] flex-col justify-center">
       <div className="grid-lines" aria-hidden="true" />
       <div className="lx-aurora" aria-hidden="true" />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1200px] px-4 pt-28 pb-16 sm:px-6 sm:pt-36 sm:pb-20 lg:px-8 3xl:max-w-[1400px] 3xl:pt-44 3xl:pb-28 4xl:max-w-[1560px]">
+      <div className="hero-pad relative z-10 mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-8 3xl:max-w-[1400px] 4xl:max-w-[1560px]">
         <motion.div
           className="mx-auto max-w-4xl text-center"
           variants={staggerContainer()}
@@ -48,19 +53,16 @@ const HeroSection = () => {
           <motion.p variants={fadeUp}>
             <span className="eyebrow-pill">{hero.kicker}</span>
           </motion.p>
-          <motion.h1
-            variants={fadeUp}
-            className="mt-6 text-[clamp(2.5rem,5.6vw,4.25rem)] font-extrabold leading-[1.05] tracking-[-0.028em] text-white 3xl:text-[4.75rem] 4xl:text-[5.25rem]"
-          >
+          <motion.h1 variants={fadeUp} className="hero-title hero-mt-tight text-white">
             {renderHighlighted(hero.headline)}
           </motion.h1>
           <motion.p
             variants={fadeUp}
-            className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[hsl(var(--lx-on-dark-2))] sm:text-[1.35rem] sm:leading-normal 3xl:max-w-3xl 3xl:text-2xl"
+            className="hero-sub hero-mt-tight mx-auto max-w-2xl text-[hsl(var(--lx-on-dark-2))] 3xl:max-w-3xl"
           >
             {hero.subdeck}
           </motion.p>
-          <motion.div variants={fadeUp} className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <motion.div variants={fadeUp} className="hero-mt-cta flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg" className="group h-[52px] rounded-full px-8 text-[17px] font-semibold btn-sheen shadow-sirius">
               <Link to={hero.ctaPrimary.to}>
                 {hero.ctaPrimary.label}
@@ -84,7 +86,7 @@ const HeroSection = () => {
           initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.45, ease: [0.22, 1, 0.36, 1] }}
-          className="relative mx-auto mt-12 max-w-4xl sm:mt-16 3xl:mt-20 3xl:max-w-5xl"
+          className="hero-mt-console relative mx-auto max-w-4xl 3xl:max-w-5xl"
         >
           {/* blue glow bed under the card, like the demo's hero shot */}
           <div

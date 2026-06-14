@@ -371,6 +371,35 @@
     background: hsl(var(--lx-blue-soft));
   }
 
+  /* ── Hero: sized fluidly on BOTH axes so it fits every screen ──
+     The headline scales by min(vw, vh) — so on short, wide laptops (1366×768,
+     1440×900) it shrinks with the limited HEIGHT instead of ballooning with the
+     width, keeping the impact console in view. Padding + gaps are vh-aware too;
+     clamp floors guarantee nav clearance and minimum legible type on mobile. */
+  .hero-pad {
+    padding-top: clamp(5.25rem, 9vh, 8rem);
+    padding-bottom: clamp(2.5rem, 5vh, 4.5rem);
+  }
+  .hero-title {
+    font-family: var(--font-display);
+    font-weight: 800;
+    line-height: 1.04;
+    letter-spacing: -0.028em;
+    font-size: clamp(2.25rem, min(5.4vw, 7.6vh), 4.5rem);
+    text-wrap: balance;
+  }
+  @media (min-width: 2560px) {
+    .hero-pad { padding-top: clamp(7rem, 9vh, 9rem); }
+    .hero-title { font-size: 4.75rem; }
+  }
+  .hero-sub {
+    line-height: 1.5;
+    font-size: clamp(1.0625rem, min(1.6vw, 2.4vh) + 0.35rem, 1.4rem);
+  }
+  .hero-mt-tight { margin-top: clamp(0.875rem, 1.9vh, 1.5rem); }
+  .hero-mt-cta { margin-top: clamp(1.25rem, 2.4vh, 1.75rem); }
+  .hero-mt-console { margin-top: clamp(1.5rem, 3vh, 3rem); }
+
   /* Section display title — clamp(32→54px), 800, tight; keeps scaling on
      monitors / ultrawides / TVs instead of freezing at the laptop cap. */
   .sec-title {
