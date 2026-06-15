@@ -1,7 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { validateSession } from "../_shared/validate-session.ts";
-import { chatCompletion, wrapUntrusted, UNTRUSTED_DATA_NOTE } from "../_shared/ai.ts";
+import { chatCompletion, wrapUntrusted, UNTRUSTED_DATA_NOTE, currentDateLine, CHRONOLOGY_AND_IDENTITY_RULES } from "../_shared/ai.ts";
 
 const TAXONOMY = {
   "Human Resources": ["HR Manager", "HR Business Partner", "Recruiter", "Talent Acquisition Specialist", "HR Coordinator", "Compensation & Benefits Analyst", "Learning & Development Specialist", "People Analytics Specialist", "Organizational Development Specialist"],
@@ -111,6 +111,10 @@ Extracted Text: ${wrapUntrusted("Extracted Text", candidate.extracted_text || "N
     const systemPrompt = `You are an expert executive recruiter and career analyst. Determine the candidate's TRUE professional identity from EVIDENCE of what they actually did — not from job titles, department names, or repeated keywords.
 
 ${UNTRUSTED_DATA_NOTE}
+
+${currentDateLine()}
+
+${CHRONOLOGY_AND_IDENTITY_RULES}
 
 DEPARTMENTS — choose from EXACTLY this list (used for folder organization):
 ${DEPARTMENTS.join(", ")}

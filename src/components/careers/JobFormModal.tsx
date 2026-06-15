@@ -25,6 +25,29 @@ const WEIGHT_KEYS = ["skills", "tools", "experience", "industry", "education", "
 const SENIORITY = ["Intern", "Junior", "Mid", "Senior", "Lead"] as const;
 
 type AIType = "summary" | "description" | "responsibilities" | "requirements" | "screening_questions" | "scoring_weights";
+
+/** Shape of the structured job the `parse_jd` action returns from a read JD. */
+interface ParsedJd {
+  unreadable?: boolean;
+  reason?: string;
+  title?: string;
+  department?: string;
+  location?: string;
+  employmentType?: string;
+  seniority?: string;
+  summary?: string;
+  description?: string;
+  responsibilities?: string[];
+  requirements?: { must_have?: string[]; nice_to_have?: string[] };
+  screening_questions?: Array<{ question?: string; type?: ScreeningQuestion["type"]; options?: string[]; required?: boolean }>;
+  scoring_weights?: Partial<AIScoringWeights>;
+  salary_present?: boolean;
+  salary_min?: number;
+  salary_max?: number;
+  salary_currency?: string;
+  deadline?: string;
+  benefits?: string[];
+}
 const SECTION_LABELS: Record<AIType, string> = {
   summary: "Summary",
   description: "About the role",
@@ -104,11 +127,16 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
   const [screeningQuestions, setScreeningQuestions] = useState<ScreeningQuestion[]>(job?.screeningQuestions || []);
   const [aiWeights, setAiWeights] = useState<AIScoringWeights>(job?.aiScoringWeights || { ...DEFAULT_AI_WEIGHTS });
 
+  // Stable id so an attached JD can be uploaded immediately (and reused on save).
+  const [jobId] = useState(() => job?.id || `job_${Date.now()}`);
+
   // JD file state
   const [jdFile, setJdFile] = useState<File | null>(null);
   const [jdFileName, setJdFileName] = useState(job?.jdFileName || "");
   const [jdFilePath, setJdFilePath] = useState(job?.jdFilePath || "");
+  const [jdFileSize, setJdFileSize] = useState<number>(job?.jdFileSize || 0);
   const [jdUploading, setJdUploading] = useState(false);
+  const [jdReading, setJdReading] = useState(false);
 
   // AI Compose state
   const [brief, setBrief] = useState("");
@@ -140,24 +168,16 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
   const removeQuestion = (index: number) =>
     setScreeningQuestions((prev) => prev.filter((_, i) => i !== index));
 
-  // ── JD file upload ──
-  const handleJdFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!ALLOWED_JD_TYPES.includes(file.type)) { toast.error("Only PDF, DOC, DOCX files are allowed"); return; }
-    if (file.size > 10 * 1024 * 1024) { toast.error("File size must be under 10MB"); return; }
-    setJdFile(file);
-    setJdFileName(file.name);
-  };
-
-  const uploadJdFile = async (jobId: string): Promise<{ path: string; name: string; size: number } | null> => {
-    if (!jdFile) return jdFilePath ? { path: jdFilePath, name: jdFileName, size: 0 } : null;
+  // ── JD upload + AI auto-read ──
+  // Upload a JD to storage and record its path/size in state. Returns the stored
+  // file info, or null on failure (a toast is shown).
+  const uploadJd = async (file: File): Promise<{ path: string; name: string; size: number } | null> => {
     setJdUploading(true);
     try {
       const formData = new FormData();
-      formData.append("file", jdFile);
+      formData.append("file", file);
       formData.append("jobId", jobId);
-      formData.append("contentType", jdFile.type);
+      formData.append("contentType", file.type);
       formData.append("sessionToken", sessionToken);
       const response = await fetch(`${SUPABASE_URL}/functions/v1/upload-jd`, {
         method: "POST",
@@ -165,11 +185,15 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
         body: formData,
       });
       if (!response.ok) {
-        const err = await response.json();
+        const err = await response.json().catch(() => ({}));
         throw new Error(err.error || "Upload failed");
       }
       const data = await response.json();
-      return { path: data.storagePath, name: data.fileName, size: data.fileSize };
+      setJdFilePath(data.storagePath);
+      setJdFileName(data.fileName);
+      setJdFileSize(data.fileSize || file.size);
+      setJdFile(null); // uploaded — no need to re-upload on save
+      return { path: data.storagePath, name: data.fileName, size: data.fileSize || file.size };
     } catch (err: any) {
       toast.error(err.message || "Failed to upload JD");
       return null;
@@ -178,7 +202,129 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
     }
   };
 
-  const removeJdFile = () => { setJdFile(null); setJdFileName(""); setJdFilePath(""); };
+  /** Apply an AI-extracted job to the form. On a brand-new job we fill everything;
+   * when editing a job that already has content we fill ONLY blank fields so manual
+   * edits are never overwritten. Returns how many fields were filled. */
+  const applyExtracted = (r: ParsedJd): number => {
+    if (!r || typeof r !== "object") return 0;
+    const fillEmptyOnly = isEdit;
+    const blankStr = (v: unknown) => !String(v ?? "").trim();
+    const blankArr = (a: unknown) => !(Array.isArray(a) && a.filter((x) => String(x).trim()).length);
+    let n = 0;
+
+    if (r.title && (!fillEmptyOnly || blankStr(form.title))) { setField("title", String(r.title)); n++; }
+
+    // Department must match an existing Select option.
+    if (r.department && (!fillEmptyOnly || blankStr(form.department))) {
+      const want = String(r.department).trim().toLowerCase();
+      const match = allDepartments.find((d) => d.toLowerCase() === want)
+        || allDepartments.find((d) => d.toLowerCase().includes(want) || want.includes(d.toLowerCase()));
+      if (match) { setField("department", match); n++; }
+    }
+
+    if (r.location && (!fillEmptyOnly || blankStr(form.location))) { setField("location", String(r.location)); n++; }
+
+    const empTypes = ["Full-time", "Part-time", "Contract", "Internship"];
+    if (r.employmentType && empTypes.includes(r.employmentType) && (!fillEmptyOnly || blankStr(form.type))) { setField("type", r.employmentType); n++; }
+
+    // Seniority is a generation hint, not user content — set it whenever valid.
+    if (r.seniority && (SENIORITY as readonly string[]).includes(r.seniority)) setSeniority(r.seniority as typeof SENIORITY[number]);
+
+    if (r.summary && (!fillEmptyOnly || blankStr(form.summary))) { setField("summary", String(r.summary)); n++; }
+    if (r.description && (!fillEmptyOnly || blankStr(form.description))) { setField("description", String(r.description)); n++; }
+
+    if (Array.isArray(r.responsibilities) && r.responsibilities.length && (!fillEmptyOnly || blankArr(form.responsibilities))) {
+      const items = r.responsibilities.map((x) => String(x)).filter(Boolean);
+      if (items.length) { setField("responsibilities", items); n++; }
+    }
+
+    const reqs = [...(r.requirements?.must_have || []), ...(r.requirements?.nice_to_have || [])].map((x) => String(x)).filter(Boolean);
+    if (reqs.length && (!fillEmptyOnly || blankArr(form.requirements))) { setField("requirements", reqs); n++; }
+
+    if (Array.isArray(r.screening_questions) && r.screening_questions.length && (!fillEmptyOnly || screeningQuestions.length === 0)) {
+      setScreeningQuestions(r.screening_questions.map((q, i) => ({
+        id: `sq_${Date.now()}_${i}`,
+        question: q.question || "",
+        type: q.type || "short_text",
+        required: !!q.required,
+        ...(q.options?.length ? { options: q.options } : {}),
+      })));
+      n++;
+    }
+
+    // Scoring weights: only on a fresh job — don't disturb tuned weights when editing.
+    if (!fillEmptyOnly && r.scoring_weights) {
+      const w: AIScoringWeights = {
+        skills: Number(r.scoring_weights.skills) || 0, tools: Number(r.scoring_weights.tools) || 0,
+        experience: Number(r.scoring_weights.experience) || 0, industry: Number(r.scoring_weights.industry) || 0,
+        education: Number(r.scoring_weights.education) || 0, stability: Number(r.scoring_weights.stability) || 0,
+      };
+      if (WEIGHT_KEYS.reduce((s, k) => s + w[k], 0) > 0) { setAiWeights(normalizeWeights(w)); n++; }
+    }
+
+    // Salary — extract-only (never invented server-side); ignore an inverted range.
+    if (r.salary_present && Number(r.salary_min) > 0 && Number(r.salary_max) > 0 && Number(r.salary_min) <= Number(r.salary_max) && (!fillEmptyOnly || (!salaryMin && !salaryMax))) {
+      setSalaryEnabled(true);
+      setSalaryMin(String(Math.round(Number(r.salary_min))));
+      setSalaryMax(String(Math.round(Number(r.salary_max))));
+      if (r.salary_currency === "USD" || r.salary_currency === "BHD") setSalaryCurrency(r.salary_currency);
+      setShowSalary(true);
+      n++;
+    }
+
+    // Deadline — extract-only, ISO date.
+    if (typeof r.deadline === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.deadline) && (!fillEmptyOnly || blankStr(form.deadline))) {
+      setField("deadline", r.deadline); n++;
+    }
+
+    if (Array.isArray(r.benefits) && r.benefits.length && (!fillEmptyOnly || blankArr(form.benefits))) {
+      const items = r.benefits.map((x) => String(x)).filter(Boolean);
+      if (items.length) { setField("benefits", items); n++; }
+    }
+
+    return n;
+  };
+
+  // Read an already-uploaded JD with AI and fill the form from it.
+  const readJdIntoForm = async (storagePath: string) => {
+    setJdReading(true);
+    try {
+      const result = await callAssist("parse_jd", { jdFilePath: storagePath, brief, allowedDepartments: allDepartments }) as ParsedJd;
+      if (result?.unreadable) {
+        toast.error(result.reason === "word"
+          ? "Can't read Word files directly. Save the JD as a PDF and re-upload, or describe the role in the Brief and click Generate full draft."
+          : "Couldn't read that file. Try re-uploading, or use the Brief.");
+        return;
+      }
+      const filled = applyExtracted(result);
+      if (filled > 0) toast.success(`Read the JD and filled ${filled} field${filled === 1 ? "" : "s"} — refine anything.`);
+      else if (isEdit) toast("Read the JD — your existing fields already have content, so nothing was overwritten.");
+      else toast("Couldn't pull structured fields from this JD. Add a Brief and click Generate full draft.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      toast.error(msg && !/non-2xx/i.test(msg) ? msg : "Failed to read the JD. Please try again.");
+    } finally {
+      setJdReading(false);
+    }
+  };
+
+  const handleJdFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file
+    if (!file) return;
+    if (!ALLOWED_JD_TYPES.includes(file.type)) { toast.error("Only PDF, DOC, DOCX files are allowed"); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("File size must be under 10MB"); return; }
+    setJdFileName(file.name);
+    const up = await uploadJd(file);
+    if (up) await readJdIntoForm(up.path);
+  };
+
+  const reReadJd = async () => {
+    if (!jdFilePath) return;
+    await readJdIntoForm(jdFilePath);
+  };
+
+  const removeJdFile = () => { setJdFile(null); setJdFileName(""); setJdFilePath(""); setJdFileSize(0); };
 
   // ── AI generation ──
   const buildContext = () => ({
@@ -194,11 +340,21 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
     seniority,
   });
 
-  const callAssist = async (type: AIType, opts: Record<string, unknown> = {}) => {
+  const callAssist = async (type: AIType | "parse_jd", opts: Record<string, unknown> = {}) => {
     const { data, error } = await supabase.functions.invoke("ai-job-assist", {
       body: { type, sessionToken, ...buildContext(), ...opts },
     });
-    if (error) throw error;
+    if (error) {
+      // On a non-2xx, supabase-js hides the function's JSON body (which carries the
+      // specific message, e.g. "Rate limit exceeded") on error.context as a Response.
+      // Surface that instead of the opaque "non-2xx status code" wrapper.
+      let serverMsg = "";
+      try {
+        const ctx = (error as { context?: unknown }).context;
+        if (ctx instanceof Response) serverMsg = (await ctx.clone().json())?.error || "";
+      } catch { /* ignore — fall back to the generic message */ }
+      throw new Error(serverMsg || error.message || "AI request failed");
+    }
     if (data?.error) throw new Error(data.error);
     return data.result;
   };
@@ -317,8 +473,11 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
     if (weightsTotal === 0) { toast.error("AI scoring weights can't all be zero. Assign at least one dimension."); return; }
     const normalizedWeights = normalizeWeights(aiWeights);
 
-    const jobId = job?.id || `job_${Date.now()}`;
-    const jdResult = await uploadJdFile(jobId);
+    // JD is uploaded the moment it's attached; only upload here if a picked file
+    // somehow wasn't uploaded yet. Otherwise reuse the stored path.
+    const jdResult = jdFile
+      ? await uploadJd(jdFile)
+      : (jdFilePath ? { path: jdFilePath, name: jdFileName, size: jdFileSize } : null);
 
     const salaryRange = salaryEnabled && salaryMin && salaryMax && showSalary
       ? `${Number(salaryMin).toLocaleString()} - ${Number(salaryMax).toLocaleString()}`
@@ -338,7 +497,7 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
       postedDate: job?.postedDate || new Date().toISOString().split("T")[0],
       jdFileName: jdResult?.name || jdFileName || undefined,
       jdFilePath: jdResult?.path || jdFilePath || undefined,
-      jdFileSize: jdResult?.size || undefined,
+      jdFileSize: jdResult?.size || jdFileSize || undefined,
       jdFileUploadedAt: jdResult ? new Date().toISOString() : job?.jdFileUploadedAt,
       aiScoringWeights: normalizedWeights,
     };
@@ -353,7 +512,7 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent
         className="max-w-3xl w-full p-0 gap-0 max-h-[92vh] overflow-hidden flex flex-col bg-card"
-        onInteractOutside={(e) => { if (jdUploading || draftingAll) e.preventDefault(); }}
+        onInteractOutside={(e) => { if (jdUploading || jdReading || draftingAll) e.preventDefault(); }}
       >
         {/* Header */}
         <DialogHeader className="flex flex-row items-center gap-3 p-5 border-b border-border space-y-0 text-left">
@@ -419,24 +578,27 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
                     ))}
                   </div>
                 </div>
-                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary">
-                  <Upload className="h-3.5 w-3.5" aria-hidden="true" />
-                  {jdFileName ? "Replace JD" : "Attach JD (optional)"}
-                  <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleJdFileSelect} />
+                <label className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary ${(jdUploading || jdReading) ? "pointer-events-none opacity-60" : ""}`}>
+                  {(jdUploading || jdReading) ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Upload className="h-3.5 w-3.5" aria-hidden="true" />}
+                  {jdUploading ? "Uploading…" : jdReading ? "Reading JD…" : jdFileName ? "Replace JD" : "Attach JD — auto-fills the form (PDF)"}
+                  <input type="file" accept=".pdf,.doc,.docx" className="hidden" disabled={jdUploading || jdReading} onChange={handleJdFileSelect} />
                 </label>
                 {jdFileName && (
                   <span className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-2 py-1 text-xs">
                     <FileText className="h-3 w-3 text-primary" aria-hidden="true" />
                     <span className="max-w-[140px] truncate">{jdFileName}</span>
+                    {jdFilePath && !jdReading && !jdUploading && (
+                      <button type="button" onClick={reReadJd} aria-label="Re-read JD" className="font-medium text-primary hover:underline">Re-read</button>
+                    )}
                     <button type="button" onClick={removeJdFile} aria-label="Remove JD"><X className="h-3 w-3 text-muted-foreground hover:text-destructive" /></button>
                   </span>
                 )}
-                <Button className="ml-auto h-10 rounded-xl px-5 btn-sheen" disabled={draftingAll || !canGenerate} onClick={generateFullDraft}>
+                <Button className="ml-auto h-10 rounded-xl px-5 btn-sheen" disabled={draftingAll || jdReading || jdUploading || !canGenerate} onClick={generateFullDraft}>
                   {draftingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : <Wand2 className="mr-2 h-4 w-4" aria-hidden="true" />}
                   {draftingAll ? "Drafting…" : "Generate full draft"}
                 </Button>
               </div>
-              {!canGenerate && <p className="text-xs text-muted-foreground">Add a job title and department to enable AI drafting.</p>}
+              {!canGenerate && <p className="text-xs text-muted-foreground">Add a job title and department, or attach a PDF JD to auto-fill everything.</p>}
             </div>
           </div>
 
@@ -653,11 +815,11 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
         <DialogFooter className="flex-row items-center justify-between p-5 border-t border-border sm:justify-between">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => handleSave("closed")} disabled={jdUploading || draftingAll}>
+            <Button variant="outline" onClick={() => handleSave("closed")} disabled={jdUploading || jdReading || draftingAll}>
               {jdUploading ? <Loader2 className="w-4 h-4 animate-spin mr-1" aria-hidden="true" /> : null}
               Save as draft
             </Button>
-            <Button className="btn-sheen" onClick={() => handleSave("open")} disabled={jdUploading || draftingAll}>
+            <Button className="btn-sheen" onClick={() => handleSave("open")} disabled={jdUploading || jdReading || draftingAll}>
               {jdUploading ? <Loader2 className="w-4 h-4 animate-spin mr-1" aria-hidden="true" /> : <Briefcase className="w-4 h-4 mr-2" aria-hidden="true" />}
               {isEdit ? "Update & publish" : "Publish job"}
             </Button>

@@ -57,7 +57,6 @@ const CommandPalette = ({ onNavigateDashboard, isDashboard }: CommandPaletteProp
     { label: "Applicants", tab: "applicants" },
     { label: "Pipeline", tab: "pipeline" },
     { label: "CV Library", tab: "cv-library" },
-    { label: "EOS Calculator", tab: "eos-calculator" },
   ];
 
   return (

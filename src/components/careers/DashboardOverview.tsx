@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Brain, Clock, Activity, BarChart3, Star, UserCheck,
-  AlertTriangle, TrendingUp, ChevronRight, CheckCircle2,
+  AlertTriangle, TrendingUp, ChevronRight, CheckCircle2, Loader2, RefreshCw,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,22 @@ import { FUNNEL_FILLS, TONE_SOFT, TONE_TEXT, TONE_BG, tierSoft } from "./statusC
 import { Panel, MetricTile, Meter, Sparkline, LiveDot } from "./dashboard/primitives";
 import AnimatedCounter from "./AnimatedCounter";
 import { dailyCounts, trendDeltaPct, hasTrend, computeAttention } from "@/lib/dashboardMetrics";
+import { useCareers } from "@/contexts/CareersContext";
+import { useLiveRefresh } from "@/hooks/use-live-refresh";
+
+// How long since the last successful load, in friendly words (for the LIVE badge).
+function agoLabel(ts: number | null, now: number): string {
+  if (!ts) return "";
+  const s = Math.max(0, Math.round((now - ts) / 1000));
+  if (s < 5) return "just now";
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  return `${Math.floor(m / 60)}h ago`;
+}
+
+// Auto-refresh cadence while the Overview is open and the tab is visible.
+const LIVE_INTERVAL_MS = 30_000;
 
 interface DashboardOverviewProps {
   jobs: Job[];
@@ -27,6 +43,19 @@ const DAY = 86_400_000;
 
 const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewProps) => {
   const now = useMemo(() => Date.now(), []);
+
+  // ── Live auto-refresh ── silent background refetch every 30s while the Overview
+  // is mounted + visible (and instantly on tab-return), so the dashboard reflects
+  // what's actually happening without a reload. Mounting/unmounting with the tab
+  // scopes it to Overview, so it never refetches mid-drag on the Pipeline.
+  const { silentRefresh, lastUpdated, refreshing } = useCareers();
+  useLiveRefresh(silentRefresh, LIVE_INTERVAL_MS);
+  // Tick every 10s so the "updated Xs ago" label stays current between refetches.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTick(Date.now()), 10_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const openJobs = useMemo(() => jobs.filter((j) => j.status === "open").length, [jobs]);
 
@@ -149,9 +178,22 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
       <div>
         <div className="flex items-center gap-2.5">
           <h1 className="text-xl font-semibold tracking-tight text-foreground">Overview</h1>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--intel-border))] bg-[hsl(var(--intel-card))] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-            <LiveDot /> Live
-          </span>
+          <button
+            type="button"
+            onClick={() => silentRefresh()}
+            title="Refresh now"
+            aria-label="Live data — click to refresh now"
+            className="group inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--intel-border))] bg-[hsl(var(--intel-card))] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:bg-[hsl(var(--intel-card-hover))] hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
+          >
+            {refreshing ? <Loader2 className="h-2.5 w-2.5 animate-spin text-primary" aria-hidden="true" /> : <LiveDot />}
+            <span>Live</span>
+            {lastUpdated && (
+              <span className="font-sans normal-case tracking-normal text-muted-foreground/70">
+                · {refreshing ? "updating…" : `updated ${agoLabel(lastUpdated, nowTick)}`}
+              </span>
+            )}
+            <RefreshCw className="h-2.5 w-2.5 opacity-0 transition-opacity group-hover:opacity-60" aria-hidden="true" />
+          </button>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">{greeting} · {todayStr}</p>
         <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground">

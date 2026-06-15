@@ -5,7 +5,7 @@ import {
   Briefcase, Users, BarChart3, ChevronDown,
   Eye, EyeOff, MapPin, Clock, FileText, Star, MessageSquare,
   ArrowLeft, ExternalLink, LogOut, Plus, Pencil, Trash2, Copy, Brain,
-  Download, Loader2, AlertCircle, GripVertical, LayoutDashboard, AlertTriangle, Sparkles, Library, TrendingUp, Calculator, Search, ClipboardList, BookOpen, Zap, UsersRound, Archive, ArchiveRestore
+  Download, Loader2, AlertCircle, GripVertical, LayoutDashboard, AlertTriangle, Sparkles, Library, TrendingUp, Search, ClipboardList, BookOpen, Zap, UsersRound, Archive, ArchiveRestore
 } from "lucide-react";
 import CommandPalette from "@/components/careers/CommandPalette";
 import PipelineCandidateCard from "@/components/careers/PipelineCandidateCard";
@@ -47,14 +47,12 @@ import JobFormModal from "@/components/careers/JobFormModal";
 const DashboardOverview = lazy(() => import("@/components/careers/DashboardOverview")); // lazy: defers the recharts (~108KB) chunk off the dashboard's initial paint
 import CandidateProfile from "@/components/careers/CandidateProfile";
 import CVLibrary from "@/components/careers/CVLibrary";
-import SettlementCalculator from "@/components/careers/SettlementCalculator";
 import HrTeam from "@/components/careers/HrTeam";
 import ShareJobLink, { jobApplyUrl } from "@/components/careers/ShareJobLink";
 import ApplicantsListView from "@/components/careers/ApplicantsListView";
 import PipelineHealthScorecard from "@/components/careers/pipeline/PipelineHealthScorecard";
-import StageCapacityLimits, { DEFAULT_CAPACITIES } from "@/components/careers/pipeline/StageCapacityLimits";
 
-type Tab = "overview" | "jobs" | "applicants" | "pipeline" | "cv-library" | "eos-calculator" | "hr-team";
+type Tab = "overview" | "jobs" | "applicants" | "pipeline" | "cv-library" | "hr-team";
 
 // Client-side gate for pipeline stage moves. Server-side enforcement is handled
 // separately; this just prevents obviously-illegal drags in the UI.
@@ -77,7 +75,6 @@ const Dashboard = () => {
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
   const [jobFormOpen, setJobFormOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
-  const [stageCapacities, setStageCapacities] = useState<Record<string, number>>(DEFAULT_CAPACITIES);
   const [deleteJobTarget, setDeleteJobTarget] = useState<Job | null>(null);
   const [deletingJob, setDeletingJob] = useState(false);
 
@@ -96,7 +93,6 @@ const Dashboard = () => {
     { id: "applicants", label: "Applicants", icon: <Users className="w-4 h-4" />, group: "Hiring" },
     { id: "pipeline", label: "Pipeline", icon: <BarChart3 className="w-4 h-4" />, group: "Hiring" },
     { id: "cv-library", label: "CV Library", icon: <Library className="w-4 h-4" />, group: "Talent" },
-    { id: "eos-calculator", label: "End of Service", icon: <Calculator className="w-4 h-4" />, group: "Tools" },
     { id: "hr-team", label: "HR Team", icon: <UsersRound className="w-4 h-4" />, group: "Tools" },
   ];
   const navGroups = ["Hiring", "Talent", "Tools"];
@@ -105,6 +101,21 @@ const Dashboard = () => {
     if (selectedJobId === "all") return applicants;
     return applicants.filter((a) => a.jobId === selectedJobId);
   }, [applicants, selectedJobId]);
+
+  // How many DISTINCT jobs each person (by email) has applied to. Built from ALL
+  // applicants so a card shows the person's true total even when the board is
+  // filtered to one job. Keyed by lowercased email; same person = same email.
+  const jobsAppliedByEmail = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const a of applicants) {
+      const email = a.email?.trim().toLowerCase();
+      if (!email) continue;
+      const jobKey = a.jobId || a.jobTitle || "";
+      if (!map.has(email)) map.set(email, new Set());
+      map.get(email)!.add(jobKey);
+    }
+    return map;
+  }, [applicants]);
 
   const handleStatusUpdate = async (applicantId: string, status: ApplicantStatus) => {
     try {
@@ -594,19 +605,33 @@ const Dashboard = () => {
           {/* PIPELINE TAB */}
           {activeTab === "pipeline" && (
             <div>
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
+              {/* Slim header: title + total + inline stage breakdown, then the board */}
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                     <BarChart3 className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Pipeline Command Center</h1>
-                    <p className="text-sm text-muted-foreground">Drag candidates between stages · {filteredApplicants.length} candidates</p>
+                    <div className="flex items-baseline gap-2">
+                      <h1 className="text-2xl font-bold tracking-tight">Pipeline</h1>
+                      <span className="text-sm text-muted-foreground">{filteredApplicants.length} candidate{filteredApplicants.length === 1 ? "" : "s"}</span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      {APPLICANT_STATUSES.map((status) => {
+                        const count = filteredApplicants.filter(a => a.status === status.value).length;
+                        return (
+                          <span key={status.value} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <span className={`w-1.5 h-1.5 rounded-full ${status.color.split(" ")[0]}`} />
+                            {status.label}
+                            <span className="font-mono tabular-nums text-foreground/70">{count}</span>
+                          </span>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
                 <Select value={selectedJobId} onValueChange={setSelectedJobId}>
-                  <SelectTrigger className="w-56 bg-card border-border rounded-xl"><SelectValue placeholder="Filter by job" /></SelectTrigger>
+                  <SelectTrigger className="w-full sm:w-56 bg-card border-border rounded-xl flex-shrink-0"><SelectValue placeholder="Filter by job" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Jobs</SelectItem>
                     {jobs.map((j) => <SelectItem key={j.id} value={j.id}>{j.title}</SelectItem>)}
@@ -619,28 +644,10 @@ const Dashboard = () => {
                 <PipelineHealthScorecard applicants={filteredApplicants} />
               </div>
 
-                  {/* Stage summary chips */}
-                  <div className="flex flex-wrap gap-2 mb-5">
-                    {APPLICANT_STATUSES.map((status) => {
-                      const count = filteredApplicants.filter(a => a.status === status.value).length;
-                      const cap = stageCapacities[status.value] || 0;
-                      const isOver = cap > 0 && count > cap;
-                      return (
-                        <div key={status.value} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium ${isOver ? "bg-destructive/10 border-destructive/20 text-destructive" : "bg-[hsl(var(--intel-card))] border-[hsl(var(--intel-border))]"}`}>
-                          <div className={`w-2 h-2 rounded-full ${status.color.split(" ")[0]}`} />
-                          {status.label}
-                          <span className={`font-mono tabular-nums ${isOver ? "text-destructive" : "text-muted-foreground"}`}>{count}{cap > 0 ? `/${cap}` : ""}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
                   <DragDropContext onDragEnd={handleDragEnd}>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                       {APPLICANT_STATUSES.map((status) => {
                         const columnApplicants = filteredApplicants.filter((a) => a.status === status.value);
-                        const cap = stageCapacities[status.value] || 0;
-                        const isOver = cap > 0 && columnApplicants.length > cap;
                         return (
                           <Droppable droppableId={status.value} key={status.value}>
                             {(provided, snapshot) => (
@@ -650,8 +657,6 @@ const Dashboard = () => {
                                 className={`min-h-[350px] rounded-2xl p-2.5 transition-all duration-200 ${
                                   snapshot.isDraggingOver
                                     ? "bg-primary/5 ring-2 ring-primary/20 border-primary/20"
-                                    : isOver
-                                    ? "bg-destructive/5 ring-1 ring-destructive/20"
                                     : "bg-secondary/30"
                                 }`}
                               >
@@ -660,8 +665,8 @@ const Dashboard = () => {
                                     <div className={`w-2.5 h-2.5 rounded-full ${status.color.split(" ")[0]}`} />
                                     <span className="font-mono text-xs font-semibold uppercase tracking-wider text-foreground">{status.label}</span>
                                   </div>
-                                  <span className={`font-mono tabular-nums text-[10px] font-bold px-2 py-0.5 rounded-full ${isOver ? "bg-destructive/20 text-destructive" : "bg-secondary text-muted-foreground"}`}>
-                                    {columnApplicants.length}{cap > 0 ? `/${cap}` : ""}
+                                  <span className="font-mono tabular-nums text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                                    {columnApplicants.length}
                                   </span>
                                 </div>
                                 <div className="space-y-2">
@@ -677,6 +682,7 @@ const Dashboard = () => {
                                             applicant={applicant}
                                             jobTitle={applicant.jobTitle || getJobTitle(applicant.jobId)}
                                             avgRating={avgRating(applicant)}
+                                            appliedJobsCount={applicant.email ? (jobsAppliedByEmail.get(applicant.email.trim().toLowerCase())?.size ?? 1) : 1}
                                             isDragging={snapshot.isDragging}
                                             onClick={() => { setSelectedApplicant(applicant); setActiveTab("applicants"); }}
                                           />
@@ -698,22 +704,12 @@ const Dashboard = () => {
                       })}
                     </div>
                   </DragDropContext>
-
-                  {/* Capacity Limits config */}
-                  <div className="mt-5">
-                    <StageCapacityLimits applicants={filteredApplicants} capacities={stageCapacities} onCapacitiesChange={setStageCapacities} />
-                  </div>
             </div>
           )}
 
           {/* CV LIBRARY TAB */}
           {activeTab === "cv-library" && sessionToken && (
             <CVLibrary sessionToken={sessionToken} jobs={jobs.map(j => ({ id: j.id, title: j.title, department: j.department, status: j.status, requirements: j.requirements as string[] }))} onSessionExpired={handleSessionExpired} />
-          )}
-
-          {/* EOS CALCULATOR TAB */}
-          {activeTab === "eos-calculator" && (
-            <SettlementCalculator />
           )}
 
           {/* HR TEAM TAB */}

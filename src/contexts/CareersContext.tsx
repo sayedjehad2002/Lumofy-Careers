@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { adminQuery } from "@/lib/adminQuery";
+import { toTitleCase } from "@/lib/utils";
 import type { Job, Applicant, ApplicantStatus, AIAnalysis, ScreeningQuestion, CandidateRating, AIScoringWeights, DEFAULT_AI_WEIGHTS } from "@/types/careers";
 
 interface CareersContextType {
@@ -23,8 +24,19 @@ interface CareersContextType {
   updateApplicantStatus: (applicantId: string, status: ApplicantStatus) => Promise<void>;
   addApplicantNote: (applicantId: string, note: string) => Promise<void>;
   updateApplicantAI: (applicantId: string, analysis: AIAnalysis) => Promise<void>;
+  /** Inline-edit a candidate's identity/contact fields (HR "edit like a Notion page"). */
+  updateApplicantFields: (
+    applicantId: string,
+    fields: Partial<Pick<Applicant, "fullName" | "email" | "phone" | "location" | "nationality" | "linkedin" | "portfolio">>,
+  ) => Promise<void>;
   getJobById: (id: string) => Job | undefined;
   refreshData: () => Promise<void>;
+  /** Refetch in the background WITHOUT toggling the full-page loading state (no flicker). */
+  silentRefresh: () => Promise<void>;
+  /** Epoch ms of the last successful data load (for "updated Xs ago"). Null until first load. */
+  lastUpdated: number | null;
+  /** True while a silent background refetch is in flight. */
+  refreshing: boolean;
 }
 
 const CareersContext = createContext<CareersContextType | null>(null);
@@ -90,7 +102,7 @@ export function dbRowToApplicant(row: any): Applicant {
     id: row.id,
     jobId: row.job_id,
     jobTitle: row.job_title || undefined,
-    fullName: row.full_name,
+    fullName: toTitleCase(row.full_name),
     email: row.email,
     phone: row.phone,
     location: row.location,
@@ -148,8 +160,14 @@ export function CareersProvider({ children }: { children: ReactNode }) {
   const [isHrUser, setIsHrUser] = useState(false);
   const [hrRole, setHrRole] = useState<string | null>(null);
   const [hrChecked, setHrChecked] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  // `silent` refetches in the background: it updates the data but never toggles the
+  // full-page `loading` state, so the live dashboard re-renders without flicker.
+  const fetchData = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
+    if (silent) setRefreshing(true);
     try {
       if (sessionToken) {
         // Admin: load ALL jobs (incl. closed/draft) with full columns so the
@@ -172,12 +190,16 @@ export function CareersProvider({ children }: { children: ReactNode }) {
         const jobsRes = await supabase.rpc("get_public_jobs");
         if (jobsRes.data) setJobs((jobsRes.data as any[]).map(dbRowToJob));
       }
+      setLastUpdated(Date.now());
     } catch (e) {
       import.meta.env.DEV && console.error("Failed to fetch data:", e);
     } finally {
-      setLoading(false);
+      if (silent) setRefreshing(false);
+      else setLoading(false);
     }
   }, [sessionToken]);
+
+  const silentRefresh = useCallback(() => fetchData({ silent: true }), [fetchData]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -374,10 +396,38 @@ export function CareersProvider({ children }: { children: ReactNode }) {
     }
   }, [sessionToken]);
 
+  const updateApplicantFields = useCallback(async (
+    applicantId: string,
+    fields: Partial<Pick<Applicant, "fullName" | "email" | "phone" | "location" | "nationality" | "linkedin" | "portfolio">>,
+  ) => {
+    if (!sessionToken) throw new Error("Not authenticated");
+    const COLS: Record<string, string> = {
+      fullName: "full_name", email: "email", phone: "phone",
+      location: "location", nationality: "nationality", linkedin: "linkedin", portfolio: "portfolio",
+    };
+    const updates: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(fields)) {
+      const col = COLS[k];
+      if (col) updates[col] = typeof v === "string" ? v.trim() : v;
+    }
+    if (Object.keys(updates).length === 0) return;
+
+    const { data, error } = await supabase.functions.invoke("update-applicant", {
+      body: { sessionToken, applicantId, updates },
+    });
+    if (error || data?.error) {
+      throw new Error(error?.message || data?.error || "Failed to save changes");
+    }
+    // Mirror the server write locally (names display Title Case, same as on fetch).
+    setApplicants(prev => prev.map(a => a.id === applicantId
+      ? { ...a, ...fields, ...(fields.fullName != null ? { fullName: toTitleCase(fields.fullName) } : {}) }
+      : a));
+  }, [sessionToken]);
+
   const getJobById = useCallback((id: string) => jobs.find(j => j.id === id), [jobs]);
 
   return (
-    <CareersContext.Provider value={{ jobs, applicants, loading, sessionToken, setSessionToken, authReady, isHrUser, hrRole, hrChecked, addJob, updateJob, deleteJob, archiveJob, restoreJob, addApplicant, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, getJobById, refreshData: fetchData }}>
+    <CareersContext.Provider value={{ jobs, applicants, loading, sessionToken, setSessionToken, authReady, isHrUser, hrRole, hrChecked, addJob, updateJob, deleteJob, archiveJob, restoreJob, addApplicant, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, updateApplicantFields, getJobById, refreshData: fetchData, silentRefresh, lastUpdated, refreshing }}>
       {children}
     </CareersContext.Provider>
   );

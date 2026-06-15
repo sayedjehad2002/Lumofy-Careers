@@ -8,6 +8,8 @@ import {
   clampAnalysisScores,
   wrapUntrusted,
   UNTRUSTED_DATA_NOTE,
+  currentDateLine,
+  CHRONOLOGY_AND_IDENTITY_RULES,
 } from "../_shared/ai.ts";
 
 // CV downloads are base64-encoded into the AI request, so cap the raw file size
@@ -158,6 +160,10 @@ ${UNTRUSTED_DATA_NOTE}
 
 ${analysisCalibration(seniority)}
 
+${currentDateLine()}
+
+${CHRONOLOGY_AND_IDENTITY_RULES}
+
 CRITICAL SCORING RULES:
 - Be STRICT and CALIBRATED. Do NOT inflate scores.
 - Average candidates should realistically score 55-75. Only exceptional candidates should score above 85.
@@ -268,7 +274,7 @@ You MUST respond with a single valid JSON object (no markdown, no code blocks) u
     {"signal": "<short label, e.g. 'Relevant marketing degree'>", "source": "<CV|Application form|Screening answers>", "impact": "<High|Medium|Low>", "reasoning": "<one sentence>"}
   ],
   "riskSignals": [
-    {"signal": "<short label, e.g. 'Future-dated roles'>", "source": "<CV|Application form|Screening answers>", "impact": "<High|Medium|Low>", "reasoning": "<one sentence>", "verificationQuestion": "<what the recruiter should check or ask>"}
+    {"signal": "<short label, e.g. 'Unexplained employment gap'>", "source": "<CV|Application form|Screening answers>", "impact": "<High|Medium|Low>", "reasoning": "<one sentence>", "verificationQuestion": "<what the recruiter should check or ask>"}
   ],
   "verificationChecklist": ["<concrete recruiter verification task, e.g. 'Verify the 2025-dated certification with the issuer'>"],
   "interviewGuide": [

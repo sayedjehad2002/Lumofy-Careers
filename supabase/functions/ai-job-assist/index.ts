@@ -28,7 +28,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { type, sessionToken, jobTitle, department, location, employmentType, summary, description, responsibilities, requirements, jdFilePath, seniority, count, questionTypes, focusAreas, instruction } = body;
+    const { type, sessionToken, jobTitle, department, location, employmentType, summary, description, responsibilities, requirements, jdFilePath, seniority, count, questionTypes, focusAreas, instruction, brief, allowedDepartments } = body;
 
     // SENIORITY CALIBRATION: derive one effective level for all generated content.
     const level = inferSeniority(seniority || jobTitle, requirements, employmentType, description || summary);
@@ -43,9 +43,14 @@ serve(async (req) => {
     const rl = isRateLimited(`ai-job-assist:${sessionToken}`, { maxRequests: 60, windowMs: 3_600_000 });
     if (rl.limited) return rateLimitResponse(corsHeaders, rl.retryAfterMs);
 
-    // Try to extract JD from uploaded PDF (sent to the multimodal model as base64).
+    // Try to extract JD from an uploaded PDF (sent to the multimodal model as base64).
+    // ONLY PDFs are read: Gemini cannot read Word .doc/.docx natively, so attaching
+    // them causes API errors / silent context loss. Word never gets base64-encoded,
+    // so it can never reach the model on any code path.
+    const jdExt = jdFilePath ? String(jdFilePath).split(".").pop()?.toLowerCase() : undefined;
+    const jdIsPdf = jdExt === "pdf";
     let jdExtractedText = "";
-    if (jdFilePath) {
+    if (jdFilePath && jdIsPdf) {
       try {
         const { data: fileData, error: downloadError } = await supabase.storage.from("jds").download(jdFilePath);
         if (!downloadError && fileData) {
@@ -57,6 +62,27 @@ serve(async (req) => {
         }
       } catch (e) {
         console.error("JD download error:", e);
+      }
+    }
+
+    // PARSE JD: validate the file is present and readable BEFORE building the call.
+    // Gemini cannot read Word .doc/.docx natively, so we short-circuit those with a
+    // clear flag the frontend turns into a "save as PDF" message (HTTP 200, no error).
+    if (type === "parse_jd") {
+      if (!jdFilePath) {
+        return new Response(JSON.stringify({ error: "No JD file attached" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (!jdIsPdf) {
+        return new Response(JSON.stringify({ result: { unreadable: true, reason: "word" }, type }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (!jdExtractedText) {
+        return new Response(JSON.stringify({ result: { unreadable: true, reason: "download" }, type }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
     }
 
@@ -181,6 +207,57 @@ WEIGHTING RULES
       toolsDef = [{ type: "function", function: { name: "return_weights", description: "Return AI scoring weights that sum to 100", parameters: { type: "object", properties: { skills: { type: "number" }, tools: { type: "number" }, experience: { type: "number" }, industry: { type: "number" }, education: { type: "number" }, stability: { type: "number" } }, required: ["skills", "tools", "experience", "industry", "education", "stability"], additionalProperties: false } } }];
       toolChoice = { type: "function", function: { name: "return_weights" } };
 
+    } else if (type === "parse_jd") {
+      // Read the WHOLE JD document and turn it into one complete structured job.
+      // Extraction-leaning temperature; the document itself is attached multimodally below.
+      temperature = 0.4;
+      const allowed = Array.isArray(allowedDepartments) && allowedDepartments.length
+        ? allowedDepartments.map((d: unknown) => String(d)).join(", ")
+        : (department || "choose the most appropriate department");
+      systemPrompt = `You are a senior in-house recruiter at Lumofy. READ THE ENTIRE attached job description (JD) document, end to end, and turn it into ONE complete, structured job post for the Lumofy careers platform.
+
+${QUALITY}
+
+EXTRACTION & FILL RULES
+- Extract every field the JD actually states, faithfully. You may lightly polish wording into Lumofy's voice, but never change the meaning, scope, tools, numbers, or requirements the JD states.
+- For any field the JD does NOT state, fall back to the RECRUITER BRIEF below. If the brief is also silent, infer a sensible value from the role, title, and seniority — EXCEPT salary and deadline, which you must NEVER invent.
+- department: choose the SINGLE closest match from this allowed list and return it EXACTLY as written: ${allowed}. Never invent a new department name.
+- employmentType: exactly one of Full-time, Part-time, Contract, Internship.
+- seniority: exactly one of Intern, Junior, Mid, Senior, Lead — judged from the JD's experience bar.
+- summary: max 180 characters, one or two crisp lines, leads with impact.
+- description: the "About the role" section, 2-4 short paragraphs (mission, day-to-day, who thrives). No bullet lists here.
+- responsibilities: outcome-led, each starting with a strong action verb, one sentence each.
+- requirements: split into must_have and nice_to_have, candidate-facing, calibrated to the level.
+- screening_questions: 3-5 questions grounded in THIS JD, each with an assessment note.
+- scoring_weights: six integers (skills, tools, experience, industry, education, stability) that SUM TO EXACTLY 100 and reflect what predicts success in this role.
+- salary: set salary_present true ONLY if the JD explicitly states pay; then fill salary_min, salary_max, and salary_currency (BHD or USD). Otherwise salary_present is false and the amounts are 0.
+- deadline: an ISO date (YYYY-MM-DD) ONLY if the JD explicitly states an application deadline; otherwise an empty string.
+- benefits: list only perks/benefits the JD explicitly states; otherwise an empty array.`;
+      userPrompt = `Read the attached job description document and return the fully structured job. Extract as much as you reliably can.
+
+RECRUITER BRIEF (use ONLY as a fallback for fields the JD does not state):
+${wrapUntrusted("Recruiter Brief", brief || "None provided")}`;
+      toolsDef = [{ type: "function", function: { name: "return_job", description: "Return the complete structured job parsed from the JD", parameters: { type: "object", properties: {
+        title: { type: "string" },
+        department: { type: "string" },
+        location: { type: "string" },
+        employmentType: { type: "string", enum: ["Full-time", "Part-time", "Contract", "Internship"] },
+        seniority: { type: "string", enum: ["Intern", "Junior", "Mid", "Senior", "Lead"] },
+        summary: { type: "string" },
+        description: { type: "string" },
+        responsibilities: { type: "array", items: { type: "string" } },
+        requirements: { type: "object", properties: { must_have: { type: "array", items: { type: "string" } }, nice_to_have: { type: "array", items: { type: "string" } } }, required: ["must_have", "nice_to_have"], additionalProperties: false },
+        screening_questions: { type: "array", items: { type: "object", properties: { question: { type: "string" }, type: { type: "string", enum: ["short_text", "long_text", "yes_no", "number", "multiple_choice"] }, options: { type: "array", items: { type: "string" } }, required: { type: "boolean" }, assesses: { type: "string" }, ideal_indicators: { type: "string" } }, required: ["question", "type", "required", "assesses", "ideal_indicators"], additionalProperties: false } },
+        scoring_weights: { type: "object", properties: { skills: { type: "number" }, tools: { type: "number" }, experience: { type: "number" }, industry: { type: "number" }, education: { type: "number" }, stability: { type: "number" } }, required: ["skills", "tools", "experience", "industry", "education", "stability"], additionalProperties: false },
+        salary_present: { type: "boolean" },
+        salary_min: { type: "number" },
+        salary_max: { type: "number" },
+        salary_currency: { type: "string", enum: ["BHD", "USD"] },
+        deadline: { type: "string", description: "ISO YYYY-MM-DD if the JD states an application deadline, else empty string" },
+        benefits: { type: "array", items: { type: "string" } },
+      }, required: ["title", "department", "location", "employmentType", "seniority", "summary", "description", "responsibilities", "requirements", "screening_questions", "scoring_weights", "salary_present", "salary_min", "salary_max", "deadline", "benefits"], additionalProperties: false } } }];
+      toolChoice = { type: "function", function: { name: "return_job" } };
+
     } else {
       return new Response(JSON.stringify({ error: "Invalid type. Use: summary, description, requirements, responsibilities, screening_questions, scoring_weights" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -191,17 +268,18 @@ WEIGHTING RULES
       { role: "system", content: `${systemPrompt}\n\n${UNTRUSTED_DATA_NOTE}` },
     ];
 
-    // Screening questions get the JD file (when present) as multimodal context.
-    if (jdExtractedText && type === "screening_questions") {
-      const ext = jdFilePath?.split(".").pop()?.toLowerCase() || "pdf";
-      let mimeType = "application/pdf";
-      if (ext === "doc") mimeType = "application/msword";
-      else if (ext === "docx") mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    // Attach the JD (PDF only) as multimodal context for the actions that read the
+    // whole document: parse_jd (the full-form reader) and screening_questions.
+    // Other section writers rely on the form fields parse_jd already populated plus
+    // the brief — this avoids re-uploading the PDF on every section (6× cost on a
+    // full draft) and ensures a Word file can never reach the model.
+    const attachJd = Boolean(jdExtractedText) && (type === "parse_jd" || type === "screening_questions");
+    if (attachJd) {
       messages.push({
         role: "user",
         content: [
           { type: "text", text: userPrompt },
-          { type: "image_url", image_url: { url: `data:${mimeType};base64,${jdExtractedText}` } },
+          { type: "image_url", image_url: { url: `data:application/pdf;base64,${jdExtractedText}` } },
         ],
       });
     } else {
@@ -209,12 +287,16 @@ WEIGHTING RULES
     }
 
     const response = await chatCompletion({
-      model: MODEL,
+      // parse_jd reads a whole document into a large schema — run it on the fast
+      // multimodal tier (pro can time out on big schemas); section writers stay on MODEL.
+      model: type === "parse_jd" ? "google/gemini-2.5-flash" : MODEL,
       messages,
       tools: toolsDef,
       tool_choice: toolChoice,
       temperature,
-      hasImages: Boolean(jdExtractedText && type === "screening_questions"),
+      // The full-job object is large; give parse_jd extra room so it isn't truncated.
+      max_tokens: type === "parse_jd" ? 4096 : undefined,
+      hasImages: attachJd,
     });
 
     if (!response.ok) {

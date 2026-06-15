@@ -82,7 +82,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const allowedFields = ["status", "notes", "rating", "ai_analysis", "stage_entered_at"];
+    const allowedFields = [
+      "status", "notes", "rating", "ai_analysis", "stage_entered_at",
+      // Inline-editable candidate details (HR "edit like a Notion page").
+      "full_name", "email", "phone", "location", "nationality", "linkedin", "portfolio",
+    ];
     const sanitizedUpdates: Record<string, unknown> = {};
     for (const key of allowedFields) {
       if (key in updates) {

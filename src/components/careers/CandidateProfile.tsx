@@ -16,8 +16,14 @@ import { toast } from "sonner";
 import AIAnalysisPanel from "@/components/careers/AIAnalysisPanel";
 import InterviewPrep from "@/components/careers/applicants/InterviewPrep";
 import EmailTemplates from "@/components/careers/applicants/EmailTemplates";
+import ScheduleMeeting from "@/components/careers/applicants/ScheduleMeeting";
+import EditableText from "@/components/careers/applicants/EditableText";
 import CandidateTimeline from "@/components/careers/applicants/CandidateTimeline";
+import { useCareers } from "@/contexts/CareersContext";
+import { toTitleCase } from "@/lib/utils";
 import { APPLICANT_STATUSES, type ApplicantStatus, type Applicant, type Job, type AIAnalysis } from "@/types/careers";
+
+type EditableField = "fullName" | "email" | "phone" | "location" | "nationality" | "linkedin" | "portfolio";
 
 interface CandidateProfileProps {
   applicant: Applicant;
@@ -48,6 +54,20 @@ const CandidateProfile = ({
   const [noteInput, setNoteInput] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
   const [cvLoading, setCvLoading] = useState(false);
+
+  const { updateApplicantFields } = useCareers();
+  // Inline-edit a candidate field (Notion-style): persist, then reflect locally.
+  // Throws on failure so the editor stays open for a retry.
+  const saveField = async (field: EditableField, value: string) => {
+    try {
+      await updateApplicantFields(applicant.id, { [field]: value } as Partial<Pick<Applicant, EditableField>>);
+      onApplicantChange({ ...applicant, [field]: field === "fullName" ? toTitleCase(value) : value });
+      toast.success("Saved");
+    } catch (e) {
+      toast.error("Couldn't save changes");
+      throw e;
+    }
+  };
 
   const statusInfo = getStatusInfo(applicant.status);
 
@@ -145,7 +165,15 @@ const CandidateProfile = ({
               {applicant.fullName.charAt(0)}
             </div>
             <div className="min-w-0">
-              <h1 className="truncate text-xl font-bold">{applicant.fullName}</h1>
+              <h1 className="text-xl font-bold min-w-0">
+                <EditableText
+                  value={applicant.fullName}
+                  onSave={(v) => saveField("fullName", v)}
+                  className="text-xl font-bold"
+                  ariaLabel="candidate name"
+                  placeholder="Name"
+                />
+              </h1>
               <p className="truncate text-sm text-muted-foreground">
                 {job?.title || applicant.jobTitle || "Unknown Position"} · Applied {new Date(applicant.appliedDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
               </p>
@@ -366,6 +394,9 @@ const CandidateProfile = ({
             <EmailTemplates applicant={applicant} job={job} />
           </motion.div>
 
+          {/* Schedule a meeting — opens Outlook (web) or downloads an .ics invite */}
+          <ScheduleMeeting applicant={applicant} job={job} />
+
           {/* CV / attachments */}
           <motion.div
             className="rounded-2xl border border-border bg-card p-5 light-glow"
@@ -410,51 +441,36 @@ const CandidateProfile = ({
               <User className="w-4 h-4 text-primary" aria-hidden="true" />
               Candidate Details
             </h3>
+            {/* Inline-editable details — click any field to edit, auto-saves on blur/Enter. */}
             <div className="space-y-2.5 text-sm">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Mail className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-                <a href={`mailto:${applicant.email}`} className="truncate transition-colors hover:text-primary-readable">{applicant.email}</a>
+                <EditableText value={applicant.email} inputType="email" onSave={(v) => saveField("email", v)} placeholder="Add email" ariaLabel="email" className="text-sm" />
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Phone className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-                {applicant.phone}
+                <EditableText value={applicant.phone} inputType="tel" onSave={(v) => saveField("phone", v)} placeholder="Add phone" ariaLabel="phone" className="text-sm" />
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <MapPin className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-                {applicant.location}
+                <EditableText value={applicant.location} onSave={(v) => saveField("location", v)} placeholder="Add location" ariaLabel="location" className="text-sm" />
               </div>
-              {applicant.nationality &&
               <div className="flex items-center gap-2 text-muted-foreground">
-                  <Globe className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-                  {applicant.nationality}
-                </div>
-              }
+                <Globe className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                <EditableText value={applicant.nationality || ""} onSave={(v) => saveField("nationality", v)} placeholder="Add nationality" ariaLabel="nationality" className="text-sm" />
+              </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Calendar className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
                 Applied {new Date(applicant.appliedDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
               </div>
-              {(applicant.linkedin || applicant.portfolio) &&
-              <div className="flex flex-wrap gap-3 border-t border-border pt-2.5">
-                  {applicant.linkedin &&
-                <a
-                  href={applicant.linkedin.startsWith("http") ? applicant.linkedin : `https://${applicant.linkedin}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs text-primary-readable hover:underline">
-                      <ExternalLink className="w-3 h-3" aria-hidden="true" /> LinkedIn<span className="sr-only"> (opens in new tab)</span>
-                    </a>
-                }
-                  {applicant.portfolio &&
-                <a
-                  href={applicant.portfolio.startsWith("http") ? applicant.portfolio : `https://${applicant.portfolio}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs text-primary-readable hover:underline">
-                      <ExternalLink className="w-3 h-3" aria-hidden="true" /> Portfolio<span className="sr-only"> (opens in new tab)</span>
-                    </a>
-                }
-                </div>
-              }
+              <div className="flex items-center gap-2 border-t border-border pt-2.5 text-muted-foreground">
+                <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                <EditableText value={applicant.linkedin || ""} inputType="url" onSave={(v) => saveField("linkedin", v)} placeholder="Add LinkedIn URL" ariaLabel="LinkedIn URL" className="text-sm" />
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                <EditableText value={applicant.portfolio || ""} inputType="url" onSave={(v) => saveField("portfolio", v)} placeholder="Add portfolio URL" ariaLabel="portfolio URL" className="text-sm" />
+              </div>
             </div>
           </motion.div>
 

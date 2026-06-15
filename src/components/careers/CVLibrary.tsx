@@ -16,6 +16,7 @@ import BulkReparse from "./cvlibrary/BulkReparse";
 import CandidateTags from "./cvlibrary/CandidateTags";
 import PipelineIntegration from "./cvlibrary/PipelineIntegration";
 import { useCareers } from "@/contexts/CareersContext";
+import { toTitleCase } from "@/lib/utils";
 const ExportReporting = lazy(() => import("./cvlibrary/ExportReporting")); // lazy: defers xlsx (~94KB) to the Export sub-tab
 import DataCompleteness from "./cvlibrary/DataCompleteness";
 import GDPRRetention from "./cvlibrary/GDPRRetention";
@@ -117,7 +118,13 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
   const [sortBy, setSortBy] = useState("recent");
   const [selectedCandidate, setSelectedCandidate] = useState<CVCandidate | null>(null);
   const [editCandidate, setEditCandidate] = useState<CVCandidate | null>(null);
-  const { refreshData } = useCareers(); // refresh the dashboard's applicants after "Add to job"
+  const { refreshData, applicants } = useCareers(); // refresh + detect who's already in the pipeline
+  // Emails of candidates already linked into the pipeline (matched case-insensitively),
+  // so the CV Library can show an "In pipeline" state instead of a duplicate "Add" action.
+  const pipelineEmails = useMemo(
+    () => new Set(applicants.map((a) => a.email?.trim().toLowerCase()).filter(Boolean)),
+    [applicants]
+  );
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [analyzingIds, setAnalyzingIds] = useState<Set<string>>(new Set());
   const [folderOpen, setFolderOpen] = useState<Record<string, boolean>>({});
@@ -492,7 +499,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
             <div className="rounded-2xl bg-card border border-border p-6 light-glow">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h1 className="text-2xl font-bold">{c.name || "Unknown Candidate"}</h1>
+                  <h1 className="text-2xl font-bold">{toTitleCase(c.name) || "Unknown Candidate"}</h1>
                   <p className="text-sm text-muted-foreground mt-1">{c.resume_file_name}</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -654,7 +661,13 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
               </Button>
               {jobs.length > 0 && (
                 <div className="pt-1">
-                  <PipelineIntegration candidate={c as any} jobs={jobs as any} sessionToken={sessionToken} onDone={refreshData} />
+                  <PipelineIntegration
+                    candidate={c as any}
+                    jobs={jobs as any}
+                    sessionToken={sessionToken}
+                    onDone={refreshData}
+                    inPipeline={!!c.email && pipelineEmails.has(c.email.trim().toLowerCase())}
+                  />
                 </div>
               )}
 
@@ -991,7 +1004,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-sm">{c.name || "Processing..."}</span>
+                              <span className="font-semibold text-sm">{toTitleCase(c.name) || "Processing..."}</span>
                               <Badge className={`text-[10px] border-0 ${statusInfo?.color}`}>{statusInfo?.label}</Badge>
                               {c.classification_confidence && (
                                 <Badge className={`text-[10px] border-0 ${CONFIDENCE_COLORS[c.classification_confidence]}`}>

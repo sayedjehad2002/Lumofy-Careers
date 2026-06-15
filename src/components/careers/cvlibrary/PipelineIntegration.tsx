@@ -35,9 +35,11 @@ interface Props {
   jobs: Job[];
   sessionToken: string;
   onDone?: () => void;
+  /** True when this candidate already exists as an applicant in the pipeline. */
+  inPipeline?: boolean;
 }
 
-export default function PipelineIntegration({ candidate, jobs, sessionToken, onDone }: Props) {
+export default function PipelineIntegration({ candidate, jobs, sessionToken, onDone, inPipeline = false }: Props) {
   const [open, setOpen] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -96,10 +98,23 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
 
   return (
     <>
-      <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setOpen(true)}>
-        <UserPlus className="w-3.5 h-3.5" />
-        Add to job
-      </Button>
+      {inPipeline ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            <Check className="w-3.5 h-3.5 flex-shrink-0" />
+            In pipeline — already tracked
+          </div>
+          <Button variant="ghost" size="sm" className="h-auto w-full justify-start gap-1.5 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground" onClick={() => setOpen(true)}>
+            <UserPlus className="w-3.5 h-3.5" />
+            Add to another job
+          </Button>
+        </div>
+      ) : (
+        <Button size="sm" className="w-full gap-1.5" onClick={() => setOpen(true)}>
+          <UserPlus className="w-3.5 h-3.5" />
+          Add to pipeline
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
