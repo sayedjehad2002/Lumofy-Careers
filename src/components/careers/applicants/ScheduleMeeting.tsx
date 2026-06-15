@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,9 +42,23 @@ const ScheduleMeeting = ({ applicant, job }: ScheduleMeetingProps) => {
   const [start, setStart] = useState(defaultStart);
   const [duration, setDuration] = useState(DEFAULT_DURATION);
   const [subject, setSubject] = useState(`Interview – ${jobTitle} at ${company}`);
-  const [body, setBody] = useState(
-    `Hi ${firstName},\n\nThank you for applying for the ${jobTitle} role at ${company}. We're excited to meet you and learn more about your background, experiences, and what inspired you to apply.\n\nThis will be a relaxed introductory conversation where we'd love to get to know you as a person, hear your story in your own words, and understand your interests, goals, and aspirations. We'll also share more about ${company}, what we're building, and how we're helping organizations across MENA connect performance, goals, skills, and learning through our platform.\n\nWe've scheduled the meeting for the proposed time. If it doesn't work for you, simply reply with a couple of alternative time slots that suit your schedule, and we'll be happy to accommodate.\n\nIf you have any questions about the role, the team, or ${company}, feel free to bring them along. We're looking forward to a great conversation.\n\nWarm regards,\n\nPeople & Culture Team\n${company}`,
-  );
+
+  // Build the message with the chosen date, time, and duration written into it.
+  const composeBody = useCallback((startLocal: string, durationMin: number) => {
+    const when = new Date(startLocal).toLocaleString("en-US", {
+      weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit",
+    });
+    return `Hi ${firstName},\n\nThank you for applying for the ${jobTitle} role at ${company}. We're excited to meet you and learn more about your background, experiences, and what inspired you to apply.\n\nThis will be a relaxed introductory conversation where we'd love to get to know you as a person, hear your story in your own words, and understand your interests, goals, and aspirations. We'll also share more about ${company}, what we're building, and how we're helping organizations across MENA connect performance, goals, skills, and learning through our platform.\n\nWe've scheduled the meeting for ${when} (${durationMin} minutes). If it doesn't work for you, simply reply with a couple of alternative time slots that suit your schedule, and we'll be happy to accommodate.\n\nIf you have any questions about the role, the team, or ${company}, feel free to bring them along. We're looking forward to a great conversation.\n\nWarm regards,\n\nPeople & Culture Team\n${company}`;
+  }, [firstName, jobTitle, company]);
+
+  const [body, setBody] = useState(() => composeBody(start, duration));
+  const [bodyTouched, setBodyTouched] = useState(false);
+
+  // Keep the date/time/duration in the message current with the WHEN/DURATION
+  // pickers — until the recruiter manually edits the text, then we respect that.
+  useEffect(() => {
+    if (!bodyTouched) setBody(composeBody(start, duration));
+  }, [start, duration, bodyTouched, composeBody]);
 
   const hasEmail = !!applicant.email;
   const endDate = new Date(new Date(start).getTime() + duration * 60_000);
@@ -155,7 +169,7 @@ const ScheduleMeeting = ({ applicant, job }: ScheduleMeetingProps) => {
 
             <div>
               <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1 block">Message</label>
-              <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={6} className="text-sm rounded-xl resize-none" />
+              <Textarea value={body} onChange={(e) => { setBody(e.target.value); setBodyTouched(true); }} rows={6} className="text-sm rounded-xl resize-none" />
             </div>
 
             <p className="text-[11px] text-muted-foreground">Proposed: <span className="font-medium text-foreground">{prettyWhen}</span> · {duration} min</p>
