@@ -61,15 +61,16 @@ const ScheduleMeeting = ({ applicant, job }: ScheduleMeetingProps) => {
   const openOutlookWeb = () => {
     if (!hasEmail) return;
     const enc = encodeURIComponent;
-    // CRLF + explicit encoding (spaces as %20, line breaks as %0D%0A) so the message
-    // keeps its paragraph breaks in Outlook instead of collapsing into one block.
-    const crlfBody = body.replace(/\r?\n/g, "\r\n");
+    // Outlook's web calendar renders the event body as HTML, so plain newlines
+    // (even CRLF) collapse into one block. Convert line breaks to <br> so the
+    // message keeps its paragraph structure — matching what's shown in the app.
+    const htmlBody = body.replace(/\r?\n/g, "<br>");
     const url =
       "https://outlook.office.com/calendar/0/deeplink/compose" +
       "?path=" + enc("/calendar/action/compose") +
       "&rru=addevent" +
       "&subject=" + enc(subject) +
-      "&body=" + enc(crlfBody) +
+      "&body=" + enc(htmlBody) +
       "&to=" + enc(applicant.email) +
       "&startdt=" + enc(`${start}:00`) +
       "&enddt=" + enc(fmtLocal(endDate));
