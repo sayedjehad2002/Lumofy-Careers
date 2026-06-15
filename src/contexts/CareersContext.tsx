@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { adminQuery } from "@/lib/adminQuery";
 import { toTitleCase } from "@/lib/utils";
@@ -67,6 +67,7 @@ function dbRowToJob(row: any): Job {
     jdFileUploadedAt: row.jd_file_uploaded_at || undefined,
     aiScoringWeights: row.ai_scoring_weights || undefined,
     archivedAt: row.archived_at || undefined,
+    closedAt: row.closed_at || undefined,
   };
 }
 
@@ -94,6 +95,7 @@ function jobToDbRow(job: Job) {
     jd_file_uploaded_at: job.jdFileUploadedAt || null,
     ai_scoring_weights: job.aiScoringWeights || null,
     archived_at: job.archivedAt || null,
+    closed_at: job.closedAt || null,
   };
 }
 
@@ -153,6 +155,10 @@ function applicantToDbRow(a: Applicant) {
 
 export function CareersProvider({ children }: { children: ReactNode }) {
   const [jobs, setJobs] = useState<Job[]>([]);
+  // Mirror of `jobs` for synchronous reads (e.g. the previous job in updateJob,
+  // to stamp/preserve closed_at without depending on async state).
+  const jobsRef = useRef<Job[]>([]);
+  useEffect(() => { jobsRef.current = jobs; }, [jobs]);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
@@ -250,12 +256,18 @@ export function CareersProvider({ children }: { children: ReactNode }) {
 
   const updateJob = useCallback(async (job: Job) => {
     if (!sessionToken) throw new Error("Not authenticated");
-    let prevJob: Job | undefined;
-    setJobs(prev => { prevJob = prev.find(j => j.id === job.id); return prev.map(j => j.id === job.id ? job : j); });
-    const { error } = await adminQuery(sessionToken, "update", "jobs", { data: jobToDbRow(job), eq: { id: job.id } });
+    const prevJob = jobsRef.current.find(j => j.id === job.id);
+    // Stamp the close date when a job transitions to closed; preserve an existing
+    // one so editing a closed job doesn't reset it; clear it when reopened.
+    const closedAt = job.status === "closed"
+      ? (job.closedAt || prevJob?.closedAt || new Date().toISOString())
+      : undefined;
+    const merged: Job = { ...job, closedAt };
+    setJobs(prev => prev.map(j => j.id === job.id ? merged : j));
+    const { error } = await adminQuery(sessionToken, "update", "jobs", { data: jobToDbRow(merged), eq: { id: job.id } });
     if (error) {
       import.meta.env.DEV && console.error("updateJob error:", error);
-      if (prevJob) setJobs(prev => prev.map(j => j.id === job.id ? prevJob! : j)); // rollback optimistic update
+      if (prevJob) setJobs(prev => prev.map(j => j.id === job.id ? prevJob : j)); // rollback optimistic update
       throw new Error(error);
     }
   }, [sessionToken]);

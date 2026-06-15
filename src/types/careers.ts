@@ -40,6 +40,8 @@ export interface Job {
   aiScoringWeights?: AIScoringWeights;
   /** Set when the job is archived (soft-deleted) — hidden from the public site, kept in the dashboard. */
   archivedAt?: string;
+  /** When the job transitioned to "closed" — used to show how long it took to close. */
+  closedAt?: string;
 }
 
 export interface ScreeningQuestion {

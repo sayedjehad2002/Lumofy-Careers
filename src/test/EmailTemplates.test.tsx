@@ -42,16 +42,16 @@ describe("EmailTemplates", () => {
   it("renders a populated draft on first render", () => {
     render(<EmailTemplates applicant={makeApplicant()} job={makeJob()} />);
     const [subject, body] = screen.getAllByRole("textbox") as HTMLTextAreaElement[];
-    expect(subject.value).toMatch(/Interview Invitation/i);
+    expect(subject.value.length).toBeGreaterThan(0);
     expect(subject.value).toContain("Product Designer");
-    expect(body.value).toContain("Dear Jordan");
+    expect(body.value).toContain("Hi Jordan");
   });
 
   it("swaps the draft when a different template is selected", () => {
     render(<EmailTemplates applicant={makeApplicant()} job={makeJob()} />);
     fireEvent.click(screen.getByRole("button", { name: /rejection/i }));
     const [subject] = screen.getAllByRole("textbox") as HTMLTextAreaElement[];
-    expect(subject.value).toMatch(/Application Update/i);
+    expect(subject.value).toMatch(/update on your/i);
   });
 
   it("falls back to a generic role name when the job is missing", () => {

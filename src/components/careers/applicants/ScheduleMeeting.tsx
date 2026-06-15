@@ -43,7 +43,7 @@ const ScheduleMeeting = ({ applicant, job }: ScheduleMeetingProps) => {
   const [duration, setDuration] = useState(DEFAULT_DURATION);
   const [subject, setSubject] = useState(`Interview – ${jobTitle} at ${company}`);
   const [body, setBody] = useState(
-    `Hi ${firstName},\n\nWe'd like to schedule a meeting to discuss your application for the ${jobTitle} position at ${company}.\n\nPlease join us at the proposed time below. If it doesn't suit you, reply with a couple of slots that do.\n\nBest regards,\nTalent Acquisition Team\n${company}`,
+    `Hi ${firstName},\n\nThank you for applying for the ${jobTitle} role at ${company} - we're really glad you did, and we're looking forward to meeting you.\n\nThis is a relaxed introductory call. We'd love to hear your story in your own words, share what we're building, and answer anything on your mind. ${company} is building the intelligence layer that connects performance, goals, skills, and learning for organizations across MENA - more than 100 already build with us - and we'll tell you where this role fits in.\n\nWe've set this for the proposed time. If it doesn't suit, just reply with a couple of slots that work better and we'll happily move things around.\n\nLooking forward to it.\n\nWarmly,\nTalent Acquisition Team\n${company}`,
   );
 
   const hasEmail = !!applicant.email;
@@ -60,16 +60,20 @@ const ScheduleMeeting = ({ applicant, job }: ScheduleMeetingProps) => {
 
   const openOutlookWeb = () => {
     if (!hasEmail) return;
-    const params = new URLSearchParams({
-      path: "/calendar/action/compose",
-      rru: "addevent",
-      subject,
-      body,
-      to: applicant.email,
-      startdt: `${start}:00`,
-      enddt: fmtLocal(endDate),
-    });
-    window.open(`https://outlook.office.com/calendar/0/deeplink/compose?${params.toString()}`, "_blank", "noopener");
+    const enc = encodeURIComponent;
+    // CRLF + explicit encoding (spaces as %20, line breaks as %0D%0A) so the message
+    // keeps its paragraph breaks in Outlook instead of collapsing into one block.
+    const crlfBody = body.replace(/\r?\n/g, "\r\n");
+    const url =
+      "https://outlook.office.com/calendar/0/deeplink/compose" +
+      "?path=" + enc("/calendar/action/compose") +
+      "&rru=addevent" +
+      "&subject=" + enc(subject) +
+      "&body=" + enc(crlfBody) +
+      "&to=" + enc(applicant.email) +
+      "&startdt=" + enc(`${start}:00`) +
+      "&enddt=" + enc(fmtLocal(endDate));
+    window.open(url, "_blank", "noopener");
   };
 
   const downloadIcs = () => {

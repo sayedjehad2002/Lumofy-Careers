@@ -5,7 +5,7 @@ import {
   Briefcase, Users, BarChart3, ChevronDown,
   Eye, EyeOff, MapPin, Clock, FileText, Star, MessageSquare,
   ArrowLeft, ExternalLink, LogOut, Plus, Pencil, Trash2, Copy, Brain,
-  Download, Loader2, AlertCircle, GripVertical, LayoutDashboard, AlertTriangle, Sparkles, Library, TrendingUp, Search, ClipboardList, BookOpen, Zap, UsersRound, Archive, ArchiveRestore
+  Download, Loader2, AlertCircle, GripVertical, LayoutDashboard, AlertTriangle, Sparkles, Library, TrendingUp, Search, ClipboardList, BookOpen, Zap, UsersRound, Archive, ArchiveRestore, Timer
 } from "lucide-react";
 import CommandPalette from "@/components/careers/CommandPalette";
 import PipelineCandidateCard from "@/components/careers/PipelineCandidateCard";
@@ -460,6 +460,11 @@ const Dashboard = () => {
               <div className="space-y-3">
                 {activeJobs.map((job, idx) => {
                   const appCount = getApplicantCount(job.id);
+                  // Lifespan: days a job has been open, or how long it took to close.
+                  const daysOpen = Math.max(0, Math.floor((Date.now() - new Date(job.postedDate).getTime()) / 86_400_000));
+                  const daysToClose = job.closedAt
+                    ? Math.max(0, Math.round((new Date(job.closedAt).getTime() - new Date(job.postedDate).getTime()) / 86_400_000))
+                    : null;
                   return (
                     <motion.div
                       key={job.id}
@@ -491,6 +496,14 @@ const Dashboard = () => {
                             <span className="flex items-center gap-1.5"><MapPin className="w-3 h-3" /> {job.location}</span>
                             <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {job.type}</span>
                             <span className="flex items-center gap-1.5"><Users className="w-3 h-3" /> {appCount} applicant{appCount !== 1 ? "s" : ""}</span>
+                            {(job.status === "open" || daysToClose !== null) && (
+                              <span className="flex items-center gap-1.5" title={job.status === "open" ? "Days since this job was posted" : "Days from posting to close"}>
+                                <Timer className="w-3 h-3" aria-hidden="true" />
+                                {job.status === "open"
+                                  ? `Open ${daysOpen} day${daysOpen !== 1 ? "s" : ""}`
+                                  : `Closed in ${daysToClose} day${daysToClose !== 1 ? "s" : ""}`}
+                              </span>
+                            )}
                             <Badge variant="secondary" className="text-[10px] border-0 bg-secondary normal-case">{job.department}</Badge>
                           </div>
                           {job.deadline && (

@@ -33,23 +33,23 @@ function generateTemplate(type: TemplateType, applicant: Applicant, job: Job | u
   switch (type) {
     case "interview_invite":
       return {
-        subject: `Interview Invitation – ${jobTitle} at ${company}`,
-        body: `Dear ${name},\n\nThank you for your application for the ${jobTitle} position at ${company}. We were impressed with your background and would like to invite you for an interview.\n\nPlease let us know your availability for the coming week, and we'll arrange a suitable time.\n\nWe look forward to speaking with you.\n\nBest regards,\nTalent Acquisition Team\n${company}`,
+        subject: `Let's talk, ${name} - your ${jobTitle} application at ${company}`,
+        body: `Hi ${name},\n\nYour application for the ${jobTitle} role stood out to us, and we'd genuinely love to get to know you.\n\nWe'd like to start with a friendly intro call - a real conversation, not an interrogation. We want to hear what you care about and what you're looking for next, and to share where ${company} is headed.\n\nA little about us: ${company} is an AI-powered, skills-first platform built in Bahrain for the MENA region - an intelligence layer connecting performance, goals, skills, and learning, with 100+ organizations already building with us. Join us and you'd own real work from day one, learn fast, and have genuine regional impact.\n\nWe've proposed a time in this invite. If another moment suits you better, just let us know - we're flexible and happy to find what works.\n\nCan't wait to meet you.\n\nWarmly,\nTalent Acquisition Team\n${company}`,
       };
     case "offer":
       return {
-        subject: `Offer of Employment – ${jobTitle} at ${company}`,
-        body: `Dear ${name},\n\nWe are pleased to offer you the position of ${jobTitle} at ${company}. After careful consideration, we believe your skills and experience make you an excellent fit for our team.\n\nPlease find the formal offer details attached. We kindly request your response within 5 business days.\n\nWelcome aboard!\n\nBest regards,\nHR Department\n${company}`,
+        subject: `We'd love for you to join us, ${name} - your ${jobTitle} offer from ${company}`,
+        body: `Hi ${name},\n\nIt's our pleasure to offer you the ${jobTitle} role at ${company}. From our very first conversation, it was clear how much you'd add to the team - and we'd be thrilled to have you with us.\n\nAt ${company}, you'll help build the intelligence layer that connects performance, skills, and learning for organizations across MENA - work already trusted by 100+ organizations and just getting started. You'd be part of it from day one, with real ownership, the freedom to build fast, continuous learning, mentorship, and a clear path to grow.\n\nThe formal details are attached. Please take the time you need to read everything, and reach out with any question at all - big or small. We're here, and we'd love to talk it through.\n\nWe really hope you'll say yes.\n\nWarmly,\nThe ${company} Team`,
       };
     case "rejection":
       return {
-        subject: `Application Update – ${jobTitle} at ${company}`,
-        body: `Dear ${name},\n\nThank you for your interest in the ${jobTitle} position at ${company} and for taking the time to apply.\n\nAfter careful review, we have decided to move forward with other candidates whose qualifications more closely match our current needs.\n\nWe appreciate your interest in ${company} and encourage you to apply for future openings that match your profile.\n\nWe wish you the best in your career journey.\n\nBest regards,\nTalent Acquisition Team\n${company}`,
+        subject: `Thank you, ${name} - an update on your ${jobTitle} application`,
+        body: `Hi ${name},\n\nThank you for the time and care you put into applying for the ${jobTitle} role at ${company}, and for letting us get to know you.\n\nAfter much thought, we've decided to move forward with another candidate for this role. It was a genuinely hard decision and no reflection of your talent - we simply had an exceptional pool this time.\n\nThis isn't a no for the future. We're growing quickly across MENA and new roles open often, so we'd warmly welcome your application when the timing is right.\n\nWishing you real success in your search - we're rooting for you.\n\nWarmly,\nTalent Acquisition Team\n${company}`,
       };
     case "follow_up":
       return {
-        subject: `Following Up – ${jobTitle} Application`,
-        body: `Dear ${name},\n\nI hope this message finds you well. I wanted to follow up regarding your application for the ${jobTitle} position at ${company}.\n\nWe are still in the review process and expect to have an update for you shortly. Thank you for your patience.\n\nPlease don't hesitate to reach out if you have any questions.\n\nBest regards,\nTalent Acquisition Team\n${company}`,
+        subject: `Just checking in, ${name} - your ${jobTitle} conversation with ${company}`,
+        body: `Hi ${name},\n\nI wanted to drop you a quick, friendly note - you've been on our minds since we last spoke about the ${jobTitle} role.\n\nWe know decisions like this matter, and we don't want you waiting in the dark. Things are moving on our side, and we'll have a clear update for you very soon.\n\nIn the meantime, if anything's come up or you'd simply like to talk something through, just reply here - we're always happy to.\n\nThank you for your patience, and for your interest in ${company}.\n\nWarmly,\nTalent Acquisition Team\n${company}`,
       };
   }
 }
@@ -81,8 +81,11 @@ const EmailTemplates = ({ applicant, job }: EmailTemplatesProps) => {
   };
 
   const handleMailTo = () => {
-    const mailto = `mailto:${applicant.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(mailto);
+    // Outlook honors CRLF (%0D%0A) line breaks; a bare \n collapses the draft into
+    // one block, which is what made it look unorganized. Send CRLF so the formal
+    // paragraph structure survives into the mail client.
+    const crlfBody = body.replace(/\r?\n/g, "\r\n");
+    window.location.href = `mailto:${applicant.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(crlfBody)}`;
   };
 
   return (
