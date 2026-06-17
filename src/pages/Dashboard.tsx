@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from "react";
+import { createPortal } from "react-dom";
 import lumofyLogo from "@/assets/lumofy-mark.png";
 import { Link } from "react-router-dom";
 import {
@@ -9,7 +10,7 @@ import {
 } from "lucide-react";
 import CommandPalette from "@/components/careers/CommandPalette";
 import PipelineCandidateCard from "@/components/careers/PipelineCandidateCard";
-import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, Draggable, type DropResult, type DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -116,6 +117,25 @@ const Dashboard = () => {
     }
     return map;
   }, [applicants]);
+
+  // One renderer for a pipeline card, reused by the live Draggable AND the drag
+  // clone (renderClone) so the dragged card looks identical and stays unclipped
+  // while moving across scrolling columns.
+  const renderPipelineCard = (
+    applicant: Applicant,
+    dragHandleProps: DraggableProvidedDragHandleProps | null,
+    isDragging: boolean,
+  ) => (
+    <PipelineCandidateCard
+      applicant={applicant}
+      jobTitle={applicant.jobTitle || getJobTitle(applicant.jobId)}
+      avgRating={avgRating(applicant)}
+      appliedJobsCount={applicant.email ? (jobsAppliedByEmail.get(applicant.email.trim().toLowerCase())?.size ?? 1) : 1}
+      isDragging={isDragging}
+      dragHandleProps={dragHandleProps}
+      onClick={() => { setSelectedApplicant(applicant); setActiveTab("applicants"); }}
+    />
+  );
 
   const handleStatusUpdate = async (applicantId: string, status: ApplicantStatus) => {
     try {
@@ -662,57 +682,60 @@ const Dashboard = () => {
                       {APPLICANT_STATUSES.map((status) => {
                         const columnApplicants = filteredApplicants.filter((a) => a.status === status.value);
                         return (
-                          <Droppable droppableId={status.value} key={status.value}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.droppableProps}
-                                className={`min-h-[350px] rounded-2xl p-2.5 transition-all duration-200 ${
-                                  snapshot.isDraggingOver
-                                    ? "bg-primary/5 ring-2 ring-primary/20 border-primary/20"
-                                    : "bg-secondary/30"
-                                }`}
-                              >
-                                <div className="flex items-center justify-between mb-3 px-1">
-                                  <div className="flex items-center gap-2">
-                                    <div className={`w-2.5 h-2.5 rounded-full ${status.color.split(" ")[0]}`} />
-                                    <span className="font-mono text-xs font-semibold uppercase tracking-wider text-foreground">{status.label}</span>
-                                  </div>
-                                  <span className="font-mono tabular-nums text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
-                                    {columnApplicants.length}
-                                  </span>
-                                </div>
-                                <div className="space-y-2">
+                          <div key={status.value} className="flex flex-col rounded-2xl bg-secondary/30 min-h-[320px] max-h-[calc(100vh-21rem)]">
+                            {/* Column header stays put while the card list scrolls below it */}
+                            <div className="flex items-center justify-between gap-2 px-3 pt-2.5 pb-2 flex-shrink-0">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${status.color.split(" ")[0]}`} />
+                                <span className="font-mono text-xs font-semibold uppercase tracking-wider text-foreground truncate">{status.label}</span>
+                              </div>
+                              <span className="font-mono tabular-nums text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground flex-shrink-0">
+                                {columnApplicants.length}
+                              </span>
+                            </div>
+                            <Droppable
+                              droppableId={status.value}
+                              renderClone={(prov, _snap, rubric) => {
+                                // Portal the dragged clone to <body> so it renders OUTSIDE the
+                                // column's overflow scroll AND the page's framer-motion `filter`
+                                // wrapper (a non-none filter would otherwise re-anchor the
+                                // position:fixed clone and clip it during cross-column drags).
+                                const dragged = columnApplicants[rubric.source.index];
+                                return createPortal(
+                                  <div ref={prov.innerRef} {...prov.draggableProps}>
+                                    {dragged ? renderPipelineCard(dragged, prov.dragHandleProps, true) : null}
+                                  </div>,
+                                  document.body,
+                                );
+                              }}
+                            >
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.droppableProps}
+                                  className={`flex-1 overflow-y-auto px-2.5 pb-2.5 space-y-2 rounded-b-2xl transition-colors duration-200 ${
+                                    snapshot.isDraggingOver ? "bg-primary/10 ring-2 ring-inset ring-primary/30" : ""
+                                  }`}
+                                >
                                   {columnApplicants.map((applicant, index) => (
                                     <Draggable key={applicant.id} draggableId={applicant.id} index={index}>
-                                      {(provided, snapshot) => (
-                                        <div
-                                          ref={provided.innerRef}
-                                          {...provided.draggableProps}
-                                          {...provided.dragHandleProps}
-                                        >
-                                          <PipelineCandidateCard
-                                            applicant={applicant}
-                                            jobTitle={applicant.jobTitle || getJobTitle(applicant.jobId)}
-                                            avgRating={avgRating(applicant)}
-                                            appliedJobsCount={applicant.email ? (jobsAppliedByEmail.get(applicant.email.trim().toLowerCase())?.size ?? 1) : 1}
-                                            isDragging={snapshot.isDragging}
-                                            onClick={() => { setSelectedApplicant(applicant); setActiveTab("applicants"); }}
-                                          />
+                                      {(prov, snap) => (
+                                        <div ref={prov.innerRef} {...prov.draggableProps}>
+                                          {renderPipelineCard(applicant, prov.dragHandleProps, snap.isDragging)}
                                         </div>
                                       )}
                                     </Draggable>
                                   ))}
                                   {columnApplicants.length === 0 && !snapshot.isDraggingOver && (
-                                    <div className="text-center py-8 text-muted-foreground/40">
-                                      <p className="text-[10px]">Drop here</p>
+                                    <div className="flex items-center justify-center rounded-xl border border-dashed border-border/60 py-10 text-center">
+                                      <p className="text-[10px] text-muted-foreground/50">Drop candidates here</p>
                                     </div>
                                   )}
                                   {provided.placeholder}
                                 </div>
-                              </div>
-                            )}
-                          </Droppable>
+                              )}
+                            </Droppable>
+                          </div>
                         );
                       })}
                     </div>

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Brain, Star, GripVertical, AlertTriangle, Clock, Layers } from "lucide-react";
+import type { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import type { Applicant } from "@/types/careers";
 import { STAGE_SLA_DAYS } from "@/types/careers";
@@ -13,6 +14,9 @@ interface PipelineCandidateCardProps {
   appliedJobsCount?: number;
   isDragging?: boolean;
   onClick?: () => void;
+  /** react-beautiful-dnd drag-handle props — applied to the grip so dragging is
+   * unambiguous (grab the grip to move, click the card to open). */
+  dragHandleProps?: DraggableProvidedDragHandleProps | null;
 }
 
 function getInitials(name: string) {
@@ -34,7 +38,7 @@ function getRankingTier(score: number): string {
 }
 
 export default function PipelineCandidateCard({
-  applicant, jobTitle, avgRating, appliedJobsCount, isDragging, onClick,
+  applicant, jobTitle, avgRating, appliedJobsCount, isDragging, onClick, dragHandleProps,
 }: PipelineCandidateCardProps) {
   const multiApply = (appliedJobsCount ?? 1) >= 2;
   const initials = useMemo(() => getInitials(applicant.fullName), [applicant.fullName]);
@@ -47,17 +51,11 @@ export default function PipelineCandidateCard({
   return (
     <div
       onClick={onClick}
-      role="button"
-      tabIndex={0}
-      aria-label={`Open ${applicant.fullName}'s profile`}
-      onKeyDown={(e) => {
-        if ((e.key === "Enter" || e.key === " ") && onClick) { e.preventDefault(); onClick(); }
-      }}
-      className={`rounded-xl bg-[hsl(var(--intel-card))] border p-3 cursor-pointer transition-all duration-200 group relative overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+      className={`rounded-xl bg-[hsl(var(--intel-card))] border p-3 cursor-pointer transition-all duration-200 group relative overflow-hidden ${
         isDragging
-          ? "shadow-xl ring-2 ring-primary/40 border-primary/50 scale-[1.02] cursor-grabbing"
+          ? "shadow-2xl ring-2 ring-primary/50 border-primary/60 rotate-[1deg]"
           : isOverdue
-          ? "border-destructive/40 hover:border-destructive/60"
+          ? "border-destructive/40 hover:border-destructive/60 hover:shadow-md"
           : "border-[hsl(var(--intel-border))] hover:border-primary/30 hover:shadow-md"
       }`}
     >
@@ -66,18 +64,31 @@ export default function PipelineCandidateCard({
         <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary/60 via-primary to-primary/60" />
       )}
 
-      {/* Header: Grip + Avatar + Name + Score. The whole card is the click target
-          (open profile) and the drag handle (the wrapper in Dashboard.tsx carries
-          react-beautiful-dnd's handle); a tap opens, a drag moves. */}
+      {/* Header: a dedicated drag HANDLE (grip) makes dragging unambiguous — grab the
+          grip to move, click the card (or the name) to open. The name is a real button
+          for keyboard-accessible open without stealing Space from the drag sensor. */}
       <div className="flex items-start gap-2">
-        <GripVertical className="w-3.5 h-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 mt-1 flex-shrink-0 transition-colors" aria-hidden="true" />
+        <span
+          {...(dragHandleProps ?? {})}
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Drag to move between stages"
+          title="Drag to move"
+          className="-ml-1 mt-0.5 flex-shrink-0 rounded-md p-1 text-muted-foreground/40 transition-colors cursor-grab active:cursor-grabbing hover:bg-[hsl(var(--intel-card-hover))] hover:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <GripVertical className="w-4 h-4" aria-hidden="true" />
+        </span>
         <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold flex-shrink-0">
           {initials}
         </div>
-        <div className="flex-1 min-w-0">
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+          className="flex-1 min-w-0 text-left rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={`Open ${applicant.fullName}'s profile`}
+        >
           <p className="text-sm font-semibold truncate leading-tight group-hover:text-primary transition-colors">{applicant.fullName}</p>
           <p className="text-[11px] text-muted-foreground truncate mt-0.5">{jobTitle}</p>
-        </div>
+        </button>
         {multiApply && (
           <span
             className="flex flex-shrink-0 items-center gap-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold text-primary"
