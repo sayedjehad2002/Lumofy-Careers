@@ -84,7 +84,7 @@ const allDepartments = [
   ...new Set([
     ...departments,
     "Human Resources", "Marketing", "Operations", "Customer Success",
-    "Product", "Engineering", "Finance", "Sales",
+    "Product", "Engineering", "Finance", "Sales", "Professional Services",
   ]),
 ];
 

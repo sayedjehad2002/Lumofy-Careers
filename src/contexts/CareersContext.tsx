@@ -105,7 +105,7 @@ export function dbRowToApplicant(row: any): Applicant {
     jobId: row.job_id,
     jobTitle: row.job_title || undefined,
     fullName: toTitleCase(row.full_name),
-    email: row.email,
+    email: row.email || "", // email is optional for HR-added candidates; coerce null → "" so consumers (mailto, dedup) stay safe
     phone: row.phone,
     location: row.location,
     nationality: row.nationality || undefined,

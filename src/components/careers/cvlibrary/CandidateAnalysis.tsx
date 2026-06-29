@@ -20,6 +20,10 @@ import { TONE_SOFT, TONE_TEXT, TONE_BORDER, scoreTone, type Tone } from "../stat
  * CV-library analyzer produces a subset (no scoreBreakdown/weights/confidence).
  */
 export interface CVAIAnalysis {
+  /** Set INSTEAD of a real analysis when the CV couldn't be read (Word file / no
+   *  extractable text). When true, show a "re-upload as PDF" state and NO score. */
+  unreadable?: boolean;
+  reason?: string;
   fitScore: number;
   fitLevel: string;
   recommendation: string;
@@ -338,6 +342,25 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
         <p className="mb-4 text-sm text-muted-foreground">Run the recruiter-grade analysis to score fit, surface evidence, and get interview questions.</p>
         <Button onClick={onRun} disabled={disabled}>
           <Brain className="mr-2 h-4 w-4" /> Run AI analysis
+        </Button>
+      </div>
+    );
+  }
+
+  // CV couldn't be read (Word file / no extractable text) — show a clear re-upload
+  // prompt instead of a score built from no data.
+  if (ai.unreadable) {
+    return (
+      <div className="rounded-2xl border border-dashed border-destructive/40 bg-card p-10 text-center light-glow">
+        <AlertCircle className="mx-auto mb-3 h-10 w-10 text-destructive/60" aria-hidden="true" />
+        <p className="mb-1 font-semibold">Couldn't read this CV</p>
+        <p className="mb-4 text-sm text-muted-foreground">
+          {ai.reason === "word"
+            ? "Word files (.doc/.docx) can't be read by our AI screening. Re-upload the CV as a PDF, then run the analysis again."
+            : "No readable text was found in this file. Re-upload a clear, text-based PDF, then run the analysis again."}
+        </p>
+        <Button onClick={onRun} disabled={disabled}>
+          <Brain className="mr-2 h-4 w-4" /> Re-run analysis
         </Button>
       </div>
     );

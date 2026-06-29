@@ -19,6 +19,7 @@ const TAXONOMY = {
   "Operations": ["Operations Manager", "Supply Chain Analyst", "Business Analyst", "Process Improvement Specialist", "Logistics Coordinator"],
   "Project Management": ["Project Manager", "Program Manager", "Scrum Master", "PMO Analyst", "Delivery Manager"],
   "Design": ["UI/UX Designer", "Graphic Designer", "Product Designer", "Visual Designer", "Design Lead"],
+  "Professional Services": ["Professional Services Manager", "Solutions Consultant", "Implementation Manager", "Service Delivery Lead", "Onboarding Consultant", "Technical Account Manager"],
 };
 
 const DEPARTMENTS = Object.keys(TAXONOMY);
@@ -145,7 +146,9 @@ Respond with valid JSON only (no markdown):
 }`;
 
     const response = await chatCompletion({
-      model: "google/gemini-2.5-pro",
+      // flash (not pro): classification returns a small JSON schema, so it doesn't hit
+      // the big-schema timeout that keeps the analyzers off pro — and it's ~3-5x faster.
+      model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Classify this candidate:\n\n${candidateInfo}` },

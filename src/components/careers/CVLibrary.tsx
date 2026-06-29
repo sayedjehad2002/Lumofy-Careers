@@ -77,6 +77,7 @@ const DEPARTMENTS = [
   "Human Resources", "Customer Success", "Account Management", "Client Services",
   "Customer Experience", "Sales", "Revenue Operations", "Product", "Engineering",
   "Data & Analytics", "Marketing", "Finance", "Operations", "Project Management", "Design",
+  "Professional Services",
 ];
 
 const CV_STATUSES = [
@@ -225,10 +226,23 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
     setProcessingIds(prev => new Set(prev).add(candidateId));
     try {
       // Step 1: Parse CV
-      const { error: parseErr } = await supabase.functions.invoke("cv-library-parse", {
+      const { data: parseData, error: parseErr } = await supabase.functions.invoke("cv-library-parse", {
         body: { candidateId, sessionToken },
       });
       if (parseErr) import.meta.env.DEV && console.error("Parse error:", parseErr);
+
+      // Fail fast on unreadable CVs (Word docs / no extractable text): parse already
+      // flagged ai_analysis as unreadable — reflect it and SKIP classify + analyze
+      // (saves two slow AI calls and avoids a meaningless score).
+      if (parseData?.unreadable) {
+        const marker = { unreadable: true, reason: parseData.reason } as unknown as CVAIAnalysis;
+        setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, ai_analysis: marker } : c));
+        setSelectedCandidate(prev => prev?.id === candidateId ? { ...prev, ai_analysis: marker } : prev);
+        toast.error(parseData.reason === "word"
+          ? "Couldn't read this Word file — re-upload the CV as a PDF."
+          : "Couldn't read this file — re-upload a clear PDF.");
+        return;
+      }
 
       // Step 2: Classify
       const { error: classErr } = await supabase.functions.invoke("cv-library-classify", {
@@ -979,6 +993,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
                     const isProcessing = processingIds.has(c.id);
                     const statusInfo = CV_STATUSES.find(s => s.value === c.status);
                     const ai = c.ai_analysis;
+                    const unreadable = ai?.unreadable === true; // parse couldn't read the file (Word / no text)
                     const initials = c.name
                       ? c.name.split(/\s+/).length >= 2
                         ? (c.name.split(/\s+/)[0][0] + c.name.split(/\s+/).pop()![0]).toUpperCase()
@@ -1004,17 +1019,20 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-sm">{toTitleCase(c.name) || "Processing..."}</span>
+                              <span className="font-semibold text-sm">{toTitleCase(c.name) || (isProcessing ? "Processing…" : unreadable ? "Unreadable CV" : "Unnamed candidate")}</span>
                               <Badge className={`text-[10px] border-0 ${statusInfo?.color}`}>{statusInfo?.label}</Badge>
                               {c.classification_confidence && (
                                 <Badge className={`text-[10px] border-0 ${CONFIDENCE_COLORS[c.classification_confidence]}`}>
                                   {c.classification_confidence}
                                 </Badge>
                               )}
-                              {ai && (
+                              {ai && !unreadable && (
                                 <Badge className={`text-[10px] border-0 ${TONE_SOFT[scoreTone(ai.fitScore)]}`}>
                                   <Brain className="w-2.5 h-2.5 mr-1" aria-hidden="true" /> {ai.fitScore}/100
                                 </Badge>
+                              )}
+                              {unreadable && (
+                                <Badge variant="destructive" className="text-[10px]">Couldn't read · re-upload PDF</Badge>
                               )}
                               {isDuplicate && (
                                 <Badge variant="destructive" className="text-[10px]">Possible Duplicate</Badge>
@@ -1145,6 +1163,7 @@ function EditCandidateDialog({
     "Human Resources", "Customer Success", "Account Management", "Client Services",
     "Customer Experience", "Sales", "Revenue Operations", "Product", "Engineering",
     "Data & Analytics", "Marketing", "Finance", "Operations", "Project Management", "Design",
+    "Professional Services",
   ];
 
   const handleSubmit = async () => {

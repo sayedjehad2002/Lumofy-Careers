@@ -34,9 +34,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Download file
+    // Mark a candidate unreadable: store a marker on ai_analysis so the UI shows a
+    // clear "re-upload as PDF" state and the client pipeline skips the (wasted)
+    // classify + analyze calls. Returns the response to send.
+    const markUnreadable = async (reason: "word" | "no_text") => {
+      await supabase.from("cv_library_candidates")
+        .update({ ai_analysis: { unreadable: true, reason } })
+        .eq("id", candidateId);
+      return new Response(JSON.stringify({ unreadable: true, reason }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    };
+
+    // Gemini cannot read Word .doc/.docx natively — short-circuit BEFORE the
+    // download + AI call so the candidate is flagged and the pipeline stops early.
+    const ext = candidate.resume_file_path.split(".").pop()?.toLowerCase();
+    if (ext === "doc" || ext === "docx") {
+      return await markUnreadable("word");
+    }
+
+    // Download file (PDF/image only at this point)
     let cvBase64: string | null = null;
-    let cvMimeType = "application/pdf";
+    const cvMimeType = "application/pdf";
 
     const { data: fileData, error: dlError } = await supabase.storage
       .from("cv-library")
@@ -62,10 +81,6 @@ Deno.serve(async (req) => {
       binary += String.fromCharCode(bytes[i]);
     }
     cvBase64 = btoa(binary);
-
-    const ext = candidate.resume_file_path.split(".").pop()?.toLowerCase();
-    if (ext === "doc") cvMimeType = "application/msword";
-    else if (ext === "docx") cvMimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
     // AI calls now route through the shared OpenRouter helper (../_shared/ai.ts).
 
@@ -139,6 +154,12 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
     if (!parsed) {
       console.error("Parse failed:", content);
       throw new Error("Failed to parse AI response");
+    }
+
+    // Nothing usable extracted (scanned image, empty/garbled layout) → flag unreadable
+    // instead of writing an empty profile that would yield a meaningless score.
+    if (!parsed.name && !parsed.extracted_text_summary) {
+      return await markUnreadable("no_text");
     }
 
     const overrides = (candidate.manual_overrides || {}) as Record<string, boolean>;

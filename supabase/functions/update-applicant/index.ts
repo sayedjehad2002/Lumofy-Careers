@@ -19,8 +19,11 @@ Deno.serve(async (req) => {
 
     // CREATE: add an applicant row (used by the CV Library "Add to job" flow).
     if (action === "create") {
-      if (!applicant?.job_id || !applicant?.email) {
-        return new Response(JSON.stringify({ error: "applicant with job_id and email is required" }), {
+      // Email is OPTIONAL on this admin path (HR can add a CV-library candidate to a
+      // pipeline even when the CV had no email). The public apply form still requires
+      // email via submit-application. Only job_id is mandatory here.
+      if (!applicant?.job_id) {
+        return new Response(JSON.stringify({ error: "applicant with job_id is required" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }

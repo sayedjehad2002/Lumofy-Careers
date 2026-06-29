@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ArrowRight, Briefcase, Check, Loader2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -48,8 +47,8 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
   const selectedJob = openJobs.find(j => j.id === selectedJobId);
 
   const handleAddToJob = async () => {
-    if (!selectedJob || !candidate.email) {
-      toast.error("Candidate must have an email to be added to a job");
+    if (!selectedJob) {
+      toast.error("Pick a job to add this candidate to");
       return;
     }
 
@@ -68,7 +67,7 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
             job_id: selectedJob.id,
             job_title: selectedJob.title,
             full_name: candidate.name || "Unknown",
-            email: candidate.email,
+            email: candidate.email || null,
             phone: candidate.phone || "",
             location: candidate.location || "",
             nationality: candidate.nationality,
@@ -128,7 +127,7 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
           <div className="space-y-4">
             <div className="rounded-lg bg-secondary/30 p-3">
               <p className="text-sm font-medium">{candidate.name || "Unknown"}</p>
-              <p className="text-xs text-muted-foreground">{candidate.email}</p>
+              <p className="text-xs text-muted-foreground">{candidate.email || "No email on file"}</p>
             </div>
 
             <div>
@@ -153,13 +152,15 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
             )}
 
             {!candidate.email && (
-              <Badge variant="destructive" className="text-xs">Email required. Please edit the candidate first.</Badge>
+              <p className="text-xs text-muted-foreground">
+                No email on file — you can still add this candidate. You won't be able to email or schedule with them (or auto-detect duplicates) until an email is added.
+              </p>
             )}
           </div>
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddToJob} disabled={!selectedJobId || !candidate.email || submitting}>
+            <Button onClick={handleAddToJob} disabled={!selectedJobId || submitting}>
               {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <ArrowRight className="w-4 h-4 mr-1" />}
               Add to pipeline
             </Button>
