@@ -23,4 +23,15 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  {
+    // Supabase Edge Functions are Deno, not part of the Vite app build, and lean on
+    // `any` for AI/LLM JSON blobs and use the `import.meta.env.DEV && console.*`
+    // dev-only logging pattern. Relax those two rules here so `npm run lint` stays a
+    // meaningful signal for the app code.
+    files: ["supabase/functions/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-expressions": "off",
+    },
+  },
 );

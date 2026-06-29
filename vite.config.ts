@@ -19,6 +19,10 @@ export default defineConfig(() => ({
     dedupe: ["react", "react-dom", "react/jsx-runtime"],
   },
   build: {
+    // The pdf vendor chunk (jspdf + html2canvas + dompurify) is large but route-lazy
+    // — only loaded on dashboard export, never on the public site. Raise the warning
+    // threshold so a clean build doesn't flag an intentional, deferred chunk.
+    chunkSizeWarningLimit: 700,
     rollupOptions: {
       output: {
         // Split heavy, independently-cached libs so route-lazy chunks don't

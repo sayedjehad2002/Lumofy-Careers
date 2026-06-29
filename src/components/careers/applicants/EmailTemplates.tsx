@@ -55,6 +55,9 @@ function generateTemplate(type: TemplateType, applicant: Applicant, job: Job | u
 }
 
 const EmailTemplates = ({ applicant, job }: EmailTemplatesProps) => {
+  // Email is optional for HR-added candidates — gate the "send" action so we never
+  // open a recipient-less mailto. The draft itself stays editable/copyable.
+  const hasEmail = !!applicant.email;
   const [selectedType, setSelectedType] = useState<TemplateType>("interview_invite");
   const [subject, setSubject] = useState(() => generateTemplate("interview_invite", applicant, job).subject);
   const [body, setBody] = useState(() => generateTemplate("interview_invite", applicant, job).body);
@@ -81,6 +84,10 @@ const EmailTemplates = ({ applicant, job }: EmailTemplatesProps) => {
   };
 
   const handleMailTo = () => {
+    if (!hasEmail) {
+      toast.error("Add this candidate's email first");
+      return;
+    }
     // Outlook honors CRLF (%0D%0A) line breaks; a bare \n collapses the draft into
     // one block, which is what made it look unorganized. Send CRLF so the formal
     // paragraph structure survives into the mail client.
@@ -98,7 +105,7 @@ const EmailTemplates = ({ applicant, job }: EmailTemplatesProps) => {
           Quick Email
         </CardTitle>
         <CardDescription className="ml-[42px] text-xs">
-          Send to {applicant.email}
+          {hasEmail ? `Send to ${applicant.email}` : "Add an email to send"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -142,7 +149,13 @@ const EmailTemplates = ({ applicant, job }: EmailTemplatesProps) => {
 
           {/* Actions */}
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleMailTo} className="text-xs h-9 rounded-xl">
+            <Button
+              size="sm"
+              onClick={handleMailTo}
+              disabled={!hasEmail}
+              title={hasEmail ? undefined : "This candidate has no email on file"}
+              className="text-xs h-9 rounded-xl"
+            >
               <Send className="w-3.5 h-3.5 mr-1.5" />
               Open in mail client
             </Button>
