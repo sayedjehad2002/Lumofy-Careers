@@ -49,9 +49,11 @@ export default function BulkReparse({ candidates, filteredIds, onReparse, onRefr
     let done = 0;
     let fail = 0;
 
-    // Process in batches of 3
-    for (let i = 0; i < targetIds.length; i += 3) {
-      const batch = targetIds.slice(i, i + 3);
+    // Process in gentle batches of 2 (each candidate = parse + classify + analyze, so
+    // 2 candidates already means several concurrent AI calls). Small batches + a pause
+    // keep us well under Gemini's rate/overload limits during a big re-parse.
+    for (let i = 0; i < targetIds.length; i += 2) {
+      const batch = targetIds.slice(i, i + 2);
       const results = await Promise.allSettled(batch.map(id => onReparse(id)));
 
       results.forEach(r => {
@@ -63,9 +65,9 @@ export default function BulkReparse({ candidates, filteredIds, onReparse, onRefr
       setFailed(fail);
       setProgress(Math.round(((done + fail) / targetIds.length) * 100));
 
-      // Small delay between batches to avoid rate limits
-      if (i + 3 < targetIds.length) {
-        await new Promise(resolve => setTimeout(resolve, 1500));
+      // Pause between batches to avoid rate limits / model-overload (503) errors.
+      if (i + 2 < targetIds.length) {
+        await new Promise(resolve => setTimeout(resolve, 2500));
       }
     }
 
@@ -133,7 +135,7 @@ export default function BulkReparse({ candidates, filteredIds, onReparse, onRefr
         )}
 
         <p className="text-[10px] text-muted-foreground">
-          ⚡ Processing in batches of 3 with delays to avoid rate limits. Manual HR overrides are preserved.
+          ⚡ Processing in small batches with delays to avoid rate limits. Manual HR overrides are preserved.
         </p>
       </div>
     </div>

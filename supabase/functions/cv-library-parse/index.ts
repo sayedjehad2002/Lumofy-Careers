@@ -1,7 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { validateSession } from "../_shared/validate-session.ts";
-import { chatCompletion, parseJsonResponse, UNTRUSTED_DATA_NOTE, currentDateLine, MODELS } from "../_shared/ai.ts";
+import { chatCompletion, parseJsonResponse, UNTRUSTED_DATA_NOTE, currentDateLine } from "../_shared/ai.ts";
 
 // CV is base64-encoded into the AI request; cap raw size before encode.
 const MAX_CV_BYTES = 10 * 1024 * 1024; // 10MB
@@ -26,56 +26,6 @@ function deriveNameFromFilename(fileName?: string | null): string | null {
   // But require at least one real (multi-letter) name part, so "a b c" isn't a name.
   if (!words.some((w) => w.replace(/[.'’-]/g, "").length >= 2)) return null;
   return words.join(" ");
-}
-
-// Focused name recovery. The main parse (flash) frequently returns a full profile
-// but a NULL name on LinkedIn exports, sidebar/multi-column layouts, and designed
-// templates. Rather than store a null name (shown as "Unnamed candidate"), make one
-// laser-focused pass on the strong vision model that does a single job: find the
-// person's name in the DOCUMENT (header/sidebar/contact block, or inferred from an
-// email printed on the CV). It deliberately does NOT use the file name — that stays
-// a separate, readable-gated fallback so a blank/scanned CV can't be rescued from
-// the "unreadable" state by a filename guess. Only runs when the name is missing,
-// so normal CVs pay no extra latency.
-async function recoverNameFocused(
-  cvBase64: string,
-  mimeType: string,
-): Promise<string | null> {
-  try {
-    const messages = [
-      {
-        role: "system",
-        content: `You extract exactly ONE thing from a CV/resume: the candidate's full personal name.
-The name is almost always the largest/most prominent text at the very TOP of the first page. If it is not obvious there, scan the header, footer, sidebar, and any "Contact"/"Profile" block. This may be a LinkedIn profile export or a designed template. If the printed name is still unclear, infer it from an email address's local part shown on the CV (e.g. "ahmed.alsaegh@..." -> "Ahmed Alsaegh").
-Judge ONLY from the document's actual content — never invent a name.
-Respond with ONLY a JSON object, no prose and no code fences:
-{"name": "<the candidate's full name>"}
-Return {"name": null} if there is genuinely no human name present in the document.`,
-      },
-      {
-        role: "user",
-        content: [
-          { type: "text", text: `What is the candidate's full name? Return ONLY the JSON.` },
-          { type: "image_url", image_url: { url: `data:${mimeType};base64,${cvBase64}` } },
-        ],
-      },
-    ];
-    const res = await chatCompletion({
-      model: MODELS.visionStrong, // gemini-2.5-pro reads designed/scanned layouts better than flash
-      messages,
-      hasImages: true,
-      max_tokens: 60,             // a name is tiny — keeps this pass fast
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const parsed = parseJsonResponse<{ name?: unknown }>(data.choices?.[0]?.message?.content);
-    const n = typeof parsed?.name === "string" ? parsed.name.trim() : "";
-    // Reject empties, the literal "null", overly long strings, and text with no letters.
-    if (!n || n.toLowerCase() === "null" || n.length > 80 || !/\p{L}/u.test(n)) return null;
-    return n;
-  } catch {
-    return null; // recovery is best-effort — never let it break the parse
-  }
 }
 
 Deno.serve(async (req) => {
@@ -235,57 +185,24 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
       return await markUnreadable("ai_error");
     }
 
-    // Escalate to the strong model when flash returned an (almost) empty extraction.
-    // On some LinkedIn exports and heavily-designed CVs, flash intermittently returns
-    // nulls for EVERYTHING even though the CV is readable (the analyze step, which reads
-    // the same PDF, gets the full picture). A single pro re-parse recovers the real
-    // fields so the profile AND the downstream classification aren't left blank. Only
-    // runs on the sparse cases, so normal CVs keep flash's speed.
-    const isSparse = (o: Record<string, any> | null) =>
-      !o || (!o.extracted_text_summary && !o.email && !o.phone &&
-             (!Array.isArray(o.skills) || o.skills.length === 0));
-    if (isSparse(parsed)) {
-      try {
-        const proRes = await chatCompletion({
-          model: MODELS.visionStrong, // gemini-2.5-pro reads designed/LinkedIn CVs reliably
-          messages,
-          hasImages: true,
-          max_tokens: 3000,
-          temperature: 0.1,
-        });
-        if (proRes.ok) {
-          const proData = await proRes.json();
-          const proParsed = parseJsonResponse<Record<string, any>>(proData.choices?.[0]?.message?.content);
-          if (proParsed && !isSparse(proParsed)) parsed = proParsed;
-        }
-      } catch (_e) { /* keep the flash result; escalation is best-effort */ }
-    }
-
     const overrides = (candidate.manual_overrides || {}) as Record<string, boolean>;
 
-    // NAME RECOVERY. flash often returns a full profile but a NULL name on LinkedIn
-    // exports, sidebar/multi-column layouts, and designed CVs. Rather than store a
-    // null name (which shows as "Unnamed candidate"), resolve it with fallbacks:
-    // (1) what the main parse found, (2) a focused strong-model pass, (3) the file
-    // name. Skip all of this when HR has manually locked the name.
+    // Resolve the candidate name from the SINGLE flash parse (HR-locked names win).
+    // No extra AI calls here — one flash request per CV keeps Gemini load low and
+    // avoids the 5xx overload that stacking pro calls per CV was causing across a
+    // bulk re-parse. The deterministic temperature (0.1) already makes flash extract
+    // reliably when the API is healthy.
     let resolvedName: string | null =
       typeof parsed.name === "string" && parsed.name.trim() ? parsed.name.trim() : null;
-    if (overrides.name) {
-      resolvedName = candidate.name || resolvedName;
-    } else if (!resolvedName) {
-      // Focused strong-model pass reads the document itself (header/sidebar/email).
-      resolvedName = await recoverNameFocused(cvBase64, cvMimeType);
-    }
+    if (overrides.name) resolvedName = candidate.name || resolvedName;
 
-    // Unreadable ONLY when the document yields nothing: no text AND no name found in
-    // the document (by the parse or the focused pass). A blank/scanned CV stays
-    // unreadable — a filename guess must NOT rescue it into a meaningless score.
+    // Unreadable only when the document yielded nothing: no name AND no text. A blank
+    // CV stays unreadable — a filename guess must not rescue it into a meaningless score.
     if (!resolvedName && !parsed.extracted_text_summary) {
       return await markUnreadable("no_text");
     }
 
-    // Readable CV that's still missing a name (rare double-miss) → last-resort
-    // display name derived from the file name, e.g. "Ahmed_Al_Sagheer_CV.pdf".
+    // Readable CV still missing a name → last-resort display name from the file name.
     if (!resolvedName && !overrides.name) {
       resolvedName = deriveNameFromFilename(candidate.resume_file_name);
     }
