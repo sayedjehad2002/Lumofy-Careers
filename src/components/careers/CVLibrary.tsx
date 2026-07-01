@@ -16,7 +16,7 @@ import BulkReparse from "./cvlibrary/BulkReparse";
 import CandidateTags from "./cvlibrary/CandidateTags";
 import PipelineIntegration from "./cvlibrary/PipelineIntegration";
 import { useCareers } from "@/contexts/CareersContext";
-import { toTitleCase } from "@/lib/utils";
+import { toTitleCase, candidateDisplayName } from "@/lib/utils";
 const ExportReporting = lazy(() => import("./cvlibrary/ExportReporting")); // lazy: defers xlsx (~94KB) to the Export sub-tab
 import DataCompleteness from "./cvlibrary/DataCompleteness";
 import GDPRRetention from "./cvlibrary/GDPRRetention";
@@ -513,7 +513,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
             <div className="rounded-2xl bg-card border border-border p-6 light-glow">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h1 className="text-2xl font-bold">{toTitleCase(c.name) || "Unknown Candidate"}</h1>
+                  <h1 className="text-2xl font-bold">{candidateDisplayName(c.name, c.resume_file_name) || "Unknown Candidate"}</h1>
                   <p className="text-sm text-muted-foreground mt-1">{c.resume_file_name}</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -994,10 +994,12 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
                     const statusInfo = CV_STATUSES.find(s => s.value === c.status);
                     const ai = c.ai_analysis;
                     const unreadable = ai?.unreadable === true; // parse couldn't read the file (Word / no text)
-                    const initials = c.name
-                      ? c.name.split(/\s+/).length >= 2
-                        ? (c.name.split(/\s+/)[0][0] + c.name.split(/\s+/).pop()![0]).toUpperCase()
-                        : c.name.substring(0, 2).toUpperCase()
+                    // Name to show: parsed name, else derived from the file name.
+                    const displayName = candidateDisplayName(c.name, c.resume_file_name);
+                    const initials = displayName
+                      ? displayName.split(/\s+/).length >= 2
+                        ? (displayName.split(/\s+/)[0][0] + displayName.split(/\s+/).pop()![0]).toUpperCase()
+                        : displayName.substring(0, 2).toUpperCase()
                       : "??";
 
                     const isDuplicate = candidates.some(
@@ -1019,7 +1021,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-sm">{toTitleCase(c.name) || (isProcessing ? "Processing…" : unreadable ? "Unreadable CV" : "Unnamed candidate")}</span>
+                              <span className="font-semibold text-sm">{displayName || (isProcessing ? "Processing…" : unreadable ? "Unreadable CV" : "Unnamed candidate")}</span>
                               <Badge className={`text-[10px] border-0 ${statusInfo?.color}`}>{statusInfo?.label}</Badge>
                               {c.classification_confidence && (
                                 <Badge className={`text-[10px] border-0 ${CONFIDENCE_COLORS[c.classification_confidence]}`}>

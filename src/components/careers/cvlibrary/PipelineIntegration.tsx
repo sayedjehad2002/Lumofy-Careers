@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { candidateDisplayName } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface CVCandidate {
@@ -66,7 +67,7 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
             id: applicantId,
             job_id: selectedJob.id,
             job_title: selectedJob.title,
-            full_name: candidate.name || "Unknown",
+            full_name: candidateDisplayName(candidate.name, candidate.resume_file_name) || "Unknown",
             email: candidate.email || null,
             phone: candidate.phone || "",
             location: candidate.location || "",
@@ -126,7 +127,7 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
 
           <div className="space-y-4">
             <div className="rounded-lg bg-secondary/30 p-3">
-              <p className="text-sm font-medium">{candidate.name || "Unknown"}</p>
+              <p className="text-sm font-medium">{candidateDisplayName(candidate.name, candidate.resume_file_name) || "Unknown"}</p>
               <p className="text-xs text-muted-foreground">{candidate.email || "No email on file"}</p>
             </div>
 
