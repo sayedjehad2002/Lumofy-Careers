@@ -226,10 +226,36 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
 
-    const parsed = parseJsonResponse<Record<string, any>>(content);
+    let parsed = parseJsonResponse<Record<string, any>>(content);
     if (!parsed) {
       console.error("Parse failed:", content);
       throw new Error("Failed to parse AI response");
+    }
+
+    // Escalate to the strong model when flash returned an (almost) empty extraction.
+    // On some LinkedIn exports and heavily-designed CVs, flash intermittently returns
+    // nulls for EVERYTHING even though the CV is readable (the analyze step, which reads
+    // the same PDF, gets the full picture). A single pro re-parse recovers the real
+    // fields so the profile AND the downstream classification aren't left blank. Only
+    // runs on the sparse cases, so normal CVs keep flash's speed.
+    const isSparse = (o: Record<string, any> | null) =>
+      !o || (!o.extracted_text_summary && !o.email && !o.phone &&
+             (!Array.isArray(o.skills) || o.skills.length === 0));
+    if (isSparse(parsed)) {
+      try {
+        const proRes = await chatCompletion({
+          model: MODELS.visionStrong, // gemini-2.5-pro reads designed/LinkedIn CVs reliably
+          messages,
+          hasImages: true,
+          max_tokens: 3000,
+          temperature: 0.1,
+        });
+        if (proRes.ok) {
+          const proData = await proRes.json();
+          const proParsed = parseJsonResponse<Record<string, any>>(proData.choices?.[0]?.message?.content);
+          if (proParsed && !isSparse(proParsed)) parsed = proParsed;
+        }
+      } catch (_e) { /* keep the flash result; escalation is best-effort */ }
     }
 
     const overrides = (candidate.manual_overrides || {}) as Record<string, boolean>;

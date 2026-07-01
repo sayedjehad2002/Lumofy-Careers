@@ -154,6 +154,8 @@ Respond with valid JSON only (no markdown):
         { role: "user", content: `Classify this candidate:\n\n${candidateInfo}` },
       ],
       hasImages: false,
+      temperature: 0.1, // deterministic classification — same CV should map to the same
+                        // department/role every time (default ~1.0 gave inconsistent best-fits)
     });
 
     if (!response.ok) {
