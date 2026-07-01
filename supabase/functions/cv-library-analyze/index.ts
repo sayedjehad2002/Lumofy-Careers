@@ -186,7 +186,11 @@ You MUST respond with a single valid JSON object (no markdown, no code blocks). 
       }
       const t = await response.text();
       console.error("AI error:", response.status, t);
-      throw new Error("AI gateway error");
+      // Gemini failed after retries + fallback models (unreadable file or sustained
+      // overload). Return a clean, retryable message instead of a raw 500 crash.
+      return new Response(JSON.stringify({ error: "AI is temporarily unavailable for this CV. Please try again in a moment.", retryable: true }), {
+        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const data = await response.json();

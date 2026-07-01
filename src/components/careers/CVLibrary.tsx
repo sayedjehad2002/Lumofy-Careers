@@ -240,6 +240,8 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
         setSelectedCandidate(prev => prev?.id === candidateId ? { ...prev, ai_analysis: marker } : prev);
         toast.error(parseData.reason === "word"
           ? "Couldn't read this Word file — re-upload the CV as a PDF."
+          : parseData.reason === "ai_error"
+          ? "AI couldn't process this CV — re-parse to retry, or re-upload a clearer PDF."
           : "Couldn't read this file — re-upload a clear PDF.");
         return;
       }

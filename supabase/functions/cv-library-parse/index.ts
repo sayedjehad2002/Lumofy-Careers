@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
     // Mark a candidate unreadable: store a marker on ai_analysis so the UI shows a
     // clear "re-upload as PDF" state and the client pipeline skips the (wasted)
     // classify + analyze calls. Returns the response to send.
-    const markUnreadable = async (reason: "word" | "no_text") => {
+    const markUnreadable = async (reason: "word" | "no_text" | "ai_error") => {
       await supabase.from("cv_library_candidates")
         .update({ ai_analysis: { unreadable: true, reason } })
         .eq("id", candidateId);
@@ -220,7 +220,10 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
       }
       const t = await response.text();
       console.error("AI error:", response.status, t);
-      throw new Error("AI gateway error");
+      // Gemini failed for THIS file even after retries + fallback models (a corrupt or
+      // unsupported PDF, or sustained overload). Don't hard-500 — flag it so the UI shows
+      // a clear "re-parse / re-upload" state and the pipeline skips it gracefully.
+      return await markUnreadable("ai_error");
     }
 
     const data = await response.json();
@@ -229,7 +232,7 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
     let parsed = parseJsonResponse<Record<string, any>>(content);
     if (!parsed) {
       console.error("Parse failed:", content);
-      throw new Error("Failed to parse AI response");
+      return await markUnreadable("ai_error");
     }
 
     // Escalate to the strong model when flash returned an (almost) empty extraction.
