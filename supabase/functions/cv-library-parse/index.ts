@@ -14,14 +14,17 @@ function deriveNameFromFilename(fileName?: string | null): string | null {
   if (!fileName) return null;
   let base = fileName.replace(/\.[^.]+$/, "");                 // strip extension
   base = base.replace(/[._\-]+/g, " ");                         // separators -> spaces
-  // Drop common CV words, versions, and standalone numbers/dates.
-  base = base.replace(/\b(cv|resume|resumee|curriculum\s*vitae|vitae|profile|final|updated?|latest|copy|new|draft|\d{2,4})\b/gi, " ");
+  // Drop common CV words, versions, anonymization markers, and standalone numbers.
+  base = base.replace(/\b(cv|resume|resumee|curriculum\s*vitae|vitae|profile|final|updated?|latest|copy|new|draft|anonymous|anon|redacted|\d{2,4})\b/gi, " ");
   base = base.replace(/\s+/g, " ").trim();
   const junk = new Set(["document", "untitled", "download", "file", "the", "my", "mr", "mrs", "ms", "dr", "eng"]);
+  // Allow single-letter initials ("Leena A") — don't require every part to be 2+ chars.
   const words = base
     .split(" ")
-    .filter((w) => /^[A-Za-z][A-Za-z.'’-]+$/.test(w) && !junk.has(w.toLowerCase()));
-  if (words.length < 2 || words.length > 5) return null;        // need a plausible human name
+    .filter((w) => /^[A-Za-z][A-Za-z.'’-]*$/.test(w) && !junk.has(w.toLowerCase()));
+  if (words.length < 2 || words.length > 6) return null;        // need a plausible human name
+  // But require at least one real (multi-letter) name part, so "a b c" isn't a name.
+  if (!words.some((w) => w.replace(/[.'’-]/g, "").length >= 2)) return null;
   return words.join(" ");
 }
 
@@ -198,7 +201,10 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
       model: "google/gemini-3-flash-preview",
       messages,
       hasImages: true,
-      max_tokens: 3000, // room for the comprehensive, evidence-rich profile summary
+      max_tokens: 3000,  // room for the comprehensive, evidence-rich profile summary
+      temperature: 0.1,  // deterministic extraction — the default (~1.0) made the model
+                         // erratically return null for the name/contact fields on clearly
+                         // readable CVs (analyze reads the same CV fine at temp 0.2).
     });
 
     if (!response.ok) {
