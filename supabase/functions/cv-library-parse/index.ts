@@ -1,10 +1,79 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { validateSession } from "../_shared/validate-session.ts";
-import { chatCompletion, parseJsonResponse, UNTRUSTED_DATA_NOTE, currentDateLine } from "../_shared/ai.ts";
+import { chatCompletion, parseJsonResponse, UNTRUSTED_DATA_NOTE, currentDateLine, MODELS } from "../_shared/ai.ts";
 
 // CV is base64-encoded into the AI request; cap raw size before encode.
 const MAX_CV_BYTES = 10 * 1024 * 1024; // 10MB
+
+// Last-resort name fallback: derive a display name from the CV's FILE NAME when the
+// model can't read one off the page (e.g. "Ahmed_Al_Sagheer_CV.pdf" -> "Ahmed Al
+// Sagheer"). Returns null for filenames with no plausible human name (LinkedIn's
+// "Profile.pdf", "document.pdf", "resume.pdf").
+function deriveNameFromFilename(fileName?: string | null): string | null {
+  if (!fileName) return null;
+  let base = fileName.replace(/\.[^.]+$/, "");                 // strip extension
+  base = base.replace(/[._\-]+/g, " ");                         // separators -> spaces
+  // Drop common CV words, versions, and standalone numbers/dates.
+  base = base.replace(/\b(cv|resume|resumee|curriculum\s*vitae|vitae|profile|final|updated?|latest|copy|new|draft|\d{2,4})\b/gi, " ");
+  base = base.replace(/\s+/g, " ").trim();
+  const junk = new Set(["document", "untitled", "download", "file", "the", "my", "mr", "mrs", "ms", "dr", "eng"]);
+  const words = base
+    .split(" ")
+    .filter((w) => /^[A-Za-z][A-Za-z.'’-]+$/.test(w) && !junk.has(w.toLowerCase()));
+  if (words.length < 2 || words.length > 5) return null;        // need a plausible human name
+  return words.join(" ");
+}
+
+// Focused name recovery. The main parse (flash) frequently returns a full profile
+// but a NULL name on LinkedIn exports, sidebar/multi-column layouts, and designed
+// templates. Rather than store a null name (shown as "Unnamed candidate"), make one
+// laser-focused pass on the strong vision model that does a single job: find the
+// person's name in the DOCUMENT (header/sidebar/contact block, or inferred from an
+// email printed on the CV). It deliberately does NOT use the file name — that stays
+// a separate, readable-gated fallback so a blank/scanned CV can't be rescued from
+// the "unreadable" state by a filename guess. Only runs when the name is missing,
+// so normal CVs pay no extra latency.
+async function recoverNameFocused(
+  cvBase64: string,
+  mimeType: string,
+): Promise<string | null> {
+  try {
+    const messages = [
+      {
+        role: "system",
+        content: `You extract exactly ONE thing from a CV/resume: the candidate's full personal name.
+The name is almost always the largest/most prominent text at the very TOP of the first page. If it is not obvious there, scan the header, footer, sidebar, and any "Contact"/"Profile" block. This may be a LinkedIn profile export or a designed template. If the printed name is still unclear, infer it from an email address's local part shown on the CV (e.g. "ahmed.alsaegh@..." -> "Ahmed Alsaegh").
+Judge ONLY from the document's actual content — never invent a name.
+Respond with ONLY a JSON object, no prose and no code fences:
+{"name": "<the candidate's full name>"}
+Return {"name": null} if there is genuinely no human name present in the document.`,
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: `What is the candidate's full name? Return ONLY the JSON.` },
+          { type: "image_url", image_url: { url: `data:${mimeType};base64,${cvBase64}` } },
+        ],
+      },
+    ];
+    const res = await chatCompletion({
+      model: MODELS.visionStrong, // gemini-2.5-pro reads designed/scanned layouts better than flash
+      messages,
+      hasImages: true,
+      max_tokens: 60,             // a name is tiny — keeps this pass fast
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const parsed = parseJsonResponse<{ name?: unknown }>(data.choices?.[0]?.message?.content);
+    const n = typeof parsed?.name === "string" ? parsed.name.trim() : "";
+    // Reject empties, the literal "null", overly long strings, and text with no letters.
+    if (!n || n.toLowerCase() === "null" || n.length > 80 || !/\p{L}/u.test(n)) return null;
+    return n;
+  } catch {
+    return null; // recovery is best-effort — never let it break the parse
+  }
+}
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -93,7 +162,8 @@ ${currentDateLine()}
 When a role or study period is marked "Present"/"Current"/ongoing or has no end date, treat it as running up to today's date when calculating durations or years of experience. Dates in the current or recent year are normal — never treat recent dates as invalid or future.
 
 CRITICAL RULES:
-- Read the ENTIRE document carefully — it may be a scanned image, a multi-column layout, or a heavily designed CV. Scan the header, footer, sidebar, and any "Contact" section for the candidate's name, email, and phone number. A CV almost always contains these; only return null if they are genuinely absent.
+- The candidate's NAME is the single most important field. It is almost always the largest/most prominent text at the very TOP of the first page. This may be a LinkedIn profile export or a heavily designed/multi-column template, so ALSO scan the header, footer, sidebar, and any "Contact"/"Profile" section. If the printed name is unclear, infer it from an email address's local part (e.g. "ahmed.alsaegh@..." -> "Ahmed Alsaegh") or from the file name. Return null for the name ONLY as an absolute last resort when no human name exists anywhere.
+- Read the ENTIRE document carefully — it may be a scanned image, a multi-column layout, or a heavily designed CV. Scan the header, footer, sidebar, and any "Contact" section for the candidate's email and phone number too. A CV almost always contains these; only return null if they are genuinely absent.
 - Extract ONLY information explicitly present in the CV. Do NOT guess, infer, or fabricate. If a field is absent, return null.
 - For nationality/country, only if explicitly stated. For skills, only those explicitly mentioned. For years of experience, calculate from dates if available, else null.
 - For the work history, capture for EACH role what the candidate actually DID: core RESPONSIBILITIES, quantified ACHIEVEMENTS/metrics, and the STAKEHOLDERS/customers/teams they worked with — not merely the job title.
@@ -156,19 +226,41 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
       throw new Error("Failed to parse AI response");
     }
 
-    // Nothing usable extracted (scanned image, empty/garbled layout) → flag unreadable
-    // instead of writing an empty profile that would yield a meaningless score.
-    if (!parsed.name && !parsed.extracted_text_summary) {
+    const overrides = (candidate.manual_overrides || {}) as Record<string, boolean>;
+
+    // NAME RECOVERY. flash often returns a full profile but a NULL name on LinkedIn
+    // exports, sidebar/multi-column layouts, and designed CVs. Rather than store a
+    // null name (which shows as "Unnamed candidate"), resolve it with fallbacks:
+    // (1) what the main parse found, (2) a focused strong-model pass, (3) the file
+    // name. Skip all of this when HR has manually locked the name.
+    let resolvedName: string | null =
+      typeof parsed.name === "string" && parsed.name.trim() ? parsed.name.trim() : null;
+    if (overrides.name) {
+      resolvedName = candidate.name || resolvedName;
+    } else if (!resolvedName) {
+      // Focused strong-model pass reads the document itself (header/sidebar/email).
+      resolvedName = await recoverNameFocused(cvBase64, cvMimeType);
+    }
+
+    // Unreadable ONLY when the document yields nothing: no text AND no name found in
+    // the document (by the parse or the focused pass). A blank/scanned CV stays
+    // unreadable — a filename guess must NOT rescue it into a meaningless score.
+    if (!resolvedName && !parsed.extracted_text_summary) {
       return await markUnreadable("no_text");
     }
 
-    const overrides = (candidate.manual_overrides || {}) as Record<string, boolean>;
+    // Readable CV that's still missing a name (rare double-miss) → last-resort
+    // display name derived from the file name, e.g. "Ahmed_Al_Sagheer_CV.pdf".
+    if (!resolvedName && !overrides.name) {
+      resolvedName = deriveNameFromFilename(candidate.resume_file_name);
+    }
 
-    // Update candidate record (respect manual HR overrides)
+    // Update candidate record (respect manual HR overrides). `resolvedName` already
+    // accounts for the name override above.
     const { error: updateErr } = await supabase
       .from("cv_library_candidates")
       .update({
-        name: overrides.name ? candidate.name : (parsed.name || null),
+        name: resolvedName || null,
         email: overrides.email ? candidate.email : (parsed.email || null),
         phone: overrides.phone ? candidate.phone : (parsed.phone || null),
         nationality: overrides.nationality ? candidate.nationality : (parsed.nationality || null),
