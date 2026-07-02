@@ -275,6 +275,32 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
           } catch (_e) { /* try next rung */ }
         }
       }
+
+      // RUNG 4 — DETERMINISTIC TEXT EXTRACTION (zero AI). Some templated exports get
+      // their EVERY AI attempt blocked (multimodal AND text-in). But when we hold the
+      // real text layer, the essentials are extractable without any model: LinkedIn
+      // exports embed the profile slug ("linkedin.com/in/saif-abudail" -> "Saif
+      // Abudail"), and email/phone are plain regex. Storing the raw text also gives
+      // classify real content to work from — the candidate becomes fully usable.
+      if (!parsed && rawText.length >= 200) {
+        const slug = rawText.match(/linkedin\.com\/in\/([A-Za-z0-9-]+)/i)?.[1] || "";
+        const slugName = slug
+          .replace(/-?\d+$/, "")                     // trailing profile digits
+          .split("-")
+          .filter(Boolean)
+          .map((w) => (w[0]?.toUpperCase() || "") + w.slice(1))
+          .join(" ")
+          .trim();
+        const email = rawText.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/)?.[0] || null;
+        const phone = rawText.match(/\+?\d[\d\s()-]{7,}\d/)?.[0]?.trim() || null;
+        parsed = {
+          name: slugName.length >= 3 ? slugName : null,
+          email,
+          phone,
+          extracted_text_summary: rawText.slice(0, 4000),
+        };
+        console.log("parse: recovered via deterministic text extraction (no AI)");
+      }
     }
     if (!parsed) {
       console.error("Parse failed after recovery ladder:", finishReason);
