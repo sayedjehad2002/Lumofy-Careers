@@ -184,20 +184,47 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
+    const finishReason = data.choices?.[0]?.finish_reason;
 
     let parsed = parseJsonResponse<Record<string, any>>(content);
+
+    // EMPTY-RESPONSE RECOVERY. Certain PDFs — LinkedIn profile exports and other
+    // heavily templated CVs — deterministically make the model return an empty or
+    // blocked response (recitation/content filtering on verbatim-looking extraction),
+    // NOT an API error. Verified live: the same ~60 files fail every run while
+    // designed CVs always pass, on multiple keys, sequential or not. Recovery ladder
+    // (fires ONLY on the empty case, so healthy files pay nothing extra):
+    //   1) same model at higher temperature — breaks the filter's deterministic block
+    //   2) gemini-2.5-pro — different filtering behavior, reads templated PDFs
     if (!parsed) {
-      console.error("Parse failed:", content);
+      console.warn("parse: empty/unparseable model response", {
+        finishReason, preview: String(content ?? "").slice(0, 120),
+      });
+      const retries = [
+        { model: "google/gemini-3-flash-preview", temperature: 0.9 },
+        { model: "gemini-2.5-pro", temperature: 0.3 },
+      ];
+      for (const rm of retries) {
+        try {
+          const rr = await chatCompletion({
+            model: rm.model, messages, hasImages: true,
+            max_tokens: 3000, temperature: rm.temperature,
+          });
+          if (!rr.ok) { try { await rr.body?.cancel(); } catch { /* ignore */ } continue; }
+          const rd = await rr.json();
+          parsed = parseJsonResponse<Record<string, any>>(rd.choices?.[0]?.message?.content);
+          if (parsed) break;
+        } catch (_e) { /* try next rung */ }
+      }
+    }
+    if (!parsed) {
+      console.error("Parse failed after recovery ladder:", finishReason);
       return await markUnreadable("ai_error");
     }
 
     const overrides = (candidate.manual_overrides || {}) as Record<string, boolean>;
 
-    // Resolve the candidate name from the SINGLE flash parse (HR-locked names win).
-    // No extra AI calls here — one flash request per CV keeps Gemini load low and
-    // avoids the 5xx overload that stacking pro calls per CV was causing across a
-    // bulk re-parse. The deterministic temperature (0.1) already makes flash extract
-    // reliably when the API is healthy.
+    // Resolve the candidate name from the parse result (HR-locked names win).
     let resolvedName: string | null =
       typeof parsed.name === "string" && parsed.name.trim() ? parsed.name.trim() : null;
     if (overrides.name) resolvedName = candidate.name || resolvedName;
