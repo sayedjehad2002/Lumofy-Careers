@@ -107,7 +107,19 @@ const CandidateProfile = ({
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      window.open(data.url, "_blank");
+      let url: string = data.url;
+      if (inline) {
+        // Belt-and-braces: strip any download-disposition param so the browser
+        // renders the PDF inline (View) even if a stale edge-function version
+        // appended it. The param is not part of the signed token, so removing it
+        // keeps the URL valid.
+        try {
+          const u = new URL(url);
+          u.searchParams.delete("download");
+          url = u.toString();
+        } catch { /* keep original URL */ }
+      }
+      window.open(url, "_blank");
     } catch (e: any) {
       toast.error(e.message || (inline ? "Failed to open CV" : "Failed to download CV"));
     } finally {

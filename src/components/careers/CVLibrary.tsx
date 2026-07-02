@@ -334,7 +334,18 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
         body: { action: "download", sessionToken, candidateId, download },
       });
       if (error || data?.error || !data?.url) throw error || new Error(data?.error || "No URL");
-      window.open(data.url, "_blank");
+      let url: string = data.url;
+      if (!download) {
+        // Belt-and-braces: strip any download-disposition param so View always
+        // renders inline, even if a stale edge-function version appended it. The
+        // param is not part of the signed token, so removing it keeps the URL valid.
+        try {
+          const u = new URL(url);
+          u.searchParams.delete("download");
+          url = u.toString();
+        } catch { /* keep original URL */ }
+      }
+      window.open(url, "_blank");
     } catch {
       toast.error(download ? "Download failed" : "Couldn't open the CV");
     }
