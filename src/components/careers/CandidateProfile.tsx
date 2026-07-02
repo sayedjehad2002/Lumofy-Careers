@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from "react";
 import {
-  ArrowLeft, FileText, Download, Loader2, AlertCircle,
+  ArrowLeft, FileText, Download, Eye, Loader2, AlertCircle,
   MessageSquare, Star, User, Brain,
   Mail, Phone, MapPin, ExternalLink, Calendar, Globe, Trash2, FileDown } from
 "lucide-react";
@@ -92,7 +92,7 @@ const CandidateProfile = ({
     return Array.from(seen.values());
   }, [applicant.notes]);
 
-  const handleCvDownload = useCallback(async () => {
+  const openCv = useCallback(async (inline: boolean) => {
     if (!applicant.cvStoragePath) {
       toast.error("No CV file available");
       return;
@@ -100,15 +100,16 @@ const CandidateProfile = ({
     setCvLoading(true);
     try {
       // Pass the applicantId so the edge function resolves the CV path
-      // server-side (prevents IDOR via arbitrary storagePath).
+      // server-side (prevents IDOR via arbitrary storagePath). `inline` = View
+      // (render the PDF in a new tab); otherwise Download (served as an attachment).
       const { data, error } = await supabase.functions.invoke("get-cv-url", {
-        body: { applicantId: applicant.id, sessionToken }
+        body: { applicantId: applicant.id, sessionToken, inline }
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       window.open(data.url, "_blank");
     } catch (e: any) {
-      toast.error(e.message || "Failed to download CV");
+      toast.error(e.message || (inline ? "Failed to open CV" : "Failed to download CV"));
     } finally {
       setCvLoading(false);
     }
@@ -211,12 +212,18 @@ const CandidateProfile = ({
               </SelectContent>
             </Select>
             {applicant.cvStoragePath && (
-              <Button size="sm" variant="outline" className="h-9" onClick={handleCvDownload} disabled={cvLoading}>
-                {cvLoading ?
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> :
-                <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />}
-                CV
-              </Button>
+              <>
+                <Button size="sm" variant="outline" className="h-9" onClick={() => openCv(true)} disabled={cvLoading} title="View CV in a new tab">
+                  <Eye className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                  View CV
+                </Button>
+                <Button size="sm" variant="outline" className="h-9" onClick={() => openCv(false)} disabled={cvLoading} title="Download CV">
+                  {cvLoading ?
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> :
+                  <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />}
+                  Download
+                </Button>
+              </>
             )}
             <Button
               size="sm"
@@ -417,12 +424,18 @@ const CandidateProfile = ({
                   }
                   </div>
                 </div>
-                <Button size="sm" variant="outline" onClick={handleCvDownload} disabled={cvLoading}>
-                  {cvLoading ?
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> :
-                <Download className="mr-1 h-3.5 w-3.5" aria-hidden="true" />}
-                  {cvLoading ? "Loading…" : "Download"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => openCv(true)} disabled={cvLoading}>
+                    <Eye className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                    View
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => openCv(false)} disabled={cvLoading}>
+                    {cvLoading ?
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> :
+                  <Download className="mr-1 h-3.5 w-3.5" aria-hidden="true" />}
+                    {cvLoading ? "Loading…" : "Download"}
+                  </Button>
+                </div>
               </div> :
             <div className="flex items-center gap-2 rounded-lg bg-secondary p-3 text-muted-foreground">
                 <AlertCircle className="w-4 h-4" aria-hidden="true" />

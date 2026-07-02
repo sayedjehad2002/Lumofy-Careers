@@ -18,7 +18,9 @@ Deno.serve(async (req) => {
     const rl = isRateLimited(`get-cv-url:${ip}`, { maxRequests: 30, windowMs: 60_000 });
     if (rl.limited) return rateLimitResponse(corsHeaders, rl.retryAfterMs);
 
-    const { applicantId, storagePath, sessionToken } = await req.json();
+    // `inline: true` returns a URL the browser renders in-tab (View); otherwise the
+    // URL is served as an attachment (Download).
+    const { applicantId, storagePath, sessionToken, inline } = await req.json();
 
     // Require a valid admin session for any CV download.
     const auth = await validateSession(sessionToken, corsHeaders);
@@ -83,7 +85,7 @@ Deno.serve(async (req) => {
     // Short-lived signed URL (5 minutes)
     const { data, error } = await auth.supabase.storage
       .from(bucket)
-      .createSignedUrl(resolvedPath, 300, downloadName ? { download: downloadName } : undefined);
+      .createSignedUrl(resolvedPath, 300, (!inline && downloadName) ? { download: downloadName } : undefined);
 
     if (error) {
       console.error("Signed URL error:", error);

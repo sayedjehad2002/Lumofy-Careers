@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import {
   Search, Upload, FolderTree, ChevronRight, ChevronDown,
-  Download, Brain, Pencil, Loader2, X, Tag, FileText,
+  Download, Eye, Brain, Pencil, Loader2, X, Tag, FileText,
   AlertCircle, Check, Archive, RefreshCw, User, Mail, Phone,
   Globe, MapPin, Briefcase, Filter, ArrowUpDown, Plus,
   Shield, TrendingUp, Target, BarChart3,
@@ -305,17 +305,20 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
     }
   };
 
-  const handleDownload = async (candidateId: string) => {
+  // View = open the PDF in a new tab; Download = save it (served as an attachment).
+  const openCv = async (candidateId: string, download: boolean) => {
     try {
       const { data, error } = await supabase.functions.invoke("cv-library-manage", {
-        body: { action: "download", sessionToken, candidateId },
+        body: { action: "download", sessionToken, candidateId, download },
       });
       if (error || data?.error || !data?.url) throw error || new Error(data?.error || "No URL");
       window.open(data.url, "_blank");
     } catch {
-      toast.error("Download failed");
+      toast.error(download ? "Download failed" : "Couldn't open the CV");
     }
   };
+  const handleView = (candidateId: string) => openCv(candidateId, false);
+  const handleDownload = (candidateId: string) => openCv(candidateId, true);
 
   const handleUpdateCandidate = async (candidateId: string, updates: Record<string, any>) => {
     try {
@@ -657,6 +660,9 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
           <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
             <div className="rounded-2xl bg-card border border-border p-4 space-y-2 light-glow">
               <h3 className="font-semibold text-sm mb-3">Actions</h3>
+              <Button className="w-full justify-start" variant="outline" size="sm" onClick={() => handleView(c.id)}>
+                <Eye className="w-4 h-4 mr-2" /> View CV
+              </Button>
               <Button className="w-full justify-start" variant="outline" size="sm" onClick={() => handleDownload(c.id)}>
                 <Download className="w-4 h-4 mr-2" /> Download CV
               </Button>
@@ -1081,7 +1087,13 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
                             </div>
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => {
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="View CV" onClick={() => {
+                              handleView(c.id);
+                              addAudit(c.id, c.name || "Unknown", "view");
+                            }}>
+                              <Eye className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Download CV" onClick={() => {
                               handleDownload(c.id);
                               addAudit(c.id, c.name || "Unknown", "download");
                             }}>

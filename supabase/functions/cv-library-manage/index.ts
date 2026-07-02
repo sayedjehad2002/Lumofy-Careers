@@ -147,9 +147,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // GET download URL
+    // GET signed URL. `download: true` serves it as an attachment (Download);
+    // otherwise the browser renders it in-tab (View).
     if (action === "download") {
-      const { candidateId } = body;
+      const { candidateId, download } = body;
       const { data: candidate } = await supabase
         .from("cv_library_candidates")
         .select("resume_file_path, resume_file_name")
@@ -164,7 +165,7 @@ Deno.serve(async (req) => {
 
       const { data: urlData, error: urlError } = await supabase.storage
         .from("cv-library")
-        .createSignedUrl(candidate.resume_file_path, 300);
+        .createSignedUrl(candidate.resume_file_path, 300, download ? { download: candidate.resume_file_name || true } : undefined);
 
       if (urlError) throw urlError;
       return new Response(JSON.stringify({ url: urlData.signedUrl, fileName: candidate.resume_file_name }), {
