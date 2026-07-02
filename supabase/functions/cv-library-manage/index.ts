@@ -1,6 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { validateSession } from "../_shared/validate-session.ts";
+import { deriveClassificationFromAnalysis, sanitizeCandidateName } from "../_shared/taxonomy.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -143,6 +144,63 @@ Deno.serve(async (req) => {
 
       if (error) throw error;
       return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // SYNC-CLASSIFICATION: zero-AI-call backfill. Many candidates carry an accurate
+    // ai_analysis (the analyzer reads the PDF directly) while their classification
+    // columns hold placeholder junk from a classify pass that ran on empty extracted
+    // text. Derive the classification from each STORED analysis and update the
+    // columns — the same derivation cv-library-analyze now applies on every new
+    // analysis. Respects manual_overrides.name; never touches manual_* columns;
+    // writes nothing for rows whose analysis has nothing usable.
+    if (action === "sync-classification") {
+      let updated = 0, skipped = 0;
+
+      // Paginate explicitly — PostgREST silently caps unpaged selects at 1000 rows,
+      // which would make a large library sync report success while missing rows.
+      const PAGE = 500;
+      for (let from = 0; ; from += PAGE) {
+        const { data: rows, error } = await supabase
+          .from("cv_library_candidates")
+          .select("id, name, manual_overrides, ai_analysis")
+          .is("deleted_at", null)
+          .not("ai_analysis", "is", null)
+          .order("id", { ascending: true })
+          .range(from, from + PAGE - 1);
+
+        if (error) throw error;
+        if (!rows || rows.length === 0) break;
+
+        for (const row of rows) {
+          const cls = deriveClassificationFromAnalysis(row.ai_analysis as Record<string, any>);
+          if (!cls) { skipped++; continue; }
+
+          const { error: e } = await supabase
+            .from("cv_library_candidates")
+            .update(cls)
+            .eq("id", row.id);
+          if (e) { console.error("sync-classification update error:", row.id, e); skipped++; continue; }
+          updated++;
+
+          // Name backfill: junk-guarded and race-safe — `.is("name", null)` fills
+          // only a still-empty slot, never overwriting an HR edit made meanwhile.
+          const aiName = sanitizeCandidateName((row.ai_analysis as any)?.candidateName);
+          const overrides = (row.manual_overrides || {}) as Record<string, boolean>;
+          if (aiName && !overrides.name) {
+            await supabase
+              .from("cv_library_candidates")
+              .update({ name: aiName })
+              .eq("id", row.id)
+              .is("name", null);
+          }
+        }
+
+        if (rows.length < PAGE) break;
+      }
+
+      return new Response(JSON.stringify({ success: true, updated, skipped }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

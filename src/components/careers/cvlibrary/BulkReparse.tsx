@@ -12,6 +12,10 @@ interface CVCandidate {
   status: string;
   skills: string[];
   uploaded_at: string;
+  manual_department?: string | null;
+  suggested_department?: string | null;
+  classification_confidence?: string | null;
+  ai_analysis?: { unreadable?: boolean; reason?: string } | null;
 }
 
 interface Props {
@@ -27,11 +31,26 @@ export default function BulkReparse({ candidates, filteredIds, onReparse, onRefr
   const [total, setTotal] = useState(0);
   const [completed, setCompleted] = useState(0);
   const [failed, setFailed] = useState(0);
-  const [scope, setScope] = useState<"all" | "filtered" | "unparsed">("unparsed");
+  const [scope, setScope] = useState<"all" | "filtered" | "unparsed" | "incomplete">("incomplete");
 
   const unparsedCandidates = candidates.filter(c => !c.skills || c.skills.length === 0);
+  // "Incomplete" = the candidates HR can't organize yet: no/low-confidence
+  // classification (the folder tree's own Unclassified rule) OR missing name.
+  // Deterministic unreadables are excluded — "word" files and blank/"no_text"
+  // scans re-fail identically every run (they need a PDF re-upload, not a retry),
+  // and including them would burn AI calls and keep the scope count from ever
+  // reaching zero. Transient "ai_error" ones ARE included (retry is correct).
+  const incompleteCandidates = candidates.filter(c => {
+    const dept = c.manual_department || c.suggested_department;
+    const unclassified = !dept || c.classification_confidence === "Low";
+    const unnamed = !c.name;
+    const deterministicUnreadable = c.ai_analysis?.unreadable === true &&
+      (c.ai_analysis?.reason === "word" || c.ai_analysis?.reason === "no_text");
+    return (unclassified || unnamed) && !deterministicUnreadable;
+  });
   const targetIds = scope === "all" ? candidates.map(c => c.id) :
     scope === "filtered" ? filteredIds :
+    scope === "incomplete" ? incompleteCandidates.map(c => c.id) :
     unparsedCandidates.map(c => c.id);
 
   const handleRun = async () => {
@@ -88,7 +107,14 @@ export default function BulkReparse({ candidates, filteredIds, onReparse, onRefr
           Re-analyze candidates with the latest AI model for improved extraction accuracy.
         </p>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <ScopeCard
+            active={scope === "incomplete"}
+            onClick={() => setScope("incomplete")}
+            label="Unclassified / Unnamed"
+            count={incompleteCandidates.length}
+            desc="No or low-confidence classification, or missing name"
+          />
           <ScopeCard
             active={scope === "unparsed"}
             onClick={() => setScope("unparsed")}

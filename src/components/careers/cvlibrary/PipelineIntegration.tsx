@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowRight, Briefcase, Check, Loader2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { useCareers } from "@/contexts/CareersContext";
 import { candidateDisplayName } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -43,8 +44,22 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
   const [open, setOpen] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const { applicants } = useCareers();
 
-  const openJobs = jobs.filter(j => j.status === "open");
+  // Jobs this candidate is ALREADY an applicant for (matched by the CV file path —
+  // deterministic even with no email — or by email). Hidden from the picker so
+  // "Add to another job" can't create a duplicate card in the same pipeline
+  // (and a duplicate auto-analyze AI spend).
+  const candidateEmail = candidate.email?.trim().toLowerCase();
+  const jobsAlreadyIn = useMemo(() => new Set(
+    applicants
+      .filter(a =>
+        (a.cvStoragePath && a.cvStoragePath === candidate.resume_file_path) ||
+        (!!candidateEmail && a.email?.trim().toLowerCase() === candidateEmail))
+      .map(a => a.jobId)
+  ), [applicants, candidate.resume_file_path, candidateEmail]);
+
+  const openJobs = jobs.filter(j => j.status === "open" && !jobsAlreadyIn.has(j.id));
   const selectedJob = openJobs.find(j => j.id === selectedJobId);
 
   const handleAddToJob = async () => {
@@ -59,7 +74,7 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
       const applicantId = crypto.randomUUID();
       const now = new Date().toISOString();
 
-      const { error } = await supabase.functions.invoke("update-applicant", {
+      const { data, error } = await supabase.functions.invoke("update-applicant", {
         body: {
           sessionToken,
           action: "create",
@@ -85,7 +100,27 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
       });
 
       if (error) throw error;
-      toast.success(`${candidate.name} added to ${selectedJob.title}`);
+
+      // Reflect the add back into the CV LIBRARY: mark the candidate Shortlisted so
+      // the library shows they've moved into a pipeline. Deliberately a direct
+      // cv-library-manage call (NOT the edit dialog path) so this automated change
+      // doesn't set manual_overrides. Non-fatal — the applicant was already created.
+      await supabase.functions.invoke("cv-library-manage", {
+        body: { action: "update", sessionToken, candidateId: candidate.id, updates: { status: "shortlisted" } },
+      }).catch(() => { /* non-fatal */ });
+
+      // Kick off AI analysis for the new applicant right away (same fire-and-forget
+      // pattern as the public apply flow) so the pipeline card shows a score instead
+      // of sitting on "AI Pending". Skipped for Word CVs — Gemini can't read them,
+      // and a zero-evidence "analysis" would be worse than an honest "AI Pending".
+      const isWordCv = /\.docx?$/i.test(candidate.resume_file_path || "");
+      if (!isWordCv) {
+        supabase.functions.invoke("auto-analyze-applicant", {
+          body: { applicantId: data?.applicantId || applicantId, sessionToken },
+        }).catch(() => { /* non-blocking */ });
+      }
+
+      toast.success(`${candidateDisplayName(candidate.name, candidate.resume_file_name) || "Candidate"} added to ${selectedJob.title}`);
       setOpen(false);
       onDone?.();
     } catch (e: any) {

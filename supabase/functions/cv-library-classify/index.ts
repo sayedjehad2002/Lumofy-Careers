@@ -2,27 +2,10 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { validateSession } from "../_shared/validate-session.ts";
 import { chatCompletion, wrapUntrusted, UNTRUSTED_DATA_NOTE, currentDateLine, CHRONOLOGY_AND_IDENTITY_RULES } from "../_shared/ai.ts";
-
-const TAXONOMY = {
-  "Human Resources": ["HR Manager", "HR Business Partner", "Recruiter", "Talent Acquisition Specialist", "HR Coordinator", "Compensation & Benefits Analyst", "Learning & Development Specialist", "People Analytics Specialist", "Organizational Development Specialist"],
-  "Customer Success": ["Customer Success Manager", "Senior CSM", "Customer Success Lead", "Onboarding Specialist", "Customer Support Lead", "Renewals Manager"],
-  "Account Management": ["Account Manager", "Key Account Manager", "Strategic Account Manager", "Client Partner", "Relationship Manager"],
-  "Client Services": ["Client Services Manager", "Client Relations Manager", "Engagement Manager", "Service Delivery Manager"],
-  "Customer Experience": ["Customer Experience Manager", "CX Specialist", "Voice of Customer Analyst", "Customer Insights Manager"],
-  "Sales": ["Account Executive", "Sales Development Rep", "Sales Engineer", "Regional Sales Manager", "VP Sales", "Business Development Manager"],
-  "Revenue Operations": ["Revenue Operations Manager", "Sales Operations Analyst", "RevOps Analyst", "GTM Operations Manager"],
-  "Product": ["Product Manager", "Senior Product Manager", "Product Owner", "Product Analyst", "UX Researcher"],
-  "Engineering": ["Full Stack Developer", "Backend Engineer", "Frontend Engineer", "Mobile Developer", "DevOps Engineer", "QA Engineer", "Engineering Manager", "Data Engineer", "Machine Learning Engineer"],
-  "Data & Analytics": ["Data Analyst", "Data Scientist", "Business Intelligence Analyst", "Analytics Engineer", "Quantitative Analyst"],
-  "Marketing": ["Marketing Manager", "Digital Marketing Specialist", "Content Strategist", "Brand Manager", "SEO Specialist", "Growth Marketing Manager"],
-  "Finance": ["Financial Analyst", "Accountant", "Finance Manager", "Controller", "Treasury Analyst", "Auditor"],
-  "Operations": ["Operations Manager", "Supply Chain Analyst", "Business Analyst", "Process Improvement Specialist", "Logistics Coordinator"],
-  "Project Management": ["Project Manager", "Program Manager", "Scrum Master", "PMO Analyst", "Delivery Manager"],
-  "Design": ["UI/UX Designer", "Graphic Designer", "Product Designer", "Visual Designer", "Design Lead"],
-  "Professional Services": ["Professional Services Manager", "Solutions Consultant", "Implementation Manager", "Service Delivery Lead", "Onboarding Consultant", "Technical Account Manager"],
-};
-
-const DEPARTMENTS = Object.keys(TAXONOMY);
+// The department/role taxonomy lives in _shared/taxonomy.ts — the single source of
+// truth shared with cv-library-analyze (whose departmentMatches are constrained to
+// it) and cv-library-manage (the sync-classification backfill).
+import { TAXONOMY, DEPARTMENTS } from "../_shared/taxonomy.ts";
 
 function normalizeConfidence(value: unknown): "High" | "Medium" | "Low" {
   const v = String(value || "").toLowerCase();

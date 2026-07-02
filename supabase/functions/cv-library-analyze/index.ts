@@ -3,6 +3,7 @@ import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-l
 import { validateSession } from "../_shared/validate-session.ts";
 import { chatCompletion, parseJsonResponse, clampNumber, UNTRUSTED_DATA_NOTE, currentDateLine, CHRONOLOGY_AND_IDENTITY_RULES } from "../_shared/ai.ts";
 import { inferSeniority, analysisCalibration } from "../_shared/seniority.ts";
+import { DEPARTMENTS, deriveClassificationFromAnalysis, sanitizeCandidateName } from "../_shared/taxonomy.ts";
 
 // CV is base64-encoded into the AI request; cap raw size before encode.
 const MAX_CV_BYTES = 10 * 1024 * 1024; // 10MB
@@ -13,7 +14,10 @@ Deno.serve(async (req) => {
 
   try {
     const ip = getClientIp(req);
-    const rl = isRateLimited(`cv-lib-analyze:${ip}`, { maxRequests: 20, windowMs: 3600_000 });
+    // 150/hr: analyze is now the sole writer of the aligned classification, and a
+    // bulk library re-run legitimately needs ~70-90 calls in an hour. Session
+    // validation below is the real gate; this IP limit is only an abuse throttle.
+    const rl = isRateLimited(`cv-lib-analyze:${ip}`, { maxRequests: 150, windowMs: 3600_000 });
     if (rl.limited) return rateLimitResponse(corsHeaders, rl.retryAfterMs);
 
     const { candidateId, sessionToken } = await req.json();
@@ -101,8 +105,9 @@ AI TRUST RULES (mandatory):
 
 The candidate was pre-classified as: Department="${suggestedDept}", Role="${suggestedTitle}". Treat that as a HINT, not ground truth — confirm or CORRECT it from the CV evidence.
 
-You MUST respond with a single valid JSON object (no markdown, no code blocks). EVERY field below is REQUIRED — you MUST include "professionalIdentity", "careerTrackAnalysis", "evidenceFor", "evidenceAgainst", "alternativesConsidered", "departmentMatches", and "recruiterVerdict". NEVER omit them.
+You MUST respond with a single valid JSON object (no markdown, no code blocks). EVERY field below is REQUIRED — you MUST include "candidateName", "professionalIdentity", "careerTrackAnalysis", "evidenceFor", "evidenceAgainst", "alternativesConsidered", "departmentMatches", and "recruiterVerdict". NEVER omit them.
 {
+  "candidateName": "<the candidate's full personal name EXACTLY as printed on the CV (usually the most prominent text at the top of the first page, or in the header/sidebar/contact block). Read it from the document — never invent one. null ONLY if no human name is printed anywhere in the document.>",
   "professionalIdentity": {
     "primary": "<the candidate's TRUE primary role/identity>",
     "primaryConfidence": <0-100>,
@@ -120,7 +125,7 @@ You MUST respond with a single valid JSON object (no markdown, no code blocks). 
   "evidenceFor": ["<CV evidence supporting the primary identity>"],
   "evidenceAgainst": ["<evidence that complicates or argues against it>"],
   "alternativesConsidered": [{"role": "<role>", "confidence": <0-100>}],
-  "departmentMatches": [{"department": "<department>", "confidence": <0-100>, "reason": "<why, from evidence>"}],
+  "departmentMatches": [{"department": "<MUST be EXACTLY one of: ${DEPARTMENTS.join(", ")}>", "confidence": <0-100>, "reason": "<why, from evidence>"}] (ordered BEST MATCH FIRST, highest confidence first),
   "strengths": ["<evidence-based strength with CV reference>"],
   "gaps": ["<evidence-based gap>"],
   "skillsAlignment": [
@@ -217,11 +222,36 @@ You MUST respond with a single valid JSON object (no markdown, no code blocks). 
     }
     analysis.analyzedAt = new Date().toISOString();
 
-    // Save to database
+    // ALIGNMENT SYNC: the analysis reads the raw PDF, so it is strictly better
+    // informed than the classify pass (which reads possibly-empty extracted text).
+    // Derive the classification columns from THIS analysis and save them in the
+    // same atomic update, so the AI Classification card, the folder tree, and the
+    // analysis can never disagree. deriveClassificationFromAnalysis returns null
+    // when the analysis has nothing usable — then we write only the analysis and
+    // leave the existing classification untouched. manual_* columns are never
+    // written (HR picks always win in the UI).
+    const cls = deriveClassificationFromAnalysis(analysis);
+    const updatePayload: Record<string, unknown> = { ai_analysis: analysis, ...(cls ?? {}) };
+
     const { error: updateErr } = await supabase
       .from("cv_library_candidates")
-      .update({ ai_analysis: analysis })
+      .update(updatePayload)
       .eq("id", candidateId);
+
+    // NAME BACKFILL: the analysis reads the name off the document itself. Fill it in
+    // ONLY when the record still has no name at write time — the `.is("name", null)`
+    // condition makes this race-safe (the row was fetched BEFORE the long AI call;
+    // HR may have set a name meanwhile, and a stored name is never overwritten).
+    // sanitizeCandidateName blocks junk like "Unknown"/"N/A" from ever becoming a name.
+    const overrides = (candidate.manual_overrides || {}) as Record<string, boolean>;
+    const aiName = sanitizeCandidateName(analysis.candidateName);
+    if (aiName && !overrides.name) {
+      await supabase
+        .from("cv_library_candidates")
+        .update({ name: aiName })
+        .eq("id", candidateId)
+        .is("name", null);
+    }
 
     if (updateErr) {
       console.error("Update error:", updateErr);

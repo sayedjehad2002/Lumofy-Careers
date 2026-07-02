@@ -60,9 +60,15 @@ Deno.serve(async (req) => {
     // clear "re-upload as PDF" state and the client pipeline skips the (wasted)
     // classify + analyze calls. Returns the response to send.
     const markUnreadable = async (reason: "word" | "no_text" | "ai_error") => {
-      await supabase.from("cv_library_candidates")
-        .update({ ai_analysis: { unreadable: true, reason } })
-        .eq("id", candidateId);
+      // NEVER replace a real stored analysis with a failure marker — a transient AI
+      // error on a re-parse must not destroy good data. Write the marker only when
+      // there is no analysis yet (or it's already just a marker).
+      const existing = candidate.ai_analysis as Record<string, unknown> | null;
+      if (!existing || (existing as { unreadable?: boolean }).unreadable === true) {
+        await supabase.from("cv_library_candidates")
+          .update({ ai_analysis: { unreadable: true, reason } })
+          .eq("id", candidateId);
+      }
       return new Response(JSON.stringify({ unreadable: true, reason }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -212,7 +218,10 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
     const { error: updateErr } = await supabase
       .from("cv_library_candidates")
       .update({
-        name: resolvedName || null,
+        // NEVER regress a name: if this parse couldn't resolve one, keep whatever
+        // name the record already has (a previous parse/analysis/HR edit). A flaky
+        // extraction must not blank out a good name.
+        name: resolvedName || candidate.name || null,
         email: overrides.email ? candidate.email : (parsed.email || null),
         phone: overrides.phone ? candidate.phone : (parsed.phone || null),
         nationality: overrides.nationality ? candidate.nationality : (parsed.nationality || null),

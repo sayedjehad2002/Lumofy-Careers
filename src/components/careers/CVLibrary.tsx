@@ -126,6 +126,13 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
     () => new Set(applicants.map((a) => a.email?.trim().toLowerCase()).filter(Boolean)),
     [applicants]
   );
+  // CV-file paths of applicants promoted FROM the library: update-applicant "create"
+  // copies cv_storage_path verbatim from resume_file_path ("library/<id>.<ext>"), so
+  // this is a deterministic link that works even when the candidate has NO email.
+  const pipelinePaths = useMemo(
+    () => new Set(applicants.map((a) => a.cvStoragePath).filter(Boolean) as string[]),
+    [applicants]
+  );
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [analyzingIds, setAnalyzingIds] = useState<Set<string>>(new Set());
   const [folderOpen, setFolderOpen] = useState<Record<string, boolean>>({});
@@ -222,7 +229,10 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
     }
   };
 
-  const processCandidate = async (candidateId: string) => {
+  // Returns true only when the FULL chain (parse -> classify -> analyze) succeeded —
+  // bulk re-parse uses this to report truthful succeeded/failed counts. Never throws
+  // (single-candidate button callers rely on that).
+  const processCandidate = async (candidateId: string): Promise<boolean> => {
     setProcessingIds(prev => new Set(prev).add(candidateId));
     try {
       // Step 1: Parse CV
@@ -235,15 +245,20 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
       // flagged ai_analysis as unreadable — reflect it and SKIP classify + analyze
       // (saves two slow AI calls and avoids a meaningless score).
       if (parseData?.unreadable) {
+        // Mirror the server guard: never replace a REAL stored analysis with the
+        // failure marker in local state — the server preserved it too, so a
+        // transient AI error on re-parse must not flip the card to "Couldn't read".
+        const hasRealAnalysis = (c: CVCandidate | null | undefined) =>
+          !!c?.ai_analysis && (c.ai_analysis as { unreadable?: boolean }).unreadable !== true;
         const marker = { unreadable: true, reason: parseData.reason } as unknown as CVAIAnalysis;
-        setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, ai_analysis: marker } : c));
-        setSelectedCandidate(prev => prev?.id === candidateId ? { ...prev, ai_analysis: marker } : prev);
+        setCandidates(prev => prev.map(c => c.id === candidateId && !hasRealAnalysis(c) ? { ...c, ai_analysis: marker } : c));
+        setSelectedCandidate(prev => prev?.id === candidateId && !hasRealAnalysis(prev) ? { ...prev, ai_analysis: marker } : prev);
         toast.error(parseData.reason === "word"
           ? "Couldn't read this Word file — re-upload the CV as a PDF."
           : parseData.reason === "ai_error"
           ? "AI couldn't process this CV — re-parse to retry, or re-upload a clearer PDF."
           : "Couldn't read this file — re-upload a clear PDF.");
-        return;
+        return false; // no aligned data was produced — bulk counts this as failed
       }
 
       // Step 2: Classify
@@ -252,8 +267,8 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
       });
       if (classErr) import.meta.env.DEV && console.error("Classify error:", classErr);
 
-      // Step 3: AI Analysis
-      await runAIAnalysis(candidateId);
+      // Step 3: AI Analysis — the step that writes the ALIGNED classification.
+      const analyzed = await runAIAnalysis(candidateId);
 
       // Refresh the open profile too — parse/classify update the DB + list, not
       // the already-open selectedCandidate, so without this its header + AI
@@ -267,8 +282,10 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
             : prev
         );
       }
+      return analyzed;
     } catch (e) {
       import.meta.env.DEV && console.error("Processing error:", e);
+      return false;
     } finally {
       setProcessingIds(prev => {
         const next = new Set(prev);
@@ -278,7 +295,10 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
     }
   };
 
-  const runAIAnalysis = async (candidateId: string) => {
+  // Returns true on success so bulk callers can count real failures — analyze is
+  // the sole writer of the aligned classification, so a swallowed failure here
+  // would let a bulk run report "succeeded" while the row stayed unaligned.
+  const runAIAnalysis = async (candidateId: string): Promise<boolean> => {
     setAnalyzingIds(prev => new Set(prev).add(candidateId));
     try {
       const { data, error } = await supabase.functions.invoke("cv-library-analyze", {
@@ -293,9 +313,11 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
           prev?.id === candidateId ? { ...prev, ai_analysis: data.analysis } : prev
         );
       }
+      return true;
     } catch (e: any) {
       import.meta.env.DEV && console.error("AI analysis error:", e);
       toast.error("AI analysis failed");
+      return false;
     } finally {
       setAnalyzingIds(prev => {
         const next = new Set(prev);
@@ -687,8 +709,15 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
                     candidate={c as any}
                     jobs={jobs as any}
                     sessionToken={sessionToken}
-                    onDone={refreshData}
-                    inPipeline={!!c.email && pipelineEmails.has(c.email.trim().toLowerCase())}
+                    onDone={async () => {
+                      // The add also flips the LIBRARY row to "shortlisted", so refresh
+                      // both datasets and patch the open profile (a stale state copy).
+                      refreshData();
+                      const fresh = await fetchCandidates();
+                      const updated = fresh?.find((x) => x.id === c.id);
+                      if (updated) setSelectedCandidate((prev) => (prev?.id === c.id ? { ...prev, ...updated } : prev));
+                    }}
+                    inPipeline={(!!c.email && pipelineEmails.has(c.email.trim().toLowerCase())) || pipelinePaths.has(c.resume_file_path)}
                   />
                 </div>
               )}
@@ -826,7 +855,12 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
         <BulkReparse
           candidates={candidates as any}
           filteredIds={filteredCandidates.map(c => c.id)}
-          onReparse={async (id) => { await processCandidate(id); }}
+          onReparse={async (id) => {
+            // Surface real failures to Promise.allSettled so the bulk summary's
+            // succeeded/failed counts are truthful (analyze writes the alignment).
+            const ok = await processCandidate(id);
+            if (!ok) throw new Error("processing failed");
+          }}
           onRefresh={fetchCandidates}
         />
       )}
