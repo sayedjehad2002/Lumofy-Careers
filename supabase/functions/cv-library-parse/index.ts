@@ -37,7 +37,11 @@ Deno.serve(async (req) => {
     const rl = isRateLimited(`cv-lib-parse:${ip}`, { maxRequests: 30, windowMs: 60_000 });
     if (rl.limited) return rateLimitResponse(corsHeaders, rl.retryAfterMs);
 
-    const { candidateId, sessionToken } = await req.json();
+    // `clientExtractedText` (optional): the PDF's text layer extracted CLIENT-side
+    // (the browser runs pdf.js reliably; this edge runtime does not). Used as the
+    // text-recovery rung when the multimodal call returns a blocked/empty response.
+    // Untrusted input — capped and delimiter-wrapped before reaching the model.
+    const { candidateId, sessionToken, clientExtractedText } = await req.json();
 
     const auth = await validateSession(sessionToken, corsHeaders);
     if (!auth.valid) return auth.response;
@@ -201,17 +205,28 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
         finishReason, preview: String(content ?? "").slice(0, 120),
       });
 
-      // RUNG 1 — TEXT-LAYER EXTRACTION (deterministic, near-free). The blocked
-      // files are overwhelmingly LinkedIn exports / templated PDFs, which carry a
-      // clean embedded text layer. Read it directly and send TEXT to the model —
-      // text-in/JSON-out does not trip the multimodal-PDF blocking at all.
-      // Dynamic import keeps function boot safe even if the package ever breaks.
-      try {
-        const { extractText, getDocumentProxy } = await import("npm:unpdf");
-        const pdfDoc = await getDocumentProxy(new Uint8Array(arrayBuffer));
-        const { text } = await extractText(pdfDoc, { mergePages: true });
-        const rawText = String(text || "").replace(/\s+/g, " ").trim();
-        if (rawText.length >= 200) {
+      // RUNG 1 — TEXT-LAYER RECOVERY (deterministic, near-free). The blocked files
+      // are overwhelmingly LinkedIn exports / templated PDFs, which carry a clean
+      // embedded text layer. Sending TEXT to the model (text-in/JSON-out) does not
+      // trip the multimodal-PDF blocking at all.
+      // Text source preference: (a) clientExtractedText — the browser extracts the
+      // text layer with pdf.js reliably (verified live; this edge runtime's pdf
+      // tooling is not dependable), then (b) a best-effort edge-side extraction.
+      let rawText = typeof clientExtractedText === "string"
+        ? clientExtractedText.replace(/\s+/g, " ").trim()
+        : "";
+      if (rawText.length < 200) {
+        try {
+          const { extractText, getDocumentProxy } = await import("npm:unpdf");
+          const pdfDoc = await getDocumentProxy(new Uint8Array(arrayBuffer));
+          const { text } = await extractText(pdfDoc, { mergePages: true });
+          rawText = String(text || "").replace(/\s+/g, " ").trim();
+        } catch (e) {
+          console.warn("parse: edge text-layer extraction unavailable:", String(e).slice(0, 120));
+        }
+      }
+      if (rawText.length >= 200) {
+        try {
           const tr = await chatCompletion({
             model: "google/gemini-2.5-flash",
             messages: [
@@ -230,9 +245,9 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
             parsed = parseJsonResponse<Record<string, any>>(td.choices?.[0]?.message?.content);
             if (parsed) console.log("parse: recovered via text-layer extraction");
           }
+        } catch (e) {
+          console.warn("parse: text-rung call failed:", String(e).slice(0, 120));
         }
-      } catch (e) {
-        console.warn("parse: text-layer fallback unavailable:", String(e).slice(0, 120));
       }
 
       // RUNGS 2-3 — multimodal retries for scanned/no-text-layer PDFs: higher

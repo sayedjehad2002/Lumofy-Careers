@@ -229,6 +229,27 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
     }
   };
 
+  // Extract the PDF's text layer IN THE BROWSER (pdf.js runs reliably here; the
+  // edge runtime's PDF tooling does not). Used to rescue CVs whose multimodal
+  // parse gets a blocked/empty model response (LinkedIn exports etc.).
+  const extractPdfTextClientSide = async (candidateId: string): Promise<string | null> => {
+    try {
+      const { data } = await supabase.functions.invoke("cv-library-manage", {
+        body: { action: "download", sessionToken, candidateId },
+      });
+      if (!data?.url) return null;
+      const buf = new Uint8Array(await (await fetch(data.url)).arrayBuffer());
+      const unpdfUrl = "https://esm.sh/unpdf@0.12.1";
+      const { extractText, getDocumentProxy } = await import(/* @vite-ignore */ unpdfUrl);
+      const doc = await getDocumentProxy(buf);
+      const { text } = await extractText(doc, { mergePages: true });
+      const raw = String(text || "").replace(/\s+/g, " ").trim();
+      return raw.length >= 200 ? raw.slice(0, 30000) : null;
+    } catch {
+      return null; // best-effort — caller falls back to the unreadable marker
+    }
+  };
+
   // Returns true only when the FULL chain (parse -> classify -> analyze) succeeded —
   // bulk re-parse uses this to report truthful succeeded/failed counts. Never throws
   // (single-candidate button callers rely on that).
@@ -236,10 +257,22 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
     setProcessingIds(prev => new Set(prev).add(candidateId));
     try {
       // Step 1: Parse CV
-      const { data: parseData, error: parseErr } = await supabase.functions.invoke("cv-library-parse", {
+      let { data: parseData, error: parseErr } = await supabase.functions.invoke("cv-library-parse", {
         body: { candidateId, sessionToken },
       });
       if (parseErr) import.meta.env.DEV && console.error("Parse error:", parseErr);
+
+      // AI-blocked file? Extract the text layer in the browser and retry ONCE with
+      // the text supplied — rescues LinkedIn-style PDFs the model refuses to read.
+      if (parseData?.unreadable && parseData.reason === "ai_error") {
+        const clientText = await extractPdfTextClientSide(candidateId);
+        if (clientText) {
+          const retry = await supabase.functions.invoke("cv-library-parse", {
+            body: { candidateId, sessionToken, clientExtractedText: clientText },
+          });
+          if (retry.data) parseData = retry.data;
+        }
+      }
 
       // Fail fast on unreadable CVs (Word docs / no extractable text): parse already
       // flagged ai_analysis as unreadable — reflect it and SKIP classify + analyze
