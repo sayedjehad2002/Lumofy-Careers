@@ -1,9 +1,12 @@
 import { useMemo } from "react";
-import { Brain, Star, GripVertical, AlertTriangle, Clock, Layers } from "lucide-react";
+import { Brain, Star, GripVertical, AlertTriangle, Clock, Layers, ArrowRightLeft } from "lucide-react";
 import type { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
-import type { Applicant } from "@/types/careers";
-import { STAGE_SLA_DAYS } from "@/types/careers";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { Applicant, ApplicantStatus } from "@/types/careers";
+import { STAGE_SLA_DAYS, APPLICANT_STATUSES } from "@/types/careers";
 import { tierSoft, TONE_TEXT } from "./statusColors";
 
 interface PipelineCandidateCardProps {
@@ -17,6 +20,10 @@ interface PipelineCandidateCardProps {
   /** react-beautiful-dnd drag-handle props — applied to the grip so dragging is
    * unambiguous (grab the grip to move, click the card to open). */
   dragHandleProps?: DraggableProvidedDragHandleProps | null;
+  /** Quick "Move to stage" menu — one click sends the candidate to ANY stage
+   * without dragging across the board (New -> Hired in one action). Terminal
+   * moves are confirmed by the caller, same as drag-and-drop. */
+  onMoveToStage?: (status: ApplicantStatus) => void;
 }
 
 function getInitials(name: string) {
@@ -38,7 +45,7 @@ function getRankingTier(score: number): string {
 }
 
 export default function PipelineCandidateCard({
-  applicant, jobTitle, avgRating, appliedJobsCount, isDragging, onClick, dragHandleProps,
+  applicant, jobTitle, avgRating, appliedJobsCount, isDragging, onClick, dragHandleProps, onMoveToStage,
 }: PipelineCandidateCardProps) {
   const multiApply = (appliedJobsCount ?? 1) >= 2;
   const initials = useMemo(() => getInitials(applicant.fullName), [applicant.fullName]);
@@ -139,6 +146,42 @@ export default function PipelineCandidateCard({
             <Star className="w-2.5 h-2.5 fill-current" aria-hidden="true" />
             {avgRating}
           </span>
+        )}
+
+        {/* Quick move: jump to ANY stage in one click — no dragging across six
+            columns. Hidden on the drag clone (no handler there). */}
+        {onMoveToStage && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`Move ${applicant.fullName} to another stage`}
+                title="Move to stage"
+                className="ml-auto flex-shrink-0 rounded-md p-1.5 -my-1 text-muted-foreground/50 transition-colors hover:bg-primary/10 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Move to stage
+              </DropdownMenuLabel>
+              {APPLICANT_STATUSES.filter((s) => s.value !== applicant.status).map((s) => (
+                <DropdownMenuItem
+                  key={s.value}
+                  className="gap-2 text-xs cursor-pointer"
+                  onClick={() => onMoveToStage(s.value as ApplicantStatus)}
+                >
+                  <span className={`h-2 w-2 rounded-full flex-shrink-0 ${s.color.split(" ")[0]}`} aria-hidden="true" />
+                  {s.label}
+                  {(s.value === "hired" || s.value === "rejected") && (
+                    <span className="ml-auto text-[9px] text-muted-foreground">confirm</span>
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
     </div>

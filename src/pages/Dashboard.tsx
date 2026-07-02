@@ -6,7 +6,7 @@ import {
   Briefcase, Users, BarChart3, ChevronDown,
   Eye, EyeOff, MapPin, Clock, FileText, Star, MessageSquare,
   ArrowLeft, ExternalLink, LogOut, Plus, Pencil, Trash2, Copy, Brain,
-  Download, Loader2, AlertCircle, GripVertical, LayoutDashboard, AlertTriangle, Sparkles, Library, TrendingUp, Search, ClipboardList, BookOpen, Zap, UsersRound, Archive, ArchiveRestore, Timer
+  Download, Loader2, AlertCircle, GripVertical, LayoutDashboard, AlertTriangle, Sparkles, Library, TrendingUp, Search, ClipboardList, BookOpen, Zap, UsersRound, Archive, ArchiveRestore, Timer, Minimize2, Maximize2
 } from "lucide-react";
 import CommandPalette from "@/components/careers/CommandPalette";
 import PipelineCandidateCard from "@/components/careers/PipelineCandidateCard";
@@ -79,6 +79,11 @@ const Dashboard = () => {
     sourceStatus: ApplicantStatus;
   }>({ open: false, applicantId: "", applicantName: "", targetStatus: "new", sourceStatus: "new" });
 
+  // Pipeline column collapse: manual choices win; otherwise EMPTY columns start
+  // collapsed as slim rails so the busy columns get the width. A rail is still a
+  // valid drop target, and it auto-expands the moment it receives a candidate.
+  const [collapsedCols, setCollapsedCols] = useState<Partial<Record<ApplicantStatus, boolean>>>({});
+
   const mainTabs: { id: Tab; label: string; icon: React.ReactNode; group: string }[] = [
     { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-4 h-4" />, group: "Hiring" },
     { id: "jobs", label: "Jobs", icon: <Briefcase className="w-4 h-4" />, group: "Hiring" },
@@ -125,6 +130,22 @@ const Dashboard = () => {
       isDragging={isDragging}
       dragHandleProps={dragHandleProps}
       onClick={() => { setSelectedApplicant(applicant); setActiveTab("applicants"); }}
+      onMoveToStage={(target) => {
+        // Same rules as drag-and-drop: free movement between stages, with a
+        // confirmation dialog guarding the terminal ones.
+        if (target === applicant.status) return;
+        if (target === "rejected" || target === "hired") {
+          setConfirmDialog({
+            open: true,
+            applicantId: applicant.id,
+            applicantName: applicant.fullName,
+            targetStatus: target,
+            sourceStatus: applicant.status,
+          });
+          return;
+        }
+        handleStatusUpdate(applicant.id, target);
+      }}
     />
   );
 
@@ -665,25 +686,76 @@ const Dashboard = () => {
               </div>
 
                   <DragDropContext onDragEnd={handleDragEnd}>
-                    {/* Kanban board: each column keeps a READABLE minimum width (240px)
-                        and grows to fill wide screens; when the viewport can't fit all
-                        six, the board scrolls horizontally (standard kanban behavior)
-                        instead of crushing columns into unusable slivers. Full-bleed
-                        into the page padding so the board uses every available pixel. */}
-                    <div className="flex gap-3 overflow-x-auto overscroll-x-contain pb-3 -mx-6 px-6 lg:-mx-8 lg:px-8">
+                    {/* Kanban board designed to keep ALL SIX stages on screen: busy
+                        columns get readable width, while collapsed columns shrink to
+                        slim rails (still valid drop targets). Slim styled scrollbars
+                        replace the chunky OS default; the board only scrolls
+                        horizontally as a last resort. Full-bleed into page padding. */}
+                    <div className="flex gap-2.5 overflow-x-auto overscroll-x-contain scrollbar-slim pb-3 -mx-6 px-6 lg:-mx-8 lg:px-8">
                       {APPLICANT_STATUSES.map((status) => {
                         const columnApplicants = filteredApplicants.filter((a) => a.status === status.value);
+                        const isCollapsed = collapsedCols[status.value] ?? columnApplicants.length === 0;
+
+                        // COLLAPSED RAIL: slim vertical strip — label, count, expand
+                        // control — and a fully functional drop target: drop a card on
+                        // it and the column expands with its new candidate.
+                        if (isCollapsed) {
+                          return (
+                            <Droppable key={status.value} droppableId={status.value}>
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.droppableProps}
+                                  className={`flex w-11 min-w-[2.75rem] flex-col items-center overflow-hidden rounded-2xl bg-secondary/30 min-h-[320px] max-h-[calc(100vh-20rem)] py-2.5 transition-colors duration-200 ${
+                                    snapshot.isDraggingOver ? "bg-primary/10 ring-2 ring-inset ring-primary/40" : ""
+                                  }`}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => setCollapsedCols((p) => ({ ...p, [status.value]: false }))}
+                                    aria-label={`Expand ${status.label} column`}
+                                    title={`Expand ${status.label}`}
+                                    className="rounded-md p-1 text-muted-foreground/50 transition-colors hover:bg-secondary hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                  >
+                                    <Maximize2 className="w-3 h-3" aria-hidden="true" />
+                                  </button>
+                                  <div className={`mt-2 w-2 h-2 rounded-full flex-shrink-0 ${status.color.split(" ")[0]}`} />
+                                  <span className="mt-2 [writing-mode:vertical-rl] rotate-180 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground select-none">
+                                    {status.label}
+                                  </span>
+                                  <span className="mt-2 font-mono tabular-nums text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                                    {columnApplicants.length}
+                                  </span>
+                                  <div className="flex-1" />
+                                  <div className="hidden">{provided.placeholder}</div>
+                                </div>
+                              )}
+                            </Droppable>
+                          );
+                        }
+
                         return (
-                          <div key={status.value} className="flex flex-[1_1_240px] min-w-[240px] flex-col rounded-2xl bg-secondary/30 min-h-[320px] max-h-[calc(100vh-20rem)]">
+                          <div key={status.value} className="flex flex-[1_1_215px] min-w-[215px] flex-col rounded-2xl bg-secondary/30 min-h-[320px] max-h-[calc(100vh-20rem)]">
                             {/* Column header stays put while the card list scrolls below it */}
-                            <div className="flex items-center justify-between gap-2 px-3 pt-2.5 pb-2 flex-shrink-0">
+                            <div className="flex items-center justify-between gap-1.5 px-3 pt-2.5 pb-2 flex-shrink-0">
                               <div className="flex items-center gap-2 min-w-0">
                                 <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${status.color.split(" ")[0]}`} />
                                 <span className="font-mono text-xs font-semibold uppercase tracking-wider text-foreground truncate">{status.label}</span>
                               </div>
-                              <span className="font-mono tabular-nums text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground flex-shrink-0">
-                                {columnApplicants.length}
-                              </span>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <span className="font-mono tabular-nums text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                                  {columnApplicants.length}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setCollapsedCols((p) => ({ ...p, [status.value]: true }))}
+                                  aria-label={`Collapse ${status.label} column`}
+                                  title="Collapse column"
+                                  className="rounded-md p-1 text-muted-foreground/40 transition-colors hover:bg-secondary hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                  <Minimize2 className="w-3 h-3" aria-hidden="true" />
+                                </button>
+                              </div>
                             </div>
                             <Droppable
                               droppableId={status.value}
@@ -705,7 +777,7 @@ const Dashboard = () => {
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.droppableProps}
-                                  className={`flex-1 overflow-y-auto px-2.5 pb-2.5 space-y-2 rounded-b-2xl transition-colors duration-200 ${
+                                  className={`flex-1 overflow-y-auto scrollbar-slim px-2.5 pb-2.5 space-y-2 rounded-b-2xl transition-colors duration-200 ${
                                     snapshot.isDraggingOver ? "bg-primary/10 ring-2 ring-inset ring-primary/30" : ""
                                   }`}
                                 >

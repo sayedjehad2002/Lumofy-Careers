@@ -476,6 +476,31 @@
     display: none;
   }
 
+  /* Slim, unobtrusive scrollbars for internal scroll regions (kanban columns,
+     board h-scroll, folder trees) — replaces the chunky gray OS default that
+     visually dominates dense layouts on Windows. */
+  .scrollbar-slim {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .scrollbar-slim::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-slim::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 9999px;
+  }
+  .scrollbar-slim::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.45);
+  }
+  .scrollbar-slim::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
   .glass {
     background: hsl(var(--card) / 0.88);
     backdrop-filter: blur(20px) saturate(1.1);
