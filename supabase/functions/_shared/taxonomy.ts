@@ -76,6 +76,13 @@ const ALIASES: Record<string, string> = {
   "administration": "Operations",
   "consulting": "Professional Services",
   "implementation": "Professional Services",
+  "it security": "Engineering",
+  "information security": "Engineering",
+  "network security": "Engineering",
+  "learning & development": "Human Resources",
+  "learning and development": "Human Resources",
+  "l&d": "Human Resources",
+  "talent development": "Human Resources",
 };
 
 // Snap a model-produced department name onto the canonical taxonomy:
@@ -127,6 +134,22 @@ export function sanitizeCandidateName(raw: unknown): string | null {
   return s;
 }
 
+// Non-answers the model emits instead of a real job title. Storing these creates
+// junk folder groups ("Undetermined (1)", "Unable to Analyze (1)", "None (for
+// Operations Manager) (1)") that make the library look broken to HR.
+const JUNK_TITLE_RE =
+  /^(none\b|n\/?a\b|unknown\b|undetermined\b|unable\b|not enough\b|insufficient\b|not determin|no specific\b|not applicable\b|not available\b|cannot\b|can't\b|tbd\b|pending\b)/i;
+
+// Validate a model-supplied job title: real titles only — junk non-answers
+// become null so the UI shows just the department with no bogus role group.
+export function sanitizeJobTitle(raw: unknown): string | null {
+  const s = typeof raw === "string" ? raw.trim().slice(0, 80) : "";
+  if (!s) return null;
+  if (JUNK_TITLE_RE.test(s)) return null;
+  if (!/\p{L}/u.test(s)) return null;
+  return s;
+}
+
 // Derive the 8 classification columns from a stored ai_analysis object — the
 // alignment core. The analysis reads the raw PDF, so whenever it exists it is
 // strictly better informed than a classification computed from (possibly empty)
@@ -154,13 +177,11 @@ export function deriveClassificationFromAnalysis(
   if (!primary) return null;
 
   const dept = normalizeDepartment(primary.department);
-  const cleanTitle = (t: unknown): string | null => {
-    const s = typeof t === "string" ? t.trim() : "";
-    return s ? s.slice(0, 80) : null;
-  };
+  // Junk-guarded: a non-answer like "None (for Operations Manager)" falls through
+  // to the next source instead of becoming a bogus folder group.
   const title =
-    cleanTitle(a.recruiterVerdict?.shortlistFor) ||
-    cleanTitle(a.professionalIdentity?.primary);
+    sanitizeJobTitle(a.recruiterVerdict?.shortlistFor) ||
+    sanitizeJobTitle(a.professionalIdentity?.primary);
 
   // Second-best fit: the first departmentMatch that lands on a DIFFERENT
   // canonical department than the primary.
@@ -176,7 +197,7 @@ export function deriveClassificationFromAnalysis(
     suggested_job_title: title,
     classification_confidence: scoreToConfidence(primary.confidence),
     suggested_department_2: second ? normalizeDepartment(second.department) : null,
-    suggested_job_title_2: cleanTitle(a.professionalIdentity?.secondary),
+    suggested_job_title_2: sanitizeJobTitle(a.professionalIdentity?.secondary),
     classification_confidence_2: second
       ? scoreToConfidence(second.confidence)
       : scoreToConfidence(a.professionalIdentity?.secondaryConfidence),

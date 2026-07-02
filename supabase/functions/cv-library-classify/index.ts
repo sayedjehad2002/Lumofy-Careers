@@ -5,7 +5,7 @@ import { chatCompletion, wrapUntrusted, UNTRUSTED_DATA_NOTE, currentDateLine, CH
 // The department/role taxonomy lives in _shared/taxonomy.ts — the single source of
 // truth shared with cv-library-analyze (whose departmentMatches are constrained to
 // it) and cv-library-manage (the sync-classification backfill).
-import { TAXONOMY, DEPARTMENTS } from "../_shared/taxonomy.ts";
+import { TAXONOMY, DEPARTMENTS, sanitizeJobTitle } from "../_shared/taxonomy.ts";
 
 function normalizeConfidence(value: unknown): "High" | "Medium" | "Low" {
   const v = String(value || "").toLowerCase();
@@ -166,12 +166,11 @@ Respond with valid JSON only (no markdown):
       throw new Error("Failed to parse classification");
     }
 
-    // Keep the model's ACCURATE job title — only sanitize it (trim + length cap),
-    // never overwrite it with a generic preset. Departments still snap to the 9
-    // (the folder taxonomy); titles stay precise (e.g. "I/O Psychologist").
+    // Keep the model's ACCURATE job title, but junk-guard it: non-answers like
+    // "Unable to Determine"/"Undetermined" fall back to the department's first
+    // example role instead of becoming bogus folder groups in the library tree.
     const sanitizeTitle = (t: unknown, dept: string): string | null => {
-      const s = typeof t === "string" ? t.trim() : "";
-      return s && s.length <= 80 ? s : pickRoleForDepartment(dept);
+      return sanitizeJobTitle(t) || pickRoleForDepartment(dept);
     };
 
     const primaryDept = DEPARTMENTS.includes(classification.suggested_department)

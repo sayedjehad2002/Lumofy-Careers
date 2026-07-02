@@ -1,7 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { validateSession } from "../_shared/validate-session.ts";
-import { chatCompletion, parseJsonResponse, UNTRUSTED_DATA_NOTE, currentDateLine } from "../_shared/ai.ts";
+import { chatCompletion, parseJsonResponse, UNTRUSTED_DATA_NOTE, currentDateLine, wrapUntrusted } from "../_shared/ai.ts";
 
 // CV is base64-encoded into the AI request; cap raw size before encode.
 const MAX_CV_BYTES = 10 * 1024 * 1024; // 10MB
@@ -200,21 +200,60 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
       console.warn("parse: empty/unparseable model response", {
         finishReason, preview: String(content ?? "").slice(0, 120),
       });
-      const retries = [
-        { model: "google/gemini-3-flash-preview", temperature: 0.9 },
-        { model: "gemini-2.5-pro", temperature: 0.3 },
-      ];
-      for (const rm of retries) {
-        try {
-          const rr = await chatCompletion({
-            model: rm.model, messages, hasImages: true,
-            max_tokens: 3000, temperature: rm.temperature,
+
+      // RUNG 1 — TEXT-LAYER EXTRACTION (deterministic, near-free). The blocked
+      // files are overwhelmingly LinkedIn exports / templated PDFs, which carry a
+      // clean embedded text layer. Read it directly and send TEXT to the model —
+      // text-in/JSON-out does not trip the multimodal-PDF blocking at all.
+      // Dynamic import keeps function boot safe even if the package ever breaks.
+      try {
+        const { extractText, getDocumentProxy } = await import("npm:unpdf");
+        const pdfDoc = await getDocumentProxy(new Uint8Array(arrayBuffer));
+        const { text } = await extractText(pdfDoc, { mergePages: true });
+        const rawText = String(text || "").replace(/\s+/g, " ").trim();
+        if (rawText.length >= 200) {
+          const tr = await chatCompletion({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: systemPrompt },
+              {
+                role: "user",
+                content: `Parse this CV (${candidate.resume_file_name}). The document's text was extracted directly from the PDF:\n\n${wrapUntrusted("CV TEXT", rawText.slice(0, 30000))}\n\nReturn ONLY the JSON object.`,
+              },
+            ],
+            hasImages: false,
+            max_tokens: 3000,
+            temperature: 0.1,
           });
-          if (!rr.ok) { try { await rr.body?.cancel(); } catch { /* ignore */ } continue; }
-          const rd = await rr.json();
-          parsed = parseJsonResponse<Record<string, any>>(rd.choices?.[0]?.message?.content);
-          if (parsed) break;
-        } catch (_e) { /* try next rung */ }
+          if (tr.ok) {
+            const td = await tr.json();
+            parsed = parseJsonResponse<Record<string, any>>(td.choices?.[0]?.message?.content);
+            if (parsed) console.log("parse: recovered via text-layer extraction");
+          }
+        }
+      } catch (e) {
+        console.warn("parse: text-layer fallback unavailable:", String(e).slice(0, 120));
+      }
+
+      // RUNGS 2-3 — multimodal retries for scanned/no-text-layer PDFs: higher
+      // temperature breaks deterministic blocking; pro filters differently.
+      if (!parsed) {
+        const retries = [
+          { model: "google/gemini-3-flash-preview", temperature: 0.9 },
+          { model: "gemini-2.5-pro", temperature: 0.3 },
+        ];
+        for (const rm of retries) {
+          try {
+            const rr = await chatCompletion({
+              model: rm.model, messages, hasImages: true,
+              max_tokens: 3000, temperature: rm.temperature,
+            });
+            if (!rr.ok) { try { await rr.body?.cancel(); } catch { /* ignore */ } continue; }
+            const rd = await rr.json();
+            parsed = parseJsonResponse<Record<string, any>>(rd.choices?.[0]?.message?.content);
+            if (parsed) break;
+          } catch (_e) { /* try next rung */ }
+        }
       }
     }
     if (!parsed) {
