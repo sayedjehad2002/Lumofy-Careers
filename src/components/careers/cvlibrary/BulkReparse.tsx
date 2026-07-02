@@ -41,8 +41,11 @@ export default function BulkReparse({ candidates, filteredIds, onReparse, onRefr
   // and including them would burn AI calls and keep the scope count from ever
   // reaching zero. Transient "ai_error" ones ARE included (retry is correct).
   const incompleteCandidates = candidates.filter(c => {
-    const dept = c.manual_department || c.suggested_department;
-    const unclassified = !dept || c.classification_confidence === "Low";
+    // Same membership rule as the folder tree: an HR-set manual department is
+    // ALWAYS classified — a candidate HR already resolved must drop out of this
+    // scope instead of burning AI calls on every run.
+    const unclassified = !c.manual_department &&
+      (!c.suggested_department || c.classification_confidence === "Low");
     const unnamed = !c.name;
     const deterministicUnreadable = c.ai_analysis?.unreadable === true &&
       (c.ai_analysis?.reason === "word" || c.ai_analysis?.reason === "no_text");

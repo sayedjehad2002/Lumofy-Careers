@@ -2,6 +2,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { validateSession } from "../_shared/validate-session.ts";
 import { chatCompletion, parseJsonResponse, UNTRUSTED_DATA_NOTE, currentDateLine, wrapUntrusted } from "../_shared/ai.ts";
+import { sanitizeCandidateName } from "../_shared/taxonomy.ts";
 
 // CV is base64-encoded into the AI request; cap raw size before encode.
 const MAX_CV_BYTES = 10 * 1024 * 1024; // 10MB
@@ -25,6 +26,10 @@ function deriveNameFromFilename(fileName?: string | null): string | null {
   if (words.length < 2 || words.length > 6) return null;        // need a plausible human name
   // But require at least one real (multi-letter) name part, so "a b c" isn't a name.
   if (!words.some((w) => w.replace(/[.'’-]/g, "").length >= 2)) return null;
+  // Role/title words are never parts of a human name in a CV filename —
+  // "HR_Manager_CV.pdf" must not become the candidate name "HR Manager".
+  const ROLE_WORD_RE = /^(hr|manager|senior|junior|lead|head|chief|engineer|developer|accountant|analyst|specialist|coordinator|consultant|executive|officer|assistant|intern|designer|architect|supervisor|director|recruiter|marketing|sales|finance|operations|admin|administrator)$/i;
+  if (words.some((w) => ROLE_WORD_RE.test(w))) return null;
   return words.join(" ");
 }
 
@@ -279,8 +284,10 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
     const overrides = (candidate.manual_overrides || {}) as Record<string, boolean>;
 
     // Resolve the candidate name from the parse result (HR-locked names win).
-    let resolvedName: string | null =
-      typeof parsed.name === "string" && parsed.name.trim() ? parsed.name.trim() : null;
+    // sanitizeCandidateName blocks junk model outputs ("Unknown", "Not provided",
+    // "The Candidate") from ever becoming the stored name — a junk non-null name
+    // would permanently block the analyze/sync name backfills (.is name null).
+    let resolvedName: string | null = sanitizeCandidateName(parsed.name);
     if (overrides.name) resolvedName = candidate.name || resolvedName;
 
     // Unreadable only when the document yielded nothing: no name AND no text. A blank
@@ -299,18 +306,21 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
     const { error: updateErr } = await supabase
       .from("cv_library_candidates")
       .update({
-        // NEVER regress a name: if this parse couldn't resolve one, keep whatever
-        // name the record already has (a previous parse/analysis/HR edit). A flaky
-        // extraction must not blank out a good name.
+        // NEVER regress data: when this parse couldn't extract a field, keep the
+        // value the record already has (a previous parse/analysis/HR edit). A flaky
+        // extraction — especially the temp-0.9 recovery rung, which the model docs
+        // as erratic on contact fields — must not blank out good data.
         name: resolvedName || candidate.name || null,
-        email: overrides.email ? candidate.email : (parsed.email || null),
-        phone: overrides.phone ? candidate.phone : (parsed.phone || null),
-        nationality: overrides.nationality ? candidate.nationality : (parsed.nationality || null),
-        country: overrides.country ? candidate.country : (parsed.country || null),
-        location: overrides.location ? candidate.location : (parsed.location || null),
-        years_experience: overrides.years_experience ? candidate.years_experience : (parsed.years_experience || null),
-        skills: parsed.skills || candidate.skills || [],
-        industries: parsed.industries || candidate.industries || [],
+        email: overrides.email ? candidate.email : (parsed.email || candidate.email || null),
+        phone: overrides.phone ? candidate.phone : (parsed.phone || candidate.phone || null),
+        nationality: overrides.nationality ? candidate.nationality : (parsed.nationality || candidate.nationality || null),
+        country: overrides.country ? candidate.country : (parsed.country || candidate.country || null),
+        location: overrides.location ? candidate.location : (parsed.location || candidate.location || null),
+        years_experience: overrides.years_experience ? candidate.years_experience : (parsed.years_experience ?? candidate.years_experience ?? null),
+        // Length-checked: [] is truthy in JS, so a bare `parsed.skills ||` would let
+        // an empty model array wipe a populated list.
+        skills: (Array.isArray(parsed.skills) && parsed.skills.length ? parsed.skills : candidate.skills) || [],
+        industries: (Array.isArray(parsed.industries) && parsed.industries.length ? parsed.industries : candidate.industries) || [],
         roles_summary: parsed.roles_summary || candidate.roles_summary || null,
         extracted_text: parsed.extracted_text_summary || candidate.extracted_text || null,
       })

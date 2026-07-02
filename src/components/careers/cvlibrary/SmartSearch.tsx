@@ -8,6 +8,9 @@ import { TONE_SOFT } from "@/components/careers/statusColors";
 
 interface Props {
   onSearch: (query: string, parsed: ParsedQuery) => void;
+  /** Parent-owned query value: keeps the input + token badges in sync when a
+   *  Saved View (or anything else) changes the active search externally. */
+  value?: string;
 }
 
 export interface ParsedQuery {
@@ -39,8 +42,15 @@ function parseQuery(raw: string): ParsedQuery {
   return { include, exclude, raw };
 }
 
-export default function SmartSearch({ onSearch }: Props) {
-  const [query, setQuery] = useState("");
+export default function SmartSearch({ onSearch, value }: Props) {
+  const [query, setQuery] = useState(value ?? "");
+  // Resync when the parent changes the active search externally (e.g. applying a
+  // Saved View) — otherwise the box shows stale text while the list filters
+  // differently ("invisible" or "phantom" filtering).
+  useEffect(() => {
+    if (value !== undefined && value !== query) setQuery(value);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
   // Persist recent searches across reloads (was lost on refresh).
   const [recentSearches, setRecentSearches] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem("cvlib:recentSearches") || "[]"); } catch { return []; }

@@ -192,7 +192,11 @@ Respond with valid JSON only (no markdown):
       suggested_job_title_2: sanitizeTitle(classification.suggested_job_title_2, secondaryDept),
       confidence_2: normalizeConfidence(classification.confidence_2),
       reasoning: classification.reasoning || null,
-      evidence: Array.isArray(classification.evidence) ? classification.evidence.slice(0, 3) : [],
+      // String-filtered before writing to the text[] column — a drifting model
+      // emitting objects would otherwise fail the whole classification update.
+      evidence: Array.isArray(classification.evidence)
+        ? classification.evidence.filter((e: unknown) => typeof e === "string").slice(0, 3)
+        : [],
     };
 
     const { error: updateErr } = await supabase

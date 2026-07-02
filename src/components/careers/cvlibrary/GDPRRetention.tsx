@@ -15,7 +15,7 @@ interface CVCandidate {
 
 interface Props {
   candidates: CVCandidate[];
-  onDelete: (id: string) => void;
+  onDelete: (id: string, skipConfirm?: boolean) => void;
   onViewCandidate: (id: string) => void;
 }
 
@@ -35,8 +35,11 @@ export default function GDPRRetention({ candidates, onDelete, onViewCandidate }:
   const ageInDays = (date: string) => Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24));
 
   const handleBulkDelete = () => {
-    if (!confirm(`Delete ${flagged.length} CVs older than ${months} months? This cannot be undone.`)) return;
-    flagged.forEach(c => onDelete(c.id));
+    // ONE confirmation with truthful soft-delete wording, then confirm-free
+    // deletes — the parent's per-item confirm would otherwise stack N more
+    // dialogs on top of this one.
+    if (!confirm(`Move ${flagged.length} CVs older than ${months} months to Trash? You can restore them from the Trash tab.`)) return;
+    flagged.forEach(c => onDelete(c.id, true));
   };
 
   return (
@@ -101,7 +104,9 @@ export default function GDPRRetention({ candidates, onDelete, onViewCandidate }:
                     </div>
                     <Badge variant="outline" className="text-[10px]">{c.status}</Badge>
                     <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => {
-                      if (confirm(`Delete CV for ${c.name || "Unknown"}?`)) onDelete(c.id);
+                      // Single confirm with truthful soft-delete wording; skip the
+                      // parent's second dialog.
+                      if (confirm(`Move CV for ${c.name || "Unknown"} to Trash? You can restore it from the Trash tab.`)) onDelete(c.id, true);
                     }}>
                       <Trash2 className="w-3 h-3" />
                     </Button>

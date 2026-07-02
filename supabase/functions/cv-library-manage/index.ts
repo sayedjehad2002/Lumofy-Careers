@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
       for (let from = 0; ; from += PAGE) {
         const { data: rows, error } = await supabase
           .from("cv_library_candidates")
-          .select("id, name, manual_overrides, ai_analysis")
+          .select("id, name, email, phone, nationality, country, location, years_experience, manual_department, manual_job_title, manual_overrides, ai_analysis")
           .is("deleted_at", null)
           .not("ai_analysis", "is", null)
           .order("id", { ascending: true })
@@ -176,10 +176,35 @@ Deno.serve(async (req) => {
         for (const row of rows) {
           const cls = deriveClassificationFromAnalysis(row.ai_analysis as Record<string, any>);
           if (!cls) { skipped++; continue; }
+          const payload: Record<string, unknown> = { ...cls };
+
+          // DATA REPAIR 1: junk stored names ("Unknown", "Not provided", "null"…)
+          // block every automated backfill (they're non-null). Null them out so the
+          // name backfill below — and future parses — can restore the real name.
+          if (typeof row.name === "string" && row.name && !sanitizeCandidateName(row.name)) {
+            payload.name = null;
+          }
+
+          // DATA REPAIR 2: clear override flags that lock EMPTY values. A past Edit-
+          // dialog bug marked every submitted field as HR-overridden — including
+          // fields saved as null — freezing candidates as "Unnamed"/contactless
+          // forever. An override flag only makes sense when it protects a real value.
+          const overrides = { ...(row.manual_overrides || {}) } as Record<string, boolean>;
+          let overridesChanged = false;
+          for (const f of ["name", "email", "phone", "nationality", "country", "location", "years_experience"] as const) {
+            const val = f === "name" ? (payload.name ?? row.name) : (row as Record<string, unknown>)[f];
+            if (overrides[f] && (val === null || val === undefined || val === "")) {
+              delete overrides[f];
+              overridesChanged = true;
+            }
+          }
+          if (overrides.department && !row.manual_department) { delete overrides.department; overridesChanged = true; }
+          if (overrides.job_title && !row.manual_job_title) { delete overrides.job_title; overridesChanged = true; }
+          if (overridesChanged) payload.manual_overrides = overrides;
 
           const { error: e } = await supabase
             .from("cv_library_candidates")
-            .update(cls)
+            .update(payload)
             .eq("id", row.id);
           if (e) { console.error("sync-classification update error:", row.id, e); skipped++; continue; }
           updated++;
@@ -187,8 +212,7 @@ Deno.serve(async (req) => {
           // Name backfill: junk-guarded and race-safe — `.is("name", null)` fills
           // only a still-empty slot, never overwriting an HR edit made meanwhile.
           const aiName = sanitizeCandidateName((row.ai_analysis as any)?.candidateName);
-          const overrides = (row.manual_overrides || {}) as Record<string, boolean>;
-          if (aiName && !overrides.name) {
+          if (aiName) {
             await supabase
               .from("cv_library_candidates")
               .update({ name: aiName })

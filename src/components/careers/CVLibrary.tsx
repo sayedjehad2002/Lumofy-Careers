@@ -218,9 +218,20 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
 
       await fetchCandidates();
 
-      for (const uploaded of result.uploaded) {
-        processCandidate(uploaded.id);
-      }
+      // Process STRICTLY ONE upload at a time (fire-and-forget runner so the upload
+      // button re-enables immediately; per-card spinners cover the processing phase).
+      // Live-tested constraint on this project's Gemini key: even two concurrent
+      // candidate chains trigger sustained "model overloaded" 5xx failures that stamp
+      // fresh uploads with the unreadable/ai_error marker. Same discipline as
+      // BulkReparse: sequential + a breather.
+      void (async () => {
+        for (let i = 0; i < result.uploaded.length; i++) {
+          await processCandidate(result.uploaded[i].id);
+          if (i + 1 < result.uploaded.length) {
+            await new Promise((r) => setTimeout(r, 3000));
+          }
+        }
+      })();
     } catch (err: any) {
       toast.error(err.message || "Upload failed");
     } finally {
@@ -394,25 +405,40 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
         ...(updates.manual_overrides || {}),
       };
 
-      const overrideFields = ["name", "email", "phone", "nationality", "country", "location", "years_experience", "status"];
+      // Flag a field as HR-overridden ONLY when its value actually CHANGED to a
+      // non-empty value. The Edit dialog submits EVERY field on save, so flagging
+      // all present keys locked null names/emails as "manual" forever — blocking
+      // the AI backfills and keeping candidates permanently "Unnamed".
+      const overrideFields = ["name", "email", "phone", "nationality", "country", "location", "years_experience"];
       for (const field of overrideFields) {
-        if (field in updates) {
+        if (!(field in updates)) continue;
+        const next = updates[field];
+        const cur = (existing as any)?.[field] ?? null;
+        if (next !== null && next !== "" && next !== cur) {
           manualOverrides[field] = true;
         }
       }
 
-      if ("manual_department" in updates || "suggested_department" in updates) manualOverrides.department = true;
-      if ("manual_job_title" in updates || "suggested_job_title" in updates) manualOverrides.job_title = true;
-
-      // Only touch the manual classification columns when this update is actually
-      // about classification — otherwise a status/tag change would send
-      // manual_department: null and silently wipe HR's override in the DB.
       const finalUpdates: typeof updates = { ...updates, manual_overrides: manualOverrides };
-      if ("manual_department" in updates || "suggested_department" in updates) {
-        finalUpdates.manual_department = updates.manual_department ?? updates.suggested_department ?? null;
+
+      // Classification: only pin a manual department/title when HR actually picked a
+      // DIFFERENT non-empty value than what's currently effective — re-saving the
+      // dialog unchanged must NOT freeze the AI classification to a stale value.
+      const effDept = existing?.manual_department || existing?.suggested_department || null;
+      const newDept = updates.manual_department ?? updates.suggested_department ?? null;
+      if (("manual_department" in updates || "suggested_department" in updates) && newDept && newDept !== effDept) {
+        manualOverrides.department = true;
+        finalUpdates.manual_department = newDept;
+      } else {
+        delete finalUpdates.manual_department;
       }
-      if ("manual_job_title" in updates || "suggested_job_title" in updates) {
-        finalUpdates.manual_job_title = updates.manual_job_title ?? updates.suggested_job_title ?? null;
+      const effTitle = existing?.manual_job_title || existing?.suggested_job_title || null;
+      const newTitle = updates.manual_job_title ?? updates.suggested_job_title ?? null;
+      if (("manual_job_title" in updates || "suggested_job_title" in updates) && newTitle && newTitle !== effTitle) {
+        manualOverrides.job_title = true;
+        finalUpdates.manual_job_title = newTitle;
+      } else {
+        delete finalUpdates.manual_job_title;
       }
 
       const { error } = await supabase.functions.invoke("cv-library-manage", {
@@ -431,8 +457,10 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
     }
   };
 
-  const handleDelete = async (candidateId: string) => {
-    if (!confirm("Move this CV to Trash? You can restore it from the Trash tab, or delete it permanently there.")) return;
+  // `skipConfirm` lets bulk callers (e.g. GDPR "Delete all flagged") show ONE
+  // confirmation themselves instead of N+1 sequential browser dialogs.
+  const handleDelete = async (candidateId: string, skipConfirm = false) => {
+    if (!skipConfirm && !confirm("Move this CV to Trash? You can restore it from the Trash tab, or delete it permanently there.")) return;
     try {
       const { error } = await supabase.functions.invoke("cv-library-manage", {
         body: { action: "delete", sessionToken, candidateId },
@@ -446,6 +474,15 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
     }
   };
 
+  // THE single folder-membership rule: an HR-set manual department is ALWAYS
+  // classified (regardless of AI confidence — HR's pick must visibly "work");
+  // otherwise a candidate needs a suggested department with non-Low confidence.
+  // Used by the folder tree, the Unclassified filter, folder counts, AND
+  // BulkReparse's scope — one rule so every number agrees.
+  const isUnclassified = useCallback((c: CVCandidate) =>
+    !c.manual_department && (!c.suggested_department || c.classification_confidence === "Low"),
+  []);
+
   // Build folder tree
   const folderTree = useMemo(() => {
     const tree: Record<string, Set<string>> = {};
@@ -453,15 +490,27 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
     candidates.forEach(c => {
       const dept = c.manual_department || c.suggested_department;
       const title = c.manual_job_title || c.suggested_job_title;
-      if (!dept || c.classification_confidence === "Low") {
+      if (isUnclassified(c)) {
         unclassifiedCount++;
         return;
       }
-      if (!tree[dept]) tree[dept] = new Set();
-      if (title) tree[dept].add(title);
+      if (!tree[dept!]) tree[dept!] = new Set();
+      if (title) tree[dept!].add(title);
     });
     return { tree, unclassifiedCount };
-  }, [candidates]);
+  }, [candidates, isUnclassified]);
+
+  // A re-classification can dissolve the selected folder (candidate moved to a
+  // different department) — fall back to "All CVs" instead of silently filtering
+  // the list down to a misleading "No CVs found" empty state.
+  useEffect(() => {
+    if (selectedFolder === "all" || selectedFolder === "unclassified") return;
+    const [dept, title] = selectedFolder.includes("::")
+      ? selectedFolder.split("::")
+      : [selectedFolder, null as string | null];
+    const exists = title ? !!folderTree.tree[dept]?.has(title) : !!folderTree.tree[dept];
+    if (!exists) setSelectedFolder("all");
+  }, [folderTree, selectedFolder]);
 
   // Filtered and sorted candidates
   const filteredCandidates = useMemo(() => {
@@ -469,21 +518,18 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
 
     if (selectedFolder !== "all") {
       if (selectedFolder === "unclassified") {
-        result = result.filter(c => {
-          const dept = c.manual_department || c.suggested_department;
-          return !dept || c.classification_confidence === "Low";
-        });
+        result = result.filter(isUnclassified);
       } else if (selectedFolder.includes("::")) {
         const [dept, title] = selectedFolder.split("::");
         result = result.filter(c => {
           const cDept = c.manual_department || c.suggested_department;
           const cTitle = c.manual_job_title || c.suggested_job_title;
-          return cDept === dept && cTitle === title;
+          return !isUnclassified(c) && cDept === dept && cTitle === title;
         });
       } else {
         result = result.filter(c => {
           const cDept = c.manual_department || c.suggested_department;
-          return cDept === selectedFolder;
+          return !isUnclassified(c) && cDept === selectedFolder;
         });
       }
     }
@@ -943,7 +989,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
       {subTab === "library" && (
         <>
           {/* Smart Search */}
-          <SmartSearch onSearch={handleSmartSearch} />
+          <SmartSearch value={searchQuery} onSearch={handleSmartSearch} />
 
           {/* Saved Filters */}
           <div className="mt-3 mb-3">
@@ -1013,7 +1059,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
                 </button>
 
                 {Object.entries(folderTree.tree).sort(([a], [b]) => a.localeCompare(b)).map(([dept, titles]) => {
-                  const deptCount = candidates.filter(c => (c.manual_department || c.suggested_department) === dept).length;
+                  const deptCount = candidates.filter(c => !isUnclassified(c) && (c.manual_department || c.suggested_department) === dept).length;
                   const isOpen = folderOpen[dept] ?? false;
                   return (
                     <div key={dept}>
@@ -1030,6 +1076,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
                       </button>
                       {isOpen && Array.from(titles).sort().map(title => {
                         const titleCount = candidates.filter(c =>
+                          !isUnclassified(c) &&
                           (c.manual_department || c.suggested_department) === dept &&
                           (c.manual_job_title || c.suggested_job_title) === title
                         ).length;

@@ -240,12 +240,13 @@ You MUST respond with a single valid JSON object (no markdown, no code blocks). 
 
     // NAME BACKFILL: the analysis reads the name off the document itself. Fill it in
     // ONLY when the record still has no name at write time — the `.is("name", null)`
-    // condition makes this race-safe (the row was fetched BEFORE the long AI call;
-    // HR may have set a name meanwhile, and a stored name is never overwritten).
+    // condition makes this race-safe AND makes an overrides.name guard unnecessary:
+    // an HR-set name is never null, so it can never be overwritten here. (Not gating
+    // on overrides also lets rows whose override flags were wrongly set with null
+    // values — the old Edit-dialog bug — recover their real names.)
     // sanitizeCandidateName blocks junk like "Unknown"/"N/A" from ever becoming a name.
-    const overrides = (candidate.manual_overrides || {}) as Record<string, boolean>;
     const aiName = sanitizeCandidateName(analysis.candidateName);
-    if (aiName && !overrides.name) {
+    if (aiName) {
       await supabase
         .from("cv_library_candidates")
         .update({ name: aiName })

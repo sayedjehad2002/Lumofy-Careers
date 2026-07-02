@@ -121,6 +121,7 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
       }
 
       toast.success(`${candidateDisplayName(candidate.name, candidate.resume_file_name) || "Candidate"} added to ${selectedJob.title}`);
+      setSelectedJobId(""); // never leave a stale id pointing at a now-hidden job
       setOpen(false);
       onDone?.();
     } catch (e: any) {
@@ -139,13 +140,13 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
             <Check className="w-3.5 h-3.5 flex-shrink-0" />
             In pipeline — already tracked
           </div>
-          <Button variant="ghost" size="sm" className="h-auto w-full justify-start gap-1.5 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground" onClick={() => setOpen(true)}>
+          <Button variant="ghost" size="sm" className="h-auto w-full justify-start gap-1.5 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setSelectedJobId(""); setOpen(true); }}>
             <UserPlus className="w-3.5 h-3.5" />
             Add to another job
           </Button>
         </div>
       ) : (
-        <Button size="sm" className="w-full gap-1.5" onClick={() => setOpen(true)}>
+        <Button size="sm" className="w-full gap-1.5" onClick={() => { setSelectedJobId(""); setOpen(true); }}>
           <UserPlus className="w-3.5 h-3.5" />
           Add to pipeline
         </Button>
@@ -196,7 +197,9 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddToJob} disabled={!selectedJobId || submitting}>
+            {/* Gate on the RESOLVED job (not the raw id) — a stale id whose job left
+                openJobs must not leave this button enabled. */}
+            <Button onClick={handleAddToJob} disabled={!selectedJob || submitting}>
               {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <ArrowRight className="w-4 h-4 mr-1" />}
               Add to pipeline
             </Button>
