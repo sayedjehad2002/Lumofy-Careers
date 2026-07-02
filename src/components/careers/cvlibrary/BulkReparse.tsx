@@ -68,25 +68,27 @@ export default function BulkReparse({ candidates, filteredIds, onReparse, onRefr
     let done = 0;
     let fail = 0;
 
-    // Process in gentle batches of 2 (each candidate = parse + classify + analyze, so
-    // 2 candidates already means several concurrent AI calls). Small batches + a pause
-    // keep us well under Gemini's rate/overload limits during a big re-parse.
-    for (let i = 0; i < targetIds.length; i += 2) {
-      const batch = targetIds.slice(i, i + 2);
-      const results = await Promise.allSettled(batch.map(id => onReparse(id)));
-
-      results.forEach(r => {
-        if (r.status === "fulfilled") done++;
-        else fail++;
-      });
+    // Process STRICTLY ONE candidate at a time. Empirically (live-tested on this
+    // project's Gemini key), solo calls succeed ~100% while even two concurrent
+    // candidate chains trigger sustained "model overloaded" 5xx failures — the
+    // API tier rejects parallel multimodal requests. Sequential is ~2x slower but
+    // actually completes. Each candidate's own parse -> classify -> analyze chain
+    // is already sequential inside processCandidate.
+    for (let i = 0; i < targetIds.length; i++) {
+      try {
+        await onReparse(targetIds[i]);
+        done++;
+      } catch {
+        fail++;
+      }
 
       setCompleted(done);
       setFailed(fail);
       setProgress(Math.round(((done + fail) / targetIds.length) * 100));
 
-      // Pause between batches to avoid rate limits / model-overload (503) errors.
-      if (i + 2 < targetIds.length) {
-        await new Promise(resolve => setTimeout(resolve, 2500));
+      // Breather between candidates to stay clear of per-minute rate limits.
+      if (i + 1 < targetIds.length) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
     }
 
