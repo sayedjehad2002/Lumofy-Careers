@@ -60,15 +60,6 @@ type Tab = "overview" | "jobs" | "applicants" | "pipeline" | "cv-library" | "hr-
 // A candidate may advance to the next stage(s), be rejected from any active
 // stage, or be moved back one step (to correct mistakes). "hired"/"rejected"
 // are terminal except for reverting out of them.
-const ALLOWED_TRANSITIONS: Record<ApplicantStatus, ApplicantStatus[]> = {
-  new: ["reviewing", "shortlisted", "rejected"],
-  reviewing: ["new", "shortlisted", "interview", "rejected"],
-  shortlisted: ["reviewing", "interview", "rejected"],
-  interview: ["shortlisted", "hired", "rejected"],
-  hired: ["interview"],
-  rejected: ["new", "reviewing", "shortlisted", "interview"],
-};
-
 const Dashboard = () => {
   const { jobs, applicants, loading, sessionToken, authReady, isHrUser, hrChecked, addJob, updateJob, archiveJob, restoreJob, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI } = useCareers();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -218,14 +209,10 @@ const Dashboard = () => {
     const applicant = applicants.find(a => a.id === draggableId);
     if (!applicant) return;
 
-    // Ignore illegal stage transitions (e.g. new → hired directly).
-    if (!ALLOWED_TRANSITIONS[sourceStatus]?.includes(targetStatus)) {
-      toast.error(
-        `Can't move from "${APPLICANT_STATUSES.find(s => s.value === sourceStatus)?.label ?? sourceStatus}" to "${APPLICANT_STATUSES.find(s => s.value === targetStatus)?.label ?? targetStatus}".`
-      );
-      return;
-    }
-
+    // HR can move candidates FREELY between any stages (a strong candidate may jump
+    // straight from New to Interview) — the strict adjacent-stage laddering was
+    // blocking real workflows. Terminal moves (hired/rejected) still require the
+    // confirmation dialog below.
     if (targetStatus === "rejected" || targetStatus === "hired") {
       setConfirmDialog({
         open: true,
