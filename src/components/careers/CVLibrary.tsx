@@ -1000,7 +1000,10 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
           <div className="flex gap-4">
             {/* Folder Tree */}
             <div className="hidden lg:block w-56 flex-shrink-0">
-              <div className="rounded-xl bg-card border border-border p-3 sticky top-4">
+              {/* Sticky sidebar with its OWN scroll: an expanded department (e.g. 39
+                  Customer Success roles) grows taller than the viewport — without
+                  max-h + overflow the wheel can't reach the items below the fold. */}
+              <div className="rounded-xl bg-card border border-border p-3 sticky top-4 max-h-[calc(100vh-6rem)] overflow-y-auto overscroll-contain">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Folders</p>
                 <button
                   className={`w-full text-left text-sm px-2 py-1.5 rounded-md ${selectedFolder === "all" ? "bg-primary/10 text-primary font-medium" : "hover:bg-secondary text-foreground"}`}
@@ -1034,11 +1037,11 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
                         return (
                           <button
                             key={key}
-                            className={`w-full text-left text-xs pl-7 pr-2 py-1 rounded-md ${selectedFolder === key ? "bg-primary/10 text-primary font-medium" : "hover:bg-secondary text-muted-foreground"}`}
+                            className={`w-full flex items-center text-left text-xs pl-7 pr-2 py-1 rounded-md ${selectedFolder === key ? "bg-primary/10 text-primary font-medium" : "hover:bg-secondary text-muted-foreground"}`}
                             onClick={() => setSelectedFolder(key)}
                           >
                             <span className="truncate">{title}</span>
-                            <span className="ml-auto text-[10px]"> ({titleCount})</span>
+                            <span className="ml-auto pl-1 text-[10px] flex-shrink-0">({titleCount})</span>
                           </button>
                         );
                       })}
