@@ -665,11 +665,16 @@ const Dashboard = () => {
               </div>
 
                   <DragDropContext onDragEnd={handleDragEnd}>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {/* Kanban board: each column keeps a READABLE minimum width (240px)
+                        and grows to fill wide screens; when the viewport can't fit all
+                        six, the board scrolls horizontally (standard kanban behavior)
+                        instead of crushing columns into unusable slivers. Full-bleed
+                        into the page padding so the board uses every available pixel. */}
+                    <div className="flex gap-3 overflow-x-auto overscroll-x-contain pb-3 -mx-6 px-6 lg:-mx-8 lg:px-8">
                       {APPLICANT_STATUSES.map((status) => {
                         const columnApplicants = filteredApplicants.filter((a) => a.status === status.value);
                         return (
-                          <div key={status.value} className="flex flex-col rounded-2xl bg-secondary/30 min-h-[320px] max-h-[calc(100vh-21rem)]">
+                          <div key={status.value} className="flex flex-[1_1_240px] min-w-[240px] flex-col rounded-2xl bg-secondary/30 min-h-[320px] max-h-[calc(100vh-20rem)]">
                             {/* Column header stays put while the card list scrolls below it */}
                             <div className="flex items-center justify-between gap-2 px-3 pt-2.5 pb-2 flex-shrink-0">
                               <div className="flex items-center gap-2 min-w-0">
