@@ -1,0 +1,42 @@
+# Safety net for a repo that pushes straight to main: catch broken lint/tests/
+# builds early. NOT a deploy gate — Vercel deploys main regardless of this result.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    name: Lint, test, build
+    runs-on: ubuntu-latest
+    env:
+      # Placeholder PUBLIC config so the Supabase browser client can be
+      # constructed during tests and build. Real values live in Vercel;
+      # nothing here is (or may ever be) a secret.
+      VITE_SUPABASE_URL: https://ci-placeholder.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-anon-key
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Non-blocking: the codebase carries ~70 pre-existing style errors
+      # (no-explicit-any etc.). Tests + build are the pass/fail signal until
+      # that debt is paid down — then remove continue-on-error.
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build

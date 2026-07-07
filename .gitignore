@@ -12,11 +12,18 @@ dist
 dist-ssr
 *.local
 
+# Test coverage + tool caches
+coverage/
+.eslintcache
+*.tsbuildinfo
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
+Desktop.ini
 *.suo
 *.ntvs*
 *.njsproj
@@ -29,6 +36,12 @@ dist-ssr
 !.env.example
 
 .vercel
+
+# Claude Code per-user local state (permission grants — machine-specific)
+.claude/settings.local.json
+
+# Lovable session residue
+.lovable/
 
 # Supabase CLI local state
 supabase/.temp/

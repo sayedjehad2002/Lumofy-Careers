@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.hr-invite-accept]
 verify_jwt = false
+
+[functions.transcribe-audio]
+verify_jwt = false
