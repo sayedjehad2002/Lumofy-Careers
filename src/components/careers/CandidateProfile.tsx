@@ -1,13 +1,16 @@
 import { useMemo, useState, useCallback } from "react";
 import {
   ArrowLeft, FileText, Download, Eye, Loader2, AlertCircle,
-  MessageSquare, Star, User, Brain,
+  MessageSquare, Star, User, Brain, Briefcase,
   Mail, Phone, MapPin, ExternalLink, Calendar, Globe, Trash2, FileDown } from
 "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from
+"@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from
 "@/components/ui/select";
@@ -54,8 +57,58 @@ const CandidateProfile = ({
   const [noteInput, setNoteInput] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
   const [cvLoading, setCvLoading] = useState(false);
+  // "Change job": reassign this applicant to a different job's pipeline.
+  const [moveJobOpen, setMoveJobOpen] = useState(false);
+  const [targetJobId, setTargetJobId] = useState("");
+  const [movingJob, setMovingJob] = useState(false);
 
-  const { updateApplicantFields } = useCareers();
+  const { updateApplicantFields, jobs, refreshData } = useCareers();
+  const currentJobTitle = job?.title || applicant.jobTitle || "Unknown Position";
+  // Open jobs the applicant can be moved to (everything open except their current one).
+  const moveTargets = useMemo(
+    () => jobs.filter((j) => j.status === "open" && j.id !== applicant.jobId),
+    [jobs, applicant.jobId]
+  );
+
+  const handleMoveToJob = async () => {
+    const target = moveTargets.find((j) => j.id === targetJobId);
+    if (!target) { toast.error("Pick a job to move this candidate to"); return; }
+    setMovingJob(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("update-applicant", {
+        body: {
+          sessionToken,
+          applicantId: applicant.id,
+          updates: { job_id: target.id, job_title: target.title },
+        },
+      });
+      if (error || data?.error) throw error || new Error(data.error);
+
+      // Audit trail: record the move as a note (atomic server-side append).
+      const moveNote = `Moved from "${currentJobTitle}" to "${target.title}" on ${new Date().toLocaleDateString()}`;
+      onAddNote(applicant.id, moveNote).catch(() => { /* non-fatal */ });
+
+      // The fit score is job-specific — re-run the analysis for the NEW role in the
+      // background (same fire-and-forget pattern as the apply flow). Skipped for
+      // Word CVs, which the AI can't read.
+      const isWordCv = /\.docx?$/i.test(applicant.cvStoragePath || "");
+      if (applicant.cvStoragePath && !isWordCv) {
+        supabase.functions.invoke("auto-analyze-applicant", {
+          body: { applicantId: applicant.id, sessionToken },
+        }).catch(() => { /* non-blocking */ });
+      }
+
+      onApplicantChange({ ...applicant, jobId: target.id, jobTitle: target.title, notes: [...applicant.notes, moveNote] });
+      refreshData();
+      toast.success(`${applicant.fullName} moved to ${target.title} — re-running AI analysis for the new role`);
+      setMoveJobOpen(false);
+      setTargetJobId("");
+    } catch (e: any) {
+      toast.error(e?.message || "Couldn't move the candidate — is the latest update-applicant deployed?");
+    } finally {
+      setMovingJob(false);
+    }
+  };
   // Inline-edit a candidate field (Notion-style): persist, then reflect locally.
   // Throws on failure so the editor stays open for a retry.
   const saveField = async (field: EditableField, value: string) => {
@@ -240,6 +293,16 @@ const CandidateProfile = ({
             <Button
               size="sm"
               variant="outline"
+              className="h-9"
+              onClick={() => { setTargetJobId(""); setMoveJobOpen(true); }}
+              title={`Move ${applicant.fullName} to a different job's pipeline`}
+            >
+              <Briefcase className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+              Change job
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               className="h-9 px-2.5 text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary-readable"
               onClick={async () => {
                 // Defer the ~205KB jspdf/html2canvas stack until an export is actually requested.
@@ -270,6 +333,58 @@ const CandidateProfile = ({
             }
           </div>
         </div>
+
+        {/* Change-job dialog: reassign this applicant to another open job's
+            pipeline. Their stage is KEPT, the move is recorded as a note, and the
+            AI analysis re-runs in the background for the new role. */}
+        <Dialog open={moveJobOpen} onOpenChange={setMoveJobOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-primary" aria-hidden="true" />
+                Move to another job
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="rounded-lg bg-secondary/30 p-3">
+                <p className="text-sm font-medium">{applicant.fullName}</p>
+                <p className="text-xs text-muted-foreground">
+                  Currently in <span className="font-medium text-foreground">{currentJobTitle}</span> · {statusInfo.label}
+                </p>
+              </div>
+              <div>
+                <p className="mb-2 text-sm text-muted-foreground">Move to:</p>
+                <Select value={targetJobId} onValueChange={setTargetJobId}>
+                  <SelectTrigger aria-label="Select target job"><SelectValue placeholder="Select a job..." /></SelectTrigger>
+                  <SelectContent>
+                    {moveTargets.map((j) => (
+                      <SelectItem key={j.id} value={j.id}>
+                        <span className="flex items-center gap-2">
+                          <Briefcase className="h-3 w-3" aria-hidden="true" />
+                          {j.title} · {j.department}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {moveTargets.length === 0 && (
+                  <p className="mt-3 text-center text-sm text-muted-foreground">No other open jobs available</p>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Their stage ({statusInfo.label}) is kept, the move is logged in Notes, and the AI
+                fit score re-runs automatically for the new role.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setMoveJobOpen(false)}>Cancel</Button>
+              <Button onClick={handleMoveToJob} disabled={!moveTargets.find((j) => j.id === targetJobId) || movingJob}>
+                {movingJob ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden="true" /> : <Briefcase className="mr-1 h-4 w-4" aria-hidden="true" />}
+                Move candidate
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Slim pipeline strip */}
         <div className="mt-4 flex items-center gap-0 border-t border-border pt-3.5">

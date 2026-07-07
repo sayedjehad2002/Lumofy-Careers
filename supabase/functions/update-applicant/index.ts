@@ -89,6 +89,9 @@ Deno.serve(async (req) => {
       "status", "notes", "rating", "ai_analysis", "stage_entered_at",
       // Inline-editable candidate details (HR "edit like a Notion page").
       "full_name", "email", "phone", "location", "nationality", "linkedin", "portfolio",
+      // Reassign an applicant to a DIFFERENT job's pipeline (job_title is the
+      // denormalized snapshot shown across the dashboard).
+      "job_id", "job_title",
     ];
     const sanitizedUpdates: Record<string, unknown> = {};
     for (const key of allowedFields) {
