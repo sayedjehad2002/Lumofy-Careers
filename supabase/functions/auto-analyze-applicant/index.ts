@@ -46,11 +46,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // IP rate limit regardless of auth path: 5 analyses / 5 min / IP. AI analysis
-    // is expensive, so this is deliberately tight.
+    // Coarse pre-auth flood guard (bounds the auth work below). The real
+    // AI-budget limits are tiered by trust once the caller is identified.
     const ip = getClientIp(req);
-    const rl = isRateLimited(`auto-analyze:${ip}`, { maxRequests: 5, windowMs: 5 * 60_000 });
-    if (rl.limited) return rateLimitResponse(corsHeaders, rl.retryAfterMs);
+    const burst = isRateLimited(`auto-analyze-burst:${ip}`, { maxRequests: 30, windowMs: 60_000 });
+    if (burst.limited) return rateLimitResponse(corsHeaders, burst.retryAfterMs);
 
     const { applicantId, sessionToken } = await req.json();
     if (!applicantId || typeof applicantId !== "string") {
@@ -71,6 +71,16 @@ serve(async (req) => {
       if (!auth.valid) return auth.response;
       isTrusted = true;
     }
+
+    // AI analysis is expensive — budget by trust. The PUBLIC (apply-flow) path
+    // keeps the original deliberately tight budget; authenticated HR sessions get
+    // a bulk-friendly budget (matches cv-library-analyze) so "add 20 CVs to a
+    // pipeline" can analyze them all. This is a budget, not a concurrency
+    // license — clients must still run analyses strictly one at a time.
+    const rl = isTrusted
+      ? isRateLimited(`auto-analyze-hr:${ip}`, { maxRequests: 150, windowMs: 60 * 60_000 })
+      : isRateLimited(`auto-analyze:${ip}`, { maxRequests: 5, windowMs: 5 * 60_000 });
+    if (rl.limited) return rateLimitResponse(corsHeaders, rl.retryAfterMs);
 
     const supabase = createServiceClient();
 

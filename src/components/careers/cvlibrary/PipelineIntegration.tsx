@@ -5,10 +5,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
 import { useCareers } from "@/contexts/CareersContext";
 import { candidateDisplayName } from "@/lib/utils";
 import { toast } from "sonner";
+import { addLibraryCandidateToJob, analyzeApplicant, isWordCv } from "./addToPipeline";
 
 interface CVCandidate {
   id: string;
@@ -70,54 +70,16 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
 
     setSubmitting(true);
     try {
-      // Create applicant record from CV library candidate
-      const applicantId = crypto.randomUUID();
-      const now = new Date().toISOString();
-
-      const { data, error } = await supabase.functions.invoke("update-applicant", {
-        body: {
-          sessionToken,
-          action: "create",
-          applicant: {
-            id: applicantId,
-            job_id: selectedJob.id,
-            job_title: selectedJob.title,
-            full_name: candidateDisplayName(candidate.name, candidate.resume_file_name) || "Unknown",
-            email: candidate.email || null,
-            phone: candidate.phone || "",
-            location: candidate.location || "",
-            nationality: candidate.nationality,
-            cv_file_name: candidate.resume_file_name,
-            cv_storage_path: candidate.resume_file_path,
-            cv_file_type: candidate.resume_file_type,
-            cv_file_size: candidate.resume_file_size,
-            status: "new",
-            applied_date: now.split("T")[0],
-            screening_answers: {},
-            notes: [`Added from CV Library on ${new Date().toLocaleDateString()}`],
-          },
-        },
-      });
-
-      if (error) throw error;
-
-      // Reflect the add back into the CV LIBRARY: mark the candidate Shortlisted so
-      // the library shows they've moved into a pipeline. Deliberately a direct
-      // cv-library-manage call (NOT the edit dialog path) so this automated change
-      // doesn't set manual_overrides. Non-fatal — the applicant was already created.
-      await supabase.functions.invoke("cv-library-manage", {
-        body: { action: "update", sessionToken, candidateId: candidate.id, updates: { status: "shortlisted" } },
-      }).catch(() => { /* non-fatal */ });
+      // Shared with the bulk flow (BulkPipelineAdd): creates the applicant and
+      // marks the library row Shortlisted.
+      const applicantId = await addLibraryCandidateToJob(candidate, selectedJob, sessionToken);
 
       // Kick off AI analysis for the new applicant right away (same fire-and-forget
       // pattern as the public apply flow) so the pipeline card shows a score instead
       // of sitting on "AI Pending". Skipped for Word CVs — Gemini can't read them,
       // and a zero-evidence "analysis" would be worse than an honest "AI Pending".
-      const isWordCv = /\.docx?$/i.test(candidate.resume_file_path || "");
-      if (!isWordCv) {
-        supabase.functions.invoke("auto-analyze-applicant", {
-          body: { applicantId: data?.applicantId || applicantId, sessionToken },
-        }).catch(() => { /* non-blocking */ });
+      if (!isWordCv(candidate.resume_file_path)) {
+        analyzeApplicant(applicantId, sessionToken).catch(() => { /* non-blocking */ });
       }
 
       toast.success(`${candidateDisplayName(candidate.name, candidate.resume_file_name) || "Candidate"} added to ${selectedJob.title}`);

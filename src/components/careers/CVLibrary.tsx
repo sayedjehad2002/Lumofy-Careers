@@ -5,7 +5,7 @@ import {
   AlertCircle, Check, Archive, RefreshCw, User, Mail, Phone,
   Globe, MapPin, Briefcase, Filter, ArrowUpDown, Plus,
   Shield, TrendingUp, Target, BarChart3,
-  AlertTriangle, History, Trash2
+  AlertTriangle, History, Trash2, UserPlus
 } from "lucide-react";
 import SmartSearch, { parseQuery, type ParsedQuery } from "./cvlibrary/SmartSearch";
 import SavedFilters, { type SavedFilter } from "./cvlibrary/SavedFilters";
@@ -15,6 +15,7 @@ import AIJobMatching from "./cvlibrary/AIJobMatching";
 import BulkReparse from "./cvlibrary/BulkReparse";
 import CandidateTags from "./cvlibrary/CandidateTags";
 import PipelineIntegration from "./cvlibrary/PipelineIntegration";
+import BulkPipelineAdd from "./cvlibrary/BulkPipelineAdd";
 import { useCareers } from "@/contexts/CareersContext";
 import { toTitleCase, candidateDisplayName } from "@/lib/utils";
 const ExportReporting = lazy(() => import("./cvlibrary/ExportReporting")); // lazy: defers xlsx (~94KB) to the Export sub-tab
@@ -26,6 +27,7 @@ import CandidateAnalysis, { type CVAIAnalysis } from "./cvlibrary/CandidateAnaly
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -141,6 +143,33 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
   const [subTab, setSubTab] = useState<CVSubTab>("library");
   const [parsedQuery, setParsedQuery] = useState<ParsedQuery>({ include: [], exclude: [], raw: "" });
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
+  // Multi-select for bulk actions (survives filter/folder changes on purpose —
+  // HR builds a selection across several searches, then adds everyone at once).
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAddOpen, setBulkAddOpen] = useState(false);
+
+  const toggleSelected = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectedCandidates = useMemo(
+    () => candidates.filter(c => selectedIds.has(c.id)),
+    [candidates, selectedIds]
+  );
+
+  // Prune the selection when candidates disappear (deleted / trashed away).
+  useEffect(() => {
+    setSelectedIds(prev => {
+      if (prev.size === 0) return prev;
+      const alive = new Set(candidates.map(c => c.id));
+      const next = new Set([...prev].filter(id => alive.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [candidates]);
 
   const addAudit = useCallback((candidateId: string, candidateName: string, action: AuditEntry["action"], details?: string) => {
     setAuditLog(prev => [{
@@ -918,6 +947,23 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
         ))}
       </div>
 
+      {/* Bulk add-to-pipeline dialog. Rendered here (NOT inside the library
+          sub-tab) so an in-flight run survives switching sub-tabs mid-run —
+          the dialog stays mounted and keeps showing live progress. */}
+      <BulkPipelineAdd
+        candidates={selectedCandidates}
+        jobs={jobs}
+        sessionToken={sessionToken}
+        open={bulkAddOpen}
+        onOpenChange={setBulkAddOpen}
+        onRefresh={() => { refreshData(); fetchCandidates(); }}
+        onResolved={ids => setSelectedIds(prev => {
+          const next = new Set(prev);
+          ids.forEach(id => next.delete(id));
+          return next;
+        })}
+      />
+
       {/* Sub-Tab Content */}
       {subTab === "duplicates" && (
         <DuplicateDetection
@@ -1111,6 +1157,28 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
 
             {/* Main Table */}
             <div className="flex-1 min-w-0">
+              {selectedIds.size > 0 && (
+                <div className="sticky top-[7.5rem] lg:top-2 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 backdrop-blur">
+                  <span className="text-sm font-semibold">{selectedIds.size} selected</span>
+                  <Button
+                    variant="ghost" size="sm" className="h-7 px-2 text-xs"
+                    onClick={() => setSelectedIds(prev => new Set([...prev, ...filteredCandidates.map(c => c.id)]))}
+                  >
+                    Select all {filteredCandidates.length} shown
+                  </Button>
+                  <Button
+                    variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground"
+                    onClick={() => setSelectedIds(new Set())}
+                  >
+                    Clear
+                  </Button>
+                  <div className="flex-1" />
+                  <Button size="sm" className="h-8 gap-1.5" onClick={() => setBulkAddOpen(true)} disabled={jobs.length === 0}>
+                    <UserPlus className="w-3.5 h-3.5" />
+                    Add {selectedIds.size} to pipeline
+                  </Button>
+                </div>
+              )}
               {loading ? (
                 <div className="flex items-center justify-center py-20">
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -1145,13 +1213,26 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
                     return (
                       <div
                         key={c.id}
-                        className="group rounded-2xl bg-card border border-border p-4 cursor-pointer transition-all duration-200 hover:border-primary/40 hover:-translate-y-0.5 light-glow"
+                        className={`group rounded-2xl bg-card border p-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 light-glow ${selectedIds.has(c.id) ? "border-primary/60 bg-primary/[0.04]" : "border-border hover:border-primary/40"}`}
                         onClick={() => {
                           setSelectedCandidate(c);
                           addAudit(c.id, c.name || "Unknown", "view");
                         }}
                       >
                         <div className="flex items-center gap-3">
+                          {/* p-2 -m-2 enlarges the tap target to ~32px without
+                              shifting layout, so a near-miss doesn't open the
+                              profile; focus-within keeps it visible for keyboard. */}
+                          <div
+                            className={`flex-shrink-0 p-2 -m-2 transition-opacity ${selectedIds.size > 0 ? "opacity-100" : "opacity-40 group-hover:opacity-100 focus-within:opacity-100"}`}
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <Checkbox
+                              checked={selectedIds.has(c.id)}
+                              onCheckedChange={() => toggleSelected(c.id)}
+                              aria-label={`Select ${displayName || "candidate"}`}
+                            />
+                          </div>
                           <div className="w-9 h-9 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-semibold flex-shrink-0">
                             {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : initials}
                           </div>
