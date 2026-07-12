@@ -35,6 +35,10 @@ Desktop.ini
 .env.*
 !.env.example
 
+# Supabase personal access token for the CAREERS account (deploys). Local-only —
+# the machine's global CLI login is a different account that 403s on this project.
+.supabase-token
+
 .vercel
 
 # Claude Code per-user local state (permission grants — machine-specific)

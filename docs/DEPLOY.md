@@ -23,13 +23,19 @@ Supabase drift silently.
    Running from anywhere else (e.g. `C:\WINDOWS\system32`) fails with
    *"Cannot find project ref"*.
 2. **Careers Supabase account** — the project lives on the careers account
-   (`lumofybh@gmail.com`), *not* the melrweny account. A `403` on deploy means
-   the CLI is logged into the wrong account. Fix either by `npx supabase login`
-   (pick the right account in the browser) or by setting a personal access token
-   for just this window:
+   (`lumofybh@gmail.com`), *not* the melrweny account. **This machine's global
+   CLI login (Windows Credential Manager) is the WRONG account** — bare
+   `npx supabase` deploys 403 on this project. The durable fix is the local
+   token file: save a careers-account personal access token (from
+   supabase.com/dashboard/account/tokens, starts with `sbp_`) to
+   **`.supabase-token`** in the repo root (gitignored — never committed).
+   `scripts/deploy-functions.ps1` auto-loads it; for bare CLI commands set it
+   per-window first:
    ```powershell
-   $env:SUPABASE_ACCESS_TOKEN = "<token from supabase.com/dashboard/account/tokens>"
+   $env:SUPABASE_ACCESS_TOKEN = (Get-Content .supabase-token -Raw).Trim()
    ```
+   (`SUPABASE_ACCESS_TOKEN` always beats the stored login, so other projects'
+   CLI logins stay untouched. Rotate/revoke the token anytime in the dashboard.)
 3. The CLI runs via `npx supabase` (no global install needed). The
    *"WARNING: Docker is not running"* line during deploys is harmless — Docker is
    only needed for local emulation, not remote deploys.

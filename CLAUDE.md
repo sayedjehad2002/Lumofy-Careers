@@ -64,11 +64,14 @@ board, and a searchable CV library. Live at https://careers.lumofy.ai.
 ## Deployment ⚠️
 
 - **Frontend → Vercel:** auto-deploys on push to `main`.
-- **Edge functions → Supabase do NOT auto-deploy on git push.** Deploy explicitly,
-  from the repo root, logged into the **careers** Supabase account:
-  `npx supabase functions deploy <name> --project-ref dufbgzfqehkfibclaphy`
-  or use `scripts/deploy-functions.ps1` (knows the shared-module fan-out; supports
-  `-Shared ai`, `-All`, or explicit names).
+- **Edge functions → Supabase do NOT auto-deploy on git push.** Deploy explicitly
+  from the repo root with `scripts/deploy-functions.ps1` (knows the shared-module
+  fan-out; supports `-Shared ai`, `-All`, or explicit names). It auto-loads the
+  careers-account token from the gitignored **`.supabase-token`** file — required,
+  because this machine's global Supabase CLI login is a DIFFERENT account that
+  403s on this project. For bare CLI use, set
+  `$env:SUPABASE_ACCESS_TOKEN = (Get-Content .supabase-token -Raw).Trim()` first, then
+  `npx supabase functions deploy <name> --project-ref dufbgzfqehkfibclaphy`.
 - Full runbook (accounts, token fallback, fan-out table, troubleshooting):
   **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 - Supabase project ref: `dufbgzfqehkfibclaphy` (region eu-central-1).

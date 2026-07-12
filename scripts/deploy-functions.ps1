@@ -40,6 +40,20 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
+# The machine's GLOBAL Supabase CLI login (Windows Credential Manager) belongs to
+# a different account that cannot see this project (deploys 403). The careers
+# account's personal access token lives in the gitignored .supabase-token file;
+# load it for THIS process only so other projects' CLI logins stay untouched.
+$tokenFile = Join-Path $repoRoot ".supabase-token"
+if (-not $env:SUPABASE_ACCESS_TOKEN -and (Test-Path $tokenFile)) {
+  $env:SUPABASE_ACCESS_TOKEN = (Get-Content $tokenFile -Raw).Trim()
+}
+if (-not $env:SUPABASE_ACCESS_TOKEN) {
+  Write-Host "NOTE: no .supabase-token file and no SUPABASE_ACCESS_TOKEN set —" -ForegroundColor Yellow
+  Write-Host "deploys will use the global CLI login, which 403s on this project." -ForegroundColor Yellow
+  Write-Host "Fix: save a careers-account token to $tokenFile (see docs/DEPLOY.md)." -ForegroundColor Yellow
+}
+
 $allFunctions = @(
   "admin-data", "ai-job-assist", "analyze-cv", "auto-analyze-applicant",
   "cv-library-analyze", "cv-library-classify", "cv-library-manage", "cv-library-parse",
