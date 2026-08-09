@@ -125,7 +125,7 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
 
           <div className="space-y-4">
             <div className="rounded-lg bg-secondary/30 p-3">
-              <p className="text-sm font-medium">{candidateDisplayName(candidate.name, candidate.resume_file_name) || "Unknown"}</p>
+              <p className="text-sm font-medium">{candidateDisplayName(candidate.name, candidate.resume_file_name) || "This candidate"}</p>
               <p className="text-xs text-muted-foreground">{candidate.email || "No email on file"}</p>
             </div>
 

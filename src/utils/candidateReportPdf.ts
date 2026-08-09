@@ -131,11 +131,14 @@ export function generateCandidateReport(applicant: Applicant, job: Job | undefin
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...WHITE);
-  doc.text(applicant.fullName.charAt(0).toUpperCase(), 22, y + 8.5, { align: "center" });
+  // fullName can legitimately be empty (a CV whose file name carries no name and
+  // whose AI backfill hasn't run). Never ship a report with a blank name banner.
+  const reportName = applicant.fullName?.trim() || "Unnamed candidate";
+  doc.text(reportName.charAt(0).toUpperCase(), 22, y + 8.5, { align: "center" });
 
   doc.setFontSize(13);
   doc.setTextColor(...LUMOFY_DARK);
-  doc.text(applicant.fullName, 30, y + 5.5);
+  doc.text(reportName, 30, y + 5.5);
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
@@ -562,6 +565,6 @@ export function generateCandidateReport(applicant: Applicant, job: Job | undefin
   }
 
   // ─── Save ────────────────────────────────────────
-  const safeName = applicant.fullName.replace(/[^a-zA-Z0-9]/g, "_");
+  const safeName = (applicant.fullName?.trim() || "candidate").replace(/[^a-zA-Z0-9]/g, "_");
   doc.save(`Lumofy_Candidate_Report_${safeName}.pdf`);
 }

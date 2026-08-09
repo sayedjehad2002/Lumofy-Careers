@@ -18,13 +18,32 @@ Deno.serve(async (req) => {
     const rl = isRateLimited(`hr-invite-accept:${ip}`, { maxRequests: 10, windowMs: 60_000 });
     if (rl.limited) return rateLimitResponse(corsHeaders, rl.retryAfterMs);
 
-    const { token, password, fullName } = await req.json().catch(() => ({}));
-    if (!token) return json({ error: "Missing invite token." }, 400);
-    if (!password || String(password).length < 8) {
-      return json({ error: "Please choose a password of at least 8 characters." }, 400);
+    const { token, password, fullName, action } = await req.json().catch(() => ({}));
+    if (!token) {
+      return action === "check"
+        ? json({ valid: false, reason: "missing" })
+        : json({ error: "Missing invite token." }, 400);
     }
 
     const supabase = createServiceClient();
+
+    // Read-only status check — lets the join page tell the invitee immediately
+    // whether their link is valid/expired/used/revoked, BEFORE they fill out
+    // the whole form. Consumes nothing.
+    if (action === "check") {
+      const { data: inv } = await supabase
+        .from("invites").select("email, role, expires_at, accepted_at, revoked_at")
+        .eq("token", token).maybeSingle();
+      if (!inv) return json({ valid: false, reason: "not_found" });
+      if (inv.accepted_at) return json({ valid: false, reason: "used" });
+      if (inv.revoked_at) return json({ valid: false, reason: "revoked" });
+      if (new Date(inv.expires_at).getTime() < Date.now()) return json({ valid: false, reason: "expired" });
+      return json({ valid: true, email: inv.email, role: inv.role, expiresAt: inv.expires_at });
+    }
+
+    if (!password || String(password).length < 8) {
+      return json({ error: "Please choose a password of at least 8 characters." }, 400);
+    }
 
     const { data: invite } = await supabase.from("invites").select("*").eq("token", token).maybeSingle();
     if (!invite) return json({ error: "This invite link is not valid." }, 404);

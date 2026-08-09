@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  FileText, Brain, MessageSquare, ArrowRight, Calendar, Clock, User
+  FileText, Brain, ArrowRight, Calendar, Clock
 } from "lucide-react";
 import { APPLICANT_STATUSES, type Applicant } from "@/types/careers";
 import { TONE_SOFT } from "@/components/careers/statusColors";
@@ -15,7 +15,7 @@ interface CandidateTimelineProps {
 
 interface TimelineEvent {
   id: string;
-  type: "applied" | "status_change" | "ai_analyzed" | "note_added" | "rating_added";
+  type: "applied" | "status_change" | "ai_analyzed";
   label: string;
   detail?: string;
   date: Date;
@@ -38,62 +38,38 @@ const CandidateTimeline = ({ applicant }: CandidateTimelineProps) => {
       color: "bg-primary/15 text-primary",
     });
 
-    // Current stage
-    if (applicant.status !== "new") {
+    // ONLY events with a REAL recorded timestamp appear here. Notes and ratings
+    // are not timestamped in the schema, and status changes only are once
+    // stageEnteredAt exists — stamping them with the applied date invented a
+    // history that looked authoritative and was wrong. Notes live in the Internal
+    // Notes card; the rating lives in the Rating card; the score lives in the
+    // analysis. This card's one job is real chronology.
+    if (applicant.status !== "new" && applicant.stageEnteredAt) {
       const statusInfo = APPLICANT_STATUSES.find(s => s.value === applicant.status);
       list.push({
         id: "status",
         type: "status_change",
         label: `Moved to ${statusInfo?.label || applicant.status}`,
-        detail: applicant.stageEnteredAt
-          ? `Stage entered on ${new Date(applicant.stageEnteredAt).toLocaleDateString()}`
-          : undefined,
-        date: applicant.stageEnteredAt ? new Date(applicant.stageEnteredAt) : new Date(applicant.appliedDate),
-        icon: <ArrowRight className="w-3.5 h-3.5" />,
+        date: new Date(applicant.stageEnteredAt),
+        icon: <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />,
         color: statusInfo?.color || "bg-muted text-muted-foreground",
       });
     }
 
-    // AI Analysis
-    if (applicant.aiAnalysis) {
+    if (applicant.aiAnalysis?.analyzedAt) {
       list.push({
         id: "ai",
         type: "ai_analyzed",
-        label: `AI Analysis: ${applicant.aiAnalysis.fitLevel} (${applicant.aiAnalysis.fitScore}/100)`,
-        detail: applicant.aiAnalysis.summary?.substring(0, 120) + "...",
+        label: "AI analysis completed",
         date: new Date(applicant.aiAnalysis.analyzedAt),
         icon: <Brain className="w-3.5 h-3.5" aria-hidden="true" />,
         color: TONE_SOFT.ai,
       });
     }
 
-    // Notes
-    applicant.notes.forEach((note, i) => {
-      list.push({
-        id: `note-${i}`,
-        type: "note_added",
-        label: "Note Added",
-        detail: typeof note === "string" ? note : String(note),
-        date: new Date(applicant.appliedDate), // notes don't have timestamps
-        icon: <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />,
-        color: TONE_SOFT.warning,
-      });
-    });
-
-    // Rating
-    if (applicant.rating) {
-      list.push({
-        id: "rating",
-        type: "rating_added",
-        label: "Rating Submitted",
-        detail: `Overall: ${applicant.rating.overallRecommendation}/5`,
-        date: new Date(applicant.appliedDate),
-        icon: <User className="w-3.5 h-3.5" aria-hidden="true" />,
-        color: TONE_SOFT.success,
-      });
-    }
-
-    return list.sort((a, b) => a.date.getTime() - b.date.getTime());
+    return list
+      .filter((e) => !Number.isNaN(e.date.getTime()))
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
   }, [applicant]);
 
   const totalDays = events.length >= 2

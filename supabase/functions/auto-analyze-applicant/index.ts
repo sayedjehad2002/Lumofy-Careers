@@ -256,6 +256,9 @@ AI TRUST RULES (mandatory):
 
 You MUST respond with a single valid JSON object (no markdown, no code blocks) using this EXACT structure. EVERY field is REQUIRED — you MUST include "professionalIdentity" and "recruiterVerdict"; NEVER omit them.
 {
+  "candidateName": "<the candidate's full personal name EXACTLY as printed on the CV (usually the most prominent text at the top of the first page, or in the header/sidebar/contact block). Read it from the document — never invent one, and never output a placeholder like \"Unknown\". null ONLY if no human name is printed anywhere in the document.>",
+  "candidateEmail": "<the candidate's own email address EXACTLY as printed on the CV (contact block, header, or footer). Copy it character-for-character — never guess, correct, or construct one from their name. null if no email is printed. If several appear, choose the candidate's personal address, never a referee's or a company's.>",
+  "candidatePhone": "<the candidate's own phone number EXACTLY as printed, including country code if shown. Never invent or reformat. null if none is printed.>",
   "professionalIdentity": {"primary": "<candidate's TRUE primary role from evidence>", "primaryConfidence": <0-100>, "secondary": "<a genuinely different secondary role>", "secondaryConfidence": <0-100>, "keyIdentity": "<one sentence: who they really are>"},
   "recruiterVerdict": {"shortlistFor": "<the single role you would shortlist them for>", "reasoning": "<evidence-based reasoning from responsibilities, impact, and trajectory>"},
   "fitScore": <number 0-100 - STRICT weighted average>,
@@ -430,6 +433,77 @@ Provide your structured evidence-based analysis as JSON.`;
       return new Response(JSON.stringify({ error: "Failed to save analysis" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Name repair (mirrors cv-library-analyze): the model just read the CV, so it
+    // knows the printed name even when the row was created without one — e.g.
+    // promoted from the CV Library with an unparseable file name. Only fills a
+    // MISSING/placeholder name, never overwrites one a human set, and rejects junk
+    // like "Unknown" so a placeholder can't be laundered into a real name.
+    const rawName = typeof analysis.candidateName === "string" ? analysis.candidateName.trim() : "";
+    const JUNK = new Set([
+      "unknown", "unknown candidate", "n/a", "na", "none", "not found", "not provided",
+      "unnamed", "unnamed candidate", "candidate", "the candidate", "anonymous", "redacted",
+      "test", "null", "not available", "not mentioned", "-", "--",
+    ]);
+    // Must contain at least one letter (blocks "123", "---"), matching the
+    // /\p{L}/u rule in _shared/taxonomy.ts's sanitizeCandidateName.
+    const aiName = rawName.length >= 2 && rawName.length <= 80
+      && /\p{L}/u.test(rawName) && !JUNK.has(rawName.toLowerCase())
+      ? rawName
+      : "";
+    // Contact + name backfill: cv-library-parse is the only extractor of these and
+    // it fails on stubborn PDFs, so details are lost even though THIS call just read
+    // the same document. Fill empty fields only, and ONLY when a readable CV was
+    // actually attached — otherwise the model is answering from applicant-supplied
+    // screening text and any "email" it returns is invented.
+    const cvWasReadable = cvBase64 != null && cvParsingStatus === "success";
+    const contactPatch: Record<string, string> = {};
+    const rawEmail = typeof analysis.candidateEmail === "string" ? analysis.candidateEmail.trim() : "";
+    if (
+      cvWasReadable && !String(applicant.email || "").trim() &&
+      /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(rawEmail) && rawEmail.length <= 254
+    ) {
+      contactPatch.email = rawEmail.toLowerCase();
+    }
+    const rawPhone = typeof analysis.candidatePhone === "string" ? analysis.candidatePhone.trim() : "";
+    if (
+      cvWasReadable && !String(applicant.phone || "").trim() &&
+      rawPhone.length >= 7 && rawPhone.length <= 32 &&
+      /\d{6,}/.test(rawPhone.replace(/\D/g, "")) && !/[a-z]{3,}/i.test(rawPhone)
+    ) {
+      contactPatch.phone = rawPhone;
+    }
+    // Optimistic concurrency, same hazard as the name write below: `applicant` was
+    // read BEFORE a 30-60s AI call, so HR may have typed a contact detail in that
+    // window. Guard each column on the value we actually saw.
+    for (const [col, val] of Object.entries(contactPatch)) {
+      const { data: hit, error: cErr } = await supabase
+        .from("applicants")
+        .update({ [col]: val })
+        .eq("id", applicantId)
+        .eq(col, (applicant as Record<string, unknown>)[col] ?? "")
+        .select("id");
+      if (cErr) console.error(`Contact backfill (${col}) failed:`, cErr);
+      else if (hit?.length) console.log(`Backfilled applicant ${applicantId} ${col}`);
+      else console.log(`Contact backfill (${col}) skipped for ${applicantId}: changed during analysis`);
+    }
+
+    const storedName = String(applicant.full_name || "").trim();
+    if (cvWasReadable && aiName && (storedName === "" || JUNK.has(storedName.toLowerCase()))) {
+      // Optimistic concurrency: `applicant` was read BEFORE a 30-60s AI call, so
+      // HR may have typed the name in the meantime (the UI now actively invites
+      // that when the name is blank). Only write if the stored value is still what
+      // we saw — otherwise a human edit would be silently overwritten by the model.
+      const { data: renamed, error: nameErr } = await supabase
+        .from("applicants")
+        .update({ full_name: aiName })
+        .eq("id", applicantId)
+        .eq("full_name", applicant.full_name ?? "")
+        .select("id");
+      if (nameErr) console.error("Name backfill failed:", nameErr);
+      else if (renamed?.length) console.log(`Backfilled applicant ${applicantId} name -> ${aiName}`);
+      else console.log(`Name backfill skipped for ${applicantId}: changed during analysis`);
     }
 
     console.log(`Auto-analyzed applicant ${applicantId}: fitScore=${analysis.fitScore}, tier=${analysis.rankingTier}`);

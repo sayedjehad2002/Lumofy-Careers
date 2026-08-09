@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useCareers } from "@/contexts/CareersContext";
 import { supabase } from "@/integrations/supabase/client";
+import { emailInitials } from "@/lib/utils";
 import { APPLICANT_STATUSES, STAGE_SLA_DAYS, type ApplicantStatus, type Applicant, type Job, type AIAnalysis } from "@/types/careers";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 
@@ -51,6 +52,7 @@ import CVLibrary from "@/components/careers/CVLibrary";
 import HrTeam from "@/components/careers/HrTeam";
 import ShareJobLink, { jobApplyUrl } from "@/components/careers/ShareJobLink";
 import ApplicantsListView from "@/components/careers/ApplicantsListView";
+import ContactRecoveryBanner from "@/components/careers/applicants/ContactRecoveryBanner";
 import PipelineHealthScorecard from "@/components/careers/pipeline/PipelineHealthScorecard";
 
 type Tab = "overview" | "jobs" | "applicants" | "pipeline" | "cv-library" | "hr-team";
@@ -61,7 +63,7 @@ type Tab = "overview" | "jobs" | "applicants" | "pipeline" | "cv-library" | "hr-
 // stage, or be moved back one step (to correct mistakes). "hired"/"rejected"
 // are terminal except for reverting out of them.
 const Dashboard = () => {
-  const { jobs, applicants, loading, sessionToken, authReady, isHrUser, hrChecked, addJob, updateJob, archiveJob, restoreJob, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI } = useCareers();
+  const { jobs, applicants, loading, sessionToken, authReady, isHrUser, hrEmail, hrChecked, addJob, updateJob, archiveJob, restoreJob, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, refreshData } = useCareers();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [selectedJobId, setSelectedJobId] = useState<string>("all");
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
@@ -377,6 +379,17 @@ const Dashboard = () => {
           </LayoutGroup>
         </nav>
         <div className="p-3 border-t border-border relative z-10 space-y-1">
+          {hrEmail && (
+            <div className="flex items-center gap-2.5 px-3 py-2 mb-1" title={hrEmail}>
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
+                {emailInitials(hrEmail)}
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70 leading-none">Logged in as</p>
+                <p className="truncate text-xs font-medium text-foreground leading-tight mt-0.5">{hrEmail}</p>
+              </div>
+            </div>
+          )}
           <Link to="/" className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ExternalLink className="w-4 h-4" />
             View Careers Page
@@ -604,6 +617,14 @@ const Dashboard = () => {
 
           {/* APPLICANTS TAB */}
           {activeTab === "applicants" && !selectedApplicant && (
+            <>
+            {/* Offers a one-pass fix for applicants whose email was never captured
+                at upload time, so they stop being un-contactable. */}
+            <ContactRecoveryBanner
+              applicants={applicants}
+              sessionToken={sessionToken}
+              onDone={refreshData}
+            />
             <ApplicantsListView
               applicants={filteredApplicants}
               jobs={jobs}
@@ -615,6 +636,7 @@ const Dashboard = () => {
               getJobTitle={getJobTitle}
               avgRating={avgRating}
             />
+            </>
           )}
 
           {/* CANDIDATE PROFILE (replaces old applicant detail) */}

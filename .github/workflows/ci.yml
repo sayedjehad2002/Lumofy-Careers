@@ -35,6 +35,13 @@ jobs:
         run: npm run lint
         continue-on-error: true
 
+      # BLOCKING. `vite build` uses esbuild, which strips types without checking
+      # them, so a real type error (e.g. a temporal-dead-zone reference that
+      # crashes the page on every render) sails through the build. This is the
+      # only step that actually typechecks src/.
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Test
         run: npm run test
 

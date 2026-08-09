@@ -1,11 +1,17 @@
-// HR team management (owner/admin only): list members + pending invites,
-// create an invite (returns a single-use token), revoke an invite, and
-// enable/disable a member. All actions are authorized via validate-session
-// (which now enforces the hr_users allowlist) PLUS a role check here.
+// HR team management: any active HR user can list members + pending invites,
+// but creating an invite, revoking one, or enabling/disabling a member is
+// restricted to a fixed set of account owners — see ALLOWED_MANAGERS below.
+// All actions are authorized via validate-session (which enforces the
+// hr_users allowlist) PLUS the manager-email check here.
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateSession } from "../_shared/validate-session.ts";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Only these people can create invite links, revoke them, or enable/disable
+// team members. To change this list, edit here and redeploy hr-team (edge
+// functions do not auto-deploy on git push — see docs/DEPLOY.md).
+const ALLOWED_MANAGERS = new Set(["jhasan@lumofy.com", "halhashimi@lumofy.com"]);
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -21,7 +27,9 @@ Deno.serve(async (req) => {
     if (!auth.valid) return auth.response;
     const supabase = auth.supabase;
 
-    // Identify the caller + their role.
+    // Identify the caller + their role. Only a real Supabase Auth session (a
+    // 3-segment JWT) can prove an email — the legacy admin_sessions path
+    // cannot, so it can never satisfy ALLOWED_MANAGERS below (fail-closed).
     let callerId: string | null = null;
     let callerEmail = "";
     if (sessionToken && String(sessionToken).split(".").length === 3) {
@@ -32,8 +40,8 @@ Deno.serve(async (req) => {
     const { data: caller } = callerId
       ? await supabase.from("hr_users").select("role").eq("user_id", callerId).maybeSingle()
       : { data: null };
-    const callerRole = caller?.role ?? (callerId ? null : "owner"); // legacy token → owner
-    const canManage = callerRole === "owner" || callerRole === "admin";
+    const callerRole = caller?.role ?? (callerId ? null : "owner"); // legacy token → owner (read-only "list" only)
+    const canManage = ALLOWED_MANAGERS.has(callerEmail);
 
     if (action === "list") {
       const { data: members } = await supabase
@@ -48,10 +56,10 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: false });
       const now = Date.now();
       const pending = (invites || []).filter((i) => new Date(i.expires_at).getTime() > now);
-      return json({ members: members || [], invites: pending, callerRole });
+      return json({ members: members || [], invites: pending, callerRole, canManage });
     }
 
-    if (!canManage) return json({ error: "Only owners or admins can manage the HR team." }, 403);
+    if (!canManage) return json({ error: "Team management is restricted to the account owners." }, 403);
 
     if (action === "invite") {
       const email = String((body as { email?: string }).email || "").trim().toLowerCase();

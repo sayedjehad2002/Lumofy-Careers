@@ -21,6 +21,31 @@ const MAX_CV_BYTES = 10 * 1024 * 1024; // 10MB
 // shape so it cannot be used to read an arbitrary object with the service role.
 const STORAGE_PATH_RE = /^[A-Za-z0-9_-]{1,64}\/[A-Za-z0-9_-]{1,64}\.(pdf|doc|docx)$/i;
 
+// Address shape (same as cv-library-parse). Used UNANCHORED to pull a clean
+// address out of whatever the model returns, then the extracted value is what
+// gets stored — so "Email: a@b.com", "mailto:a@b.com" and "✉ a@b.com" all yield
+// "a@b.com" rather than being written verbatim (loose) or thrown away (anchored).
+// Both extremes were wrong: one poisons the column, the other silently drops
+// perfectly good addresses, and "empty fields only" means either is permanent.
+const EMAIL_IN_TEXT = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+
+/** Pull a single clean email out of a model answer; "" when there isn't one. */
+function cleanEmail(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  const m = raw.trim().match(EMAIL_IN_TEXT);
+  const email = m?.[0]?.replace(/[.,;:]+$/, "") ?? "";
+  return email.length <= 254 ? email.toLowerCase() : "";
+}
+
+/** Pull a plausible phone out of a model answer; "" when there isn't one. */
+function cleanPhone(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  const t = raw.trim().replace(/^(phone|tel|mobile|contact)\s*[:\-]?\s*/i, "").trim();
+  const digits = t.replace(/\D/g, "");
+  if (digits.length < 7 || digits.length > 15) return "";
+  return t.length <= 32 && !/[a-z]{3,}/i.test(t) ? t : "";
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -38,7 +63,14 @@ Deno.serve(async (req) => {
       screeningAnswers,
       sessionToken,
       aiScoringWeights,
+      action,
     } = await req.json();
+
+    // "extract-contacts": a deliberately TINY read of the CV for identity/contact
+    // details only. Recovering these via a full re-analysis costs ~45s and a 16k
+    // token budget per candidate; this returns 3 fields in a few seconds, so a
+    // whole backlog of un-emailable applicants can be repaired in minutes.
+    const isExtract = action === "extract-contacts";
 
     const seniority = inferSeniority(jobTitle, requirements, null, jobDescription);
 
@@ -48,8 +80,12 @@ Deno.serve(async (req) => {
     if (!auth.valid) return auth.response;
     const supabase = auth.supabase;
 
-    // Rate limit: 20 analyses per hour per session
-    const rl = isRateLimited(`analyze-cv:${sessionToken}`, { maxRequests: 20, windowMs: 3_600_000 });
+    // Rate limit: 20 full analyses per hour per session. Contact extraction is a
+    // fraction of the cost and is meant to be run over a backlog, so it gets its
+    // own bulk-friendly budget on a separate key.
+    const rl = isExtract
+      ? isRateLimited(`analyze-cv-contacts:${sessionToken}`, { maxRequests: 300, windowMs: 3_600_000 })
+      : isRateLimited(`analyze-cv:${sessionToken}`, { maxRequests: 20, windowMs: 3_600_000 });
     if (rl.limited) return rateLimitResponse(corsHeaders, rl.retryAfterMs);
 
     // Weights — sanitized server-side: only the six known keys, each a finite
@@ -154,6 +190,96 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── Contact recovery: read ONLY the contact block, write ONLY empty fields ──
+    if (isExtract) {
+      const done = (body: Record<string, unknown>) =>
+        new Response(JSON.stringify(body), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (!applicantId || typeof applicantId !== "string") return done({ ok: false, reason: "no_applicant" });
+      if (!cvBase64 || cvParsingStatus !== "success") return done({ ok: false, reason: "no_readable_cv" });
+
+      const extractRes = await chatCompletion({
+        model: "google/gemini-3-flash-preview",
+        hasImages: true,
+        // 2048 (the shared default), NOT a tight budget: this model reasons before
+        // answering and those tokens are charged against the output cap, so a small
+        // budget returns HTTP 200 with EMPTY content — indistinguishable from "this
+        // CV has no contact details" and invisible to the retry chain.
+        max_tokens: 2048,
+        temperature: 0, // pure transcription — must be repeatable
+        messages: [
+          {
+            role: "system",
+            content:
+              "You transcribe contact details from a CV. Return ONLY a JSON object, no markdown:\n" +
+              '{"candidateName": string|null, "candidateEmail": string|null, "candidatePhone": string|null}\n' +
+              "Copy each value CHARACTER-FOR-CHARACTER as printed in the document. NEVER guess, correct, " +
+              "complete or construct a value (especially never build an email from the person's name). " +
+              "Use null when a field is not printed. If several contacts appear, choose the CANDIDATE'S OWN " +
+              "details — never a referee's, a company's, or a university's.",
+          },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Extract the candidate's own name, email and phone from this CV." },
+              { type: "image_url", image_url: { url: `data:application/pdf;base64,${cvBase64}` } },
+            ],
+          },
+        ],
+      });
+      if (!extractRes.ok) {
+        console.error(`extract-contacts ${applicantId}: AI ${extractRes.status}`);
+        return done({ ok: false, reason: "ai_unavailable" });
+      }
+
+      const raw = await extractRes.json();
+      const parsed = parseJsonResponse<Record<string, unknown>>(raw?.choices?.[0]?.message?.content);
+      if (!parsed) {
+        // finish_reason distinguishes a truncated generation from a genuinely
+        // empty answer — without it "found nothing" is undiagnosable.
+        console.error(
+          `extract-contacts ${applicantId}: unparseable, finish_reason=${raw?.choices?.[0]?.finish_reason}`,
+        );
+        return done({ ok: false, reason: "unparseable" });
+      }
+
+      const { data: cur } = await supabase
+        .from("applicants").select("full_name, email, phone").eq("id", applicantId).single();
+      const JUNK = new Set([
+        "unknown", "unknown candidate", "n/a", "na", "none", "not found", "not provided",
+        "unnamed", "unnamed candidate", "candidate", "the candidate", "anonymous", "redacted",
+        "test", "null", "not available", "not mentioned", "-", "--",
+      ]);
+      const patch: Record<string, string> = {};
+
+      const nm = typeof parsed.candidateName === "string" ? parsed.candidateName.trim() : "";
+      const storedNm = String(cur?.full_name || "").trim();
+      if (
+        nm.length >= 2 && nm.length <= 80 && /\p{L}/u.test(nm) && !JUNK.has(nm.toLowerCase()) &&
+        (storedNm === "" || JUNK.has(storedNm.toLowerCase()))
+      ) patch.full_name = nm;
+
+      const em = cleanEmail(parsed.candidateEmail);
+      if (!String(cur?.email || "").trim() && em) patch.email = em;
+
+      const ph = cleanPhone(parsed.candidatePhone);
+      if (!String(cur?.phone || "").trim() && ph) patch.phone = ph;
+
+      if (Object.keys(patch).length === 0) {
+        // Distinguish "the CV genuinely prints no email" (very common for LinkedIn
+        // PDF exports, which omit it) from a model/validation failure, so a run of
+        // "0 found" is explainable rather than mysterious.
+        console.log(
+          `extract-contacts ${applicantId}: nothing to write ` +
+          `(model email=${JSON.stringify(parsed.candidateEmail)} phone=${JSON.stringify(parsed.candidatePhone)})`,
+        );
+        return done({ ok: true, patched: [], reason: parsed.candidateEmail ? "rejected" : "not_on_cv" });
+      }
+      const { error: pErr } = await supabase.from("applicants").update(patch).eq("id", applicantId);
+      if (pErr) { console.error("Contact recovery write failed:", pErr); return done({ ok: false, reason: "write_failed" }); }
+      console.log(`extract-contacts ${applicantId}: wrote ${Object.keys(patch).join(",")}`);
+      return done({ ok: true, patched: Object.keys(patch) });
+    }
+
     const systemPrompt = `You are a STRICT, calibrated talent-evaluation AI analyst for Lumofy, fair across ALL job functions (not just HR). You produce structured, evidence-based candidate evaluations with WEIGHTED SCORING and a recruiter-grade verdict.
 
 ${UNTRUSTED_DATA_NOTE}
@@ -223,6 +349,9 @@ AI TRUST RULES (mandatory):
 
 You MUST respond with a single valid JSON object (no markdown, no code blocks) using this EXACT structure. EVERY field is REQUIRED — you MUST include "professionalIdentity" and "recruiterVerdict"; NEVER omit them.
 {
+  "candidateName": "<the candidate's full personal name EXACTLY as printed on the CV. Read it from the document — never invent one, and never output a placeholder like \"Unknown\". null ONLY if no human name is printed anywhere.>",
+  "candidateEmail": "<the candidate's own email address EXACTLY as printed on the CV. Copy it character-for-character — never guess or construct one from their name. null if none is printed. If several appear, choose the candidate's personal address, never a referee's or a company's.>",
+  "candidatePhone": "<the candidate's own phone number EXACTLY as printed, including country code if shown. Never invent or reformat. null if none is printed.>",
   "professionalIdentity": {"primary": "<candidate's TRUE primary role from evidence>", "primaryConfidence": <0-100>, "secondary": "<a genuinely different secondary role>", "secondaryConfidence": <0-100>, "keyIdentity": "<one sentence: who they really are>"},
   "recruiterVerdict": {"shortlistFor": "<the single role you would shortlist them for>", "reasoning": "<evidence-based reasoning from responsibilities, impact, and trajectory>"},
   "fitScore": <number 0-100 - STRICT weighted average>,
@@ -381,6 +510,47 @@ Provide your structured evidence-based analysis as JSON.`;
     // AI-echoed) so the UI can show the true weighted calculation later even
     // if HR changes the job's weights afterwards.
     analysis.weightsUsed = weights;
+
+    // Identity/contact backfill for the MANUAL "Re-run" path. cv-library-parse is
+    // the only extractor of name/email/phone and it fails on stubborn PDFs, so an
+    // applicant can sit un-emailable while this call reads the same document fine.
+    // Re-run is the button HR actually presses on such a profile, so it must repair
+    // them. Each field fills an EMPTY slot only — an HR-entered value is never
+    // overwritten, and malformed model answers are discarded.
+    //
+    // GATED on a readable CV: with no document attached the prompt falls back to
+    // applicant-supplied screening answers, so any "email" the model returns would
+    // be invented or lifted from free text the candidate controls. Never write a
+    // contact detail that could not have been read off the actual document.
+    if (applicantId && cvParsingStatus === "success") {
+      const JUNK = new Set([
+        "unknown", "unknown candidate", "n/a", "na", "none", "not found", "not provided",
+        "unnamed", "unnamed candidate", "candidate", "the candidate", "anonymous", "redacted",
+        "test", "null", "not available", "not mentioned", "-", "--",
+      ]);
+      const { data: current } = await supabase
+        .from("applicants").select("full_name, email, phone").eq("id", applicantId).single();
+      const patch: Record<string, string> = {};
+
+      const nm = typeof analysis.candidateName === "string" ? analysis.candidateName.trim() : "";
+      const storedNm = String(current?.full_name || "").trim();
+      if (
+        nm.length >= 2 && nm.length <= 80 && /\p{L}/u.test(nm) && !JUNK.has(nm.toLowerCase()) &&
+        (storedNm === "" || JUNK.has(storedNm.toLowerCase()))
+      ) patch.full_name = nm;
+
+      const em = cleanEmail(analysis.candidateEmail);
+      if (!String(current?.email || "").trim() && em) patch.email = em;
+
+      const ph = cleanPhone(analysis.candidatePhone);
+      if (!String(current?.phone || "").trim() && ph) patch.phone = ph;
+
+      if (Object.keys(patch).length > 0) {
+        const { error: patchErr } = await supabase.from("applicants").update(patch).eq("id", applicantId);
+        if (patchErr) console.error("Identity/contact backfill failed:", patchErr);
+        else console.log(`analyze-cv backfilled ${applicantId}: ${Object.keys(patch).join(", ")}`);
+      }
+    }
 
     return new Response(JSON.stringify({ analysis, analyzedAt: new Date().toISOString() }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

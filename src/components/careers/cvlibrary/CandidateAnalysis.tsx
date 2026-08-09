@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   Brain, Loader2, Target, Zap, BookOpen, Briefcase, AlertTriangle,
   TrendingUp, MessageSquare, Quote, Check, AlertCircle, X,
-  Lightbulb, Shield, Building2, ThumbsUp, ThumbsDown, Sparkles, Route, BarChart3, ShieldAlert,
+  Shield, Building2, ThumbsUp, ThumbsDown, Route, BarChart3, ShieldAlert,
   Info, ChevronDown, ShieldCheck, Scale,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -11,7 +11,8 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { TONE_SOFT, TONE_TEXT, TONE_BORDER, scoreTone, type Tone } from "../statusColors";
+import { TONE_SOFT, TONE_TEXT, TONE_BORDER, TONE_BG, scoreTone, type Tone } from "../statusColors";
+import { brandEase, durations } from "@/lib/motion";
 
 /**
  * The shared AI analysis shape (applicants + CV library). Exported as the single
@@ -248,6 +249,80 @@ function Field({ icon, label, children }: { icon: React.ReactNode; label: string
   );
 }
 
+/** Stagger for score-impact findings — subtle, transform/opacity only. */
+const SIGNAL_LIST = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.04, delayChildren: 0.04 } },
+};
+const SIGNAL_ITEM = {
+  hidden: { opacity: 0, y: 6 },
+  show: { opacity: 1, y: 0, transition: { duration: durations.mid, ease: brandEase } },
+};
+
+/**
+ * One score-impact finding. The tinted surface carries helped/hurt without a
+ * colour-only cue (icon + heading say it too), and impact is a 3-dot weight so a
+ * decisive finding reads differently from a marginal one at a glance.
+ */
+function SignalItem({ tone, signal, impact, source, reasoning, verify }: {
+  tone: "success" | "warning";
+  signal: string;
+  impact?: string;
+  source?: string;
+  reasoning?: string;
+  verify?: string;
+}) {
+  const filled = impact?.toLowerCase() === "high" ? 3 : impact?.toLowerCase() === "medium" ? 2 : impact ? 1 : 0;
+  return (
+    <motion.li
+      variants={SIGNAL_ITEM}
+      className={`group rounded-xl px-2.5 py-2 transition-colors ${
+        tone === "success"
+          ? "bg-[hsl(var(--intel-success)/0.07)] hover:bg-[hsl(var(--intel-success)/0.12)]"
+          : "bg-[hsl(var(--intel-warning)/0.08)] hover:bg-[hsl(var(--intel-warning)/0.14)]"
+      }`}
+    >
+      <div className="flex items-start gap-2">
+        {tone === "success"
+          ? <Check className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${TONE_TEXT.success}`} aria-hidden="true" />
+          : <AlertCircle className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${TONE_TEXT.warning}`} aria-hidden="true" />}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium leading-snug">{signal}</p>
+          {reasoning && <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{reasoning}</p>}
+          {verify && (
+            <p className="mt-1 text-xs leading-relaxed">
+              <span className={`font-semibold ${TONE_TEXT.warning}`}>Verify:</span>{" "}
+              <span className="text-foreground/90">{verify}</span>
+            </p>
+          )}
+          {(filled > 0 || source) && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              {filled > 0 && (
+                <span className="flex items-center gap-1" title={`${impact} impact`}>
+                  <span className="flex gap-0.5" aria-hidden="true">
+                    {[0, 1, 2].map((i) => (
+                      <span
+                        key={i}
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          i < filled
+                            ? tone === "success" ? "bg-[hsl(var(--intel-success))]" : "bg-[hsl(var(--intel-warning))]"
+                            : "bg-border"
+                        }`}
+                      />
+                    ))}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">{impact}</span>
+                </span>
+              )}
+              {source && <span className={IMPACT_CHIP}>{source}</span>}
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.li>
+  );
+}
+
 function evidenceIcon(evidence: string) {
   if (evidence === "Yes") return <Check className={`h-4 w-4 flex-shrink-0 ${TONE_TEXT.success}`} aria-hidden="true" />;
   if (evidence === "Partial") return <AlertCircle className={`h-4 w-4 flex-shrink-0 ${TONE_TEXT.warning}`} aria-hidden="true" />;
@@ -270,18 +345,30 @@ function ScoreRow({ label, how, value, weightPct, explanation, rationale }: {
   const [open, setOpen] = useState(false);
   const contribution = weightPct != null && Number.isFinite(weightPct) ? (value * weightPct) / 100 : null;
   const hasDetail = !!(explanation?.evidence || explanation?.missing || explanation?.reasoning || rationale);
+  // Tone the bar by its own value: a 70 and a 100 rendered in identical blue made
+  // the strong and the weak dimensions look the same at a glance, which is the
+  // one thing this section exists to distinguish.
+  const barTone: "success" | "warning" | "danger" = value >= 70 ? "success" : value >= 50 ? "warning" : "danger";
   return (
-    <div className={`rounded-lg transition-colors ${open ? "bg-secondary/30" : ""}`}>
+    <div className={`rounded-lg transition-colors ${open ? "bg-secondary/30" : "hover:bg-secondary/20"}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="group flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`} aria-hidden="true" />
-        <span className="w-28 flex-shrink-0 truncate text-xs text-muted-foreground sm:w-40">{label}</span>
-        <Progress value={value} className="h-1.5 flex-1" />
-        <span className="w-8 flex-shrink-0 text-right text-xs tabular-nums">{value}</span>
+        <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 text-muted-foreground transition-transform duration-200 group-hover:text-foreground ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+        <span className="w-28 flex-shrink-0 truncate text-xs text-muted-foreground transition-colors group-hover:text-foreground sm:w-40">{label}</span>
+        <span className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-secondary">
+          {/* scaleX, not width — transform-only so the fill can't reflow the row. */}
+          <motion.span
+            className={`absolute inset-0 origin-left rounded-full ${TONE_BG[barTone]}`}
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: Math.min(100, Math.max(0, value)) / 100 }}
+            transition={{ duration: durations.slow, ease: brandEase }}
+          />
+        </span>
+        <span className={`w-8 flex-shrink-0 text-right text-xs font-semibold tabular-nums ${TONE_TEXT[barTone]}`}>{value}</span>
         {contribution != null && (
           <span className="hidden w-16 flex-shrink-0 text-right text-[11px] tabular-nums text-muted-foreground sm:block">
             +{contribution.toFixed(1)} pts
@@ -367,15 +454,6 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
   }
 
   // ── Score-transparency derivations (real math from the stored numbers) ──
-  const rawWeightedRows = ai.scoreBreakdown && ai.weightsUsed
-    ? SCORE_ROWS.map((r) => ({ label: r.label, score: Number(ai.scoreBreakdown![r.key]), pct: Number(ai.weightsUsed![r.weightKey]) }))
-    : null;
-  const weightedRows = rawWeightedRows && rawWeightedRows.every((r) => Number.isFinite(r.score) && Number.isFinite(r.pct))
-    ? rawWeightedRows
-    : null;
-  const weightedTotal = weightedRows
-    ? Math.round(weightedRows.reduce((acc, r) => acc + (r.score * r.pct) / 100, 0))
-    : null;
   // Skills coverage is the Yes/Partial/No skills-alignment list summarized as a %.
   const saYes = (ai.skillsAlignment ?? []).filter((s) => s.evidence === "Yes").length;
   const saPartial = (ai.skillsAlignment ?? []).filter((s) => s.evidence === "Partial").length;
@@ -385,55 +463,10 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
     ? `The AI reads the actual CV against this job's description, responsibilities, and requirements, scores six dimensions independently (0–100), and combines them into a weighted average using the weights HR configured for this job. Scoring is calibrated to the role's seniority — typical score bands shift with the level (more lenient for intern/junior roles, stricter for senior ones) — and only exceptional candidates score above 85. Tiers: 85+ Top Match · 70–84 Strong · 50–69 Moderate · below 50 Weak.${ai.confidence ? " The Confidence badge is the AI's own certainty in this assessment, based on how completely the CV was parsed and how much concrete evidence it contains." : ""}`
     : "The AI reads the actual CV and scores overall fit (0–100) from evidence of skills, experience, industry, and education against the role. Findings must cite real CV content, and protected traits (age, gender, nationality, religion) are excluded from consideration.";
 
-  // ── AI evidence signals (qualitative, explainable — replaces the removed
-  //    predictive percentages, which were unvalidated AI guesses) ──
+  // Items the recruiter should verify before deciding — rendered in full in the
+  // Evidence & Verify tab, and surfaced as a count on that tab's trigger so the
+  // signal survives without a separate "Verification need" card.
   const checklist = ai.verificationChecklist?.length ? ai.verificationChecklist : (ai.riskIndicators ?? []);
-  const verifNeed = checklist.length === 0 ? "Low" : checklist.length <= 2 ? "Medium" : "High";
-  const tierShort = ai.rankingTier?.replace(" Match", "");
-  const expBucket = ai.scoreBreakdown
-    ? ai.scoreBreakdown.relevantExperience >= 70 ? "Strong" : ai.scoreBreakdown.relevantExperience >= 50 ? "Moderate" : "Weak"
-    : null;
-  const signals: { label: string; value: string; tone: string; how: string; why?: string }[] = [];
-  if (tierShort || ai.fitLevel) {
-    const v = tierShort ?? ai.fitLevel.replace(" Fit", "");
-    signals.push({
-      label: "Role alignment", value: v, tone: levelTone(v),
-      how: "How strongly the candidate matches this job overall — the qualitative tier behind the fit score (85+ Top · 70–84 Strong · 50–69 Moderate · below 50 Weak).",
-      why: `Derived from the overall fit score of ${ai.fitScore}/100.`,
-    });
-  }
-  if (ai.skillsCoveragePercent != null) { // pre-evidence-era analyses may lack it — avoid "undefined%"
-    signals.push({
-      label: "Skills coverage", value: `${ai.skillsCoveragePercent}%`, tone: ai.skillsCoveragePercent >= 70 ? TONE_TEXT.success : ai.skillsCoveragePercent >= 40 ? TONE_TEXT.warning : TONE_TEXT.danger,
-      how: "The share of this job's required skills the AI found real evidence for in the CV (each requirement checked Yes / Partial / No — full list in the Skills tab).",
-      why: saTotal > 0 ? `Evidence found for ${saYes} of ${saTotal} required skills${saPartial > 0 ? `, partial evidence for ${saPartial} more` : ""}.` : undefined,
-    });
-  }
-  if (expBucket) {
-    signals.push({
-      label: "Experience relevance", value: expBucket, tone: levelTone(expBucket),
-      how: "How relevant the candidate's actual past responsibilities are to this role — a qualitative read of the Relevant-experience dimension.",
-      why: `Relevant-experience scored ${ai.scoreBreakdown!.relevantExperience}/100 — open that row in "Why this score" for the evidence.`,
-    });
-  }
-  if (ai.evidenceQuality?.level) {
-    signals.push({
-      label: "Evidence quality", value: ai.evidenceQuality.level, tone: levelTone(ai.evidenceQuality.level),
-      how: "How strong, specific, and credible the CV/application evidence is — verifiable achievements and dates score high; vague buzzwords or implausible claims score low.",
-      why: ai.evidenceQuality.reasoning,
-    });
-  }
-  signals.push({
-    label: "Verification need", value: verifNeed, tone: levelTone(verifNeed, true),
-    how: "How much of this profile needs recruiter follow-up before a decision — derived from the number of verification items the analysis flagged.",
-    why: checklist.length === 0 ? "No verification items were flagged." : `${checklist.length} item${checklist.length === 1 ? "" : "s"} to verify — see the Evidence & Verify tab.`,
-  });
-  if (ai.confidence) {
-    signals.push({
-      label: "AI confidence", value: ai.confidence, tone: levelTone(ai.confidence),
-      how: "The AI's own certainty in this assessment, based on how completely the CV was parsed and how much concrete evidence it contains.",
-    });
-  }
 
   // Score impact: v2 signals, falling back to strengths/gaps for older analyses.
   const positives = ai.positiveSignals?.length
@@ -478,23 +511,11 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
               <InfoHint
                 label="Overall fit score"
                 how={overallHow}
-                why={
-                  weightedRows ? (
-                    <div className="space-y-0.5">
-                      {weightedRows.map((r) => (
-                        <p key={r.label} className="flex justify-between gap-3 tabular-nums">
-                          <span className="text-muted-foreground">{r.label} {r.score} × {r.pct}%</span>
-                          <span>{((r.score * r.pct) / 100).toFixed(1)} pts</span>
-                        </p>
-                      ))}
-                      <p className="flex justify-between gap-3 border-t border-border pt-1 font-semibold tabular-nums">
-                        <span>Weighted total</span>
-                        <span>≈ {weightedTotal} / 100</span>
-                      </p>
-                    </div>
-                  ) : ai.recommendationJustification || undefined
-                }
-                whyLabel={weightedRows ? "This candidate's calculation" : "Why this score"}
+                /* The per-dimension arithmetic used to be repeated here; "Why this
+                   score" below renders the same six rows expandably WITH their
+                   evidence, so this tooltip stays conceptual only. */
+                why={ai.recommendationJustification || undefined}
+                whyLabel="Why this score"
               />
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -506,14 +527,18 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
                   {ai.recommendation}
                 </Badge>
               )}
+              {/* rankingTier is the vocabulary the Applicants list and Compare view
+                  use ("Top Match"), and the score tooltip explains the tiers — so
+                  show it here rather than leaving the profile the only screen
+                  without it. */}
+              {ai.rankingTier && (
+                <Badge variant="outline" className="text-[10px]">{ai.rankingTier}</Badge>
+              )}
               {ai.confidence && (
                 <Badge variant="outline" className="text-[10px]">Confidence: {ai.confidence}</Badge>
               )}
             </div>
             {ai.summary && <p className="text-sm leading-relaxed text-foreground/90">{ai.summary}</p>}
-            {ai.professionalIdentity?.keyIdentity && (
-              <p className="text-xs italic text-muted-foreground">"{ai.professionalIdentity.keyIdentity}"</p>
-            )}
             {ai.skillsCoveragePercent != null && (
             <div>
               <div className="mb-1 flex items-center justify-between text-xs">
@@ -543,7 +568,7 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
       </div>
 
       {/* ===== 2 · Why this score — expandable weighted breakdown + signals + impact ===== */}
-      {(ai.scoreBreakdown || signals.length > 0 || positives.length > 0 || risks.length > 0) && (
+      {(ai.scoreBreakdown || ai.evidenceQuality?.level || positives.length > 0 || risks.length > 0) && (
         <div className="space-y-5 rounded-2xl border border-border bg-card p-5 light-glow sm:p-6">
           {ai.scoreBreakdown && (
             <div>
@@ -574,29 +599,28 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
             </div>
           )}
 
-          {/* AI evidence signals — qualitative + explainable (no invented probabilities) */}
-          {signals.length > 0 && (
-            <div>
-              <div className="mb-2 flex items-center gap-2">
-                <h3 className="flex items-center gap-2 text-sm font-semibold">
-                  <TrendingUp className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> AI evidence signals
-                </h3>
+          {/* Evidence quality — the ONE signal not shown anywhere else. The old
+              six-card grid also carried Role alignment, Skills coverage,
+              Experience relevance, AI confidence and Verification need, each a
+              lossy restatement of a figure rendered in full elsewhere on this
+              screen (gauge, coverage bar, score rows, verdict badge, Verify tab
+              count). Kept as one inline line instead of a card grid. */}
+          {ai.evidenceQuality?.level && (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-secondary/30 px-3 py-2 text-xs">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <TrendingUp className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                Evidence quality
                 <InfoHint
-                  label="AI evidence signals"
-                  how="Qualitative, explainable signals summarizing what the evidence supports. These replace predictive percentages (interview success, turnover risk, …), which were unvalidated AI guesses — Lumofy has no statistical model behind such predictions, so they are not shown."
+                  label="Evidence quality"
+                  how="How strong, specific, and credible the CV evidence is — verifiable achievements and dates score high; vague buzzwords or implausible claims score low."
+                  why={ai.evidenceQuality.reasoning}
+                  whyLabel="Why this signal"
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {signals.map((s) => (
-                  <div key={s.label} className="relative rounded-xl bg-secondary/30 p-3 text-center">
-                    <span className="absolute right-1 top-1">
-                      <InfoHint label={s.label} how={s.how} why={s.why} whyLabel="Why this signal" />
-                    </span>
-                    <p className="px-5 text-[10px] text-muted-foreground">{s.label}</p>
-                    <p className={`text-sm font-bold ${s.tone}`}>{s.value}</p>
-                  </div>
-                ))}
-              </div>
+              </span>
+              {/* The reasoning lives in the InfoHint above — repeating it here as
+                  truncated inline text said nothing at narrow widths and was a
+                  duplication of its own. */}
+              <span className={`font-bold ${levelTone(ai.evidenceQuality.level)}`}>{ai.evidenceQuality.level}</span>
             </div>
           )}
 
@@ -612,46 +636,43 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
                   how="The specific findings that pushed the score up or down, each with its source (CV, application form, or screening answers) and how strongly it moved the AI's scoring."
                 />
               </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Each finding is a tinted block rather than a bullet: the tint
+                  carries helped/hurt at a glance, impact is a 3-dot weight so a
+                  major finding no longer looks identical to a minor one, and the
+                  columns stay legible when one side is much shorter. */}
+              <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
                 <div>
-                  <p className={`mb-2 text-xs font-semibold ${TONE_TEXT.success}`}>Helped the score</p>
-                  <ul className="space-y-2">
+                  <p className={`mb-2 flex items-center gap-1.5 text-xs font-semibold ${TONE_TEXT.success}`}>
+                    <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                    Helped the score
+                    <span className="font-normal text-muted-foreground">({positives.length})</span>
+                  </p>
+                  <motion.ul className="space-y-1.5" variants={SIGNAL_LIST} initial="hidden" animate="show">
                     {positives.map((p, i) => (
-                      <li key={i} className="text-sm">
-                        <span className="flex flex-wrap items-center gap-1.5">
-                          <Check className={`h-3 w-3 flex-shrink-0 ${TONE_TEXT.success}`} aria-hidden="true" />
-                          <span className="font-medium">{p.signal}</span>
-                          {p.impact && <span className={IMPACT_CHIP}>{p.impact} impact</span>}
-                          {p.source && <span className={IMPACT_CHIP}>{p.source}</span>}
-                        </span>
-                        {p.reasoning && <p className="mt-0.5 pl-[18px] text-xs leading-relaxed text-muted-foreground">{p.reasoning}</p>}
-                      </li>
+                      <SignalItem key={i} tone="success" signal={p.signal} impact={p.impact} source={p.source} reasoning={p.reasoning} />
                     ))}
                     {positives.length === 0 && <li className="text-xs text-muted-foreground">None identified</li>}
-                  </ul>
+                  </motion.ul>
                 </div>
                 <div>
-                  <p className={`mb-2 text-xs font-semibold ${TONE_TEXT.warning}`}>Hurt the score</p>
-                  <ul className="space-y-2">
+                  <p className={`mb-2 flex items-center gap-1.5 text-xs font-semibold ${TONE_TEXT.warning}`}>
+                    <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                    Hurt the score
+                    <span className="font-normal text-muted-foreground">({risks.length})</span>
+                  </p>
+                  <motion.ul className="space-y-1.5" variants={SIGNAL_LIST} initial="hidden" animate="show">
                     {risks.map((r, i) => (
-                      <li key={i} className="text-sm">
-                        <span className="flex flex-wrap items-center gap-1.5">
-                          <AlertCircle className={`h-3 w-3 flex-shrink-0 ${TONE_TEXT.warning}`} aria-hidden="true" />
-                          <span className="font-medium">{r.signal}</span>
-                          {r.impact && <span className={IMPACT_CHIP}>{r.impact} impact</span>}
-                          {r.source && <span className={IMPACT_CHIP}>{r.source}</span>}
-                        </span>
-                        {r.reasoning && <p className="mt-0.5 pl-[18px] text-xs leading-relaxed text-muted-foreground">{r.reasoning}</p>}
-                        {r.verificationQuestion && (
-                          <p className="mt-0.5 pl-[18px] text-xs leading-relaxed">
-                            <span className={`font-semibold ${TONE_TEXT.warning}`}>Verify:</span>{" "}
-                            <span className="text-foreground/90">{r.verificationQuestion}</span>
-                          </p>
-                        )}
-                      </li>
+                      <SignalItem
+                        key={i} tone="warning" signal={r.signal} impact={r.impact} source={r.source}
+                        reasoning={r.reasoning} verify={r.verificationQuestion}
+                      />
                     ))}
-                    {risks.length === 0 && <li className="text-xs text-muted-foreground">None identified</li>}
-                  </ul>
+                    {risks.length === 0 && (
+                      <li className="rounded-xl bg-[hsl(var(--intel-success)/0.07)] px-2.5 py-2 text-xs text-muted-foreground">
+                        Nothing counted against this candidate.
+                      </li>
+                    )}
+                  </motion.ul>
                 </div>
               </div>
             </div>
@@ -666,7 +687,16 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
             <TabsTrigger value="overview" className="gap-1.5 whitespace-nowrap text-xs"><BookOpen className="h-3.5 w-3.5" aria-hidden="true" />Overview</TabsTrigger>
             <TabsTrigger value="skills" className="gap-1.5 whitespace-nowrap text-xs"><Target className="h-3.5 w-3.5" aria-hidden="true" />Skills</TabsTrigger>
             <TabsTrigger value="experience" className="gap-1.5 whitespace-nowrap text-xs"><Briefcase className="h-3.5 w-3.5" aria-hidden="true" />Experience &amp; Fit</TabsTrigger>
-            <TabsTrigger value="evidence" className="gap-1.5 whitespace-nowrap text-xs"><ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />Evidence &amp; Verify</TabsTrigger>
+            {/* The count carries the old "Verification need" signal without a card. */}
+            <TabsTrigger value="evidence" className="gap-1.5 whitespace-nowrap text-xs">
+              <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />Evidence &amp; Verify
+              {checklist.length > 0 && (
+                <span className="ml-0.5 rounded-full bg-[hsl(var(--intel-warning)/0.18)] px-1.5 text-[10px] font-semibold tabular-nums text-[hsl(var(--intel-warning))]">
+                  {checklist.length}
+                  <span className="sr-only"> items to verify</span>
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="interview" className="gap-1.5 whitespace-nowrap text-xs"><MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />Interview</TabsTrigger>
           </TabsList>
 
@@ -675,12 +705,18 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
             {ai.recommendationJustification && (
               <Field icon={<Zap className="h-3 w-3" />} label="Why this recommendation"><ExpandableText text={ai.recommendationJustification} /></Field>
             )}
-            {ai.recruiterVerdict?.reasoning && (
-              <Field icon={<Sparkles className="h-3 w-3" />} label="Recruiter verdict"><ExpandableText text={ai.recruiterVerdict.reasoning} /></Field>
+            {/* "Recruiter verdict" and "Final feedback" removed: both restated the
+                same conclusion as the executive summary above and "Why this
+                recommendation" here — four paraphrases of one judgement. This tab
+                keeps the single rationale that is bound to the recommendation badge. */}
+            {ai.professionalIdentity?.keyIdentity && (
+              <p className="rounded-xl border border-border/60 bg-secondary/20 px-3 py-2 text-sm italic leading-relaxed text-foreground/85">
+                "{ai.professionalIdentity.keyIdentity}"
+              </p>
             )}
             {ai.professionalIdentity && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-xl bg-secondary/40 p-3">
+                <div className="rounded-xl bg-secondary/40 p-3 transition-colors hover:bg-secondary/60">
                   <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Primary identity</p>
                   <p className="text-sm font-semibold">{ai.professionalIdentity.primary}</p>
                   {typeof ai.professionalIdentity.primaryConfidence === "number" && (
@@ -725,9 +761,6 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
                 </div>
               </div>
             ) : null}
-            {ai.feedback && (
-              <Field icon={<Lightbulb className="h-3 w-3" />} label="Final feedback"><ExpandableText text={ai.feedback} /></Field>
-            )}
           </TabsContent>
 
           {/* Skills */}

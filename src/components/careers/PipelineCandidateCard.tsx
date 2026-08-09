@@ -1,12 +1,12 @@
 import { useMemo } from "react";
-import { Brain, Star, GripVertical, AlertTriangle, Clock, Layers, ArrowRightLeft } from "lucide-react";
+import { Brain, Star, GripVertical, Clock, Layers, ArrowRightLeft } from "lucide-react";
 import type { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Applicant, ApplicantStatus } from "@/types/careers";
-import { STAGE_SLA_DAYS, APPLICANT_STATUSES } from "@/types/careers";
+import { APPLICANT_STATUSES } from "@/types/careers";
 import { tierSoft, TONE_TEXT } from "./statusColors";
 
 interface PipelineCandidateCardProps {
@@ -50,8 +50,9 @@ export default function PipelineCandidateCard({
   const multiApply = (appliedJobsCount ?? 1) >= 2;
   const initials = useMemo(() => getInitials(applicant.fullName), [applicant.fullName]);
   const daysInStage = useMemo(() => getDaysInStage(applicant.stageEnteredAt), [applicant.stageEnteredAt]);
-  const sla = STAGE_SLA_DAYS[applicant.status];
-  const isOverdue = sla !== undefined && daysInStage > sla;
+  // A month or more in one stage is worth noticing; the old per-stage SLA fired
+  // on most of the board and became invisible through repetition.
+  const isLongWait = daysInStage >= 30;
   const score = applicant.aiAnalysis?.fitScore;
   const tier = score != null ? getRankingTier(score) : null;
 
@@ -61,8 +62,6 @@ export default function PipelineCandidateCard({
       className={`rounded-xl bg-[hsl(var(--intel-card))] border p-3 cursor-pointer transition-all duration-200 group relative overflow-hidden ${
         isDragging
           ? "shadow-2xl ring-2 ring-primary/50 border-primary/60 rotate-[1deg]"
-          : isOverdue
-          ? "border-destructive/40 hover:border-destructive/60 hover:shadow-md"
           : "border-[hsl(var(--intel-border))] hover:border-primary/30 hover:shadow-md"
       }`}
     >
@@ -131,16 +130,15 @@ export default function PipelineCandidateCard({
 
       {/* Bottom meta row */}
       <div className="flex items-center gap-2 mt-2 ml-[42px]">
-        <span className="flex items-center gap-0.5 font-mono text-[10px] tabular-nums text-muted-foreground">
+        {/* Waiting time only. The red "SLA" flag fired on most cards, so every
+            column looked like it was on fire and the badge stopped meaning
+            anything; a long wait now just tints the number. */}
+        <span
+          className={`flex items-center gap-0.5 font-mono text-[10px] tabular-nums ${isLongWait ? TONE_TEXT.warning : "text-muted-foreground"}`}
+          title={`${daysInStage} day${daysInStage === 1 ? "" : "s"} in this stage`}>
           <Clock className="w-2.5 h-2.5" aria-hidden="true" />
           {daysInStage}d
         </span>
-        {isOverdue && (
-          <span className="flex items-center gap-0.5 text-[10px] text-destructive font-semibold">
-            <AlertTriangle className="w-2.5 h-2.5" aria-hidden="true" />
-            SLA
-          </span>
-        )}
         {avgRating && (
           <span className={`flex items-center gap-0.5 text-[10px] ${TONE_TEXT.warning}`}>
             <Star className="w-2.5 h-2.5 fill-current" aria-hidden="true" />

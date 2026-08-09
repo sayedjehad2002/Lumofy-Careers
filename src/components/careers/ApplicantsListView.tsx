@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, lazy, Suspense } from "react";
 import {
-  Brain, Star, Clock, AlertTriangle, Users, Trophy,
+  Brain, Star, Clock, Users, Trophy,
   ArrowUpDown, Trash2, Search, Filter, ChevronRight, Zap, Eye,
   BarChart3, Activity, GitCompareArrows, CheckSquare, ClipboardList,
   Globe, RefreshCw, Pin,
@@ -12,7 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
-import { APPLICANT_STATUSES, STAGE_SLA_DAYS, type ApplicantStatus, type Applicant, type Job } from "@/types/careers";
+import { APPLICANT_STATUSES, type ApplicantStatus, type Applicant, type Job } from "@/types/careers";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -28,7 +28,7 @@ import ActivityFeed from "@/components/careers/applicants/ActivityFeed";
 const SourceAnalytics = lazy(() => import("@/components/careers/applicants/SourceAnalytics")); // lazy: shares the recharts chunk; load only when the Sources view opens
 import SmartRankingRefresh from "@/components/careers/applicants/SmartRankingRefresh";
 import CandidateCompareView from "@/components/careers/applicants/CandidateCompareView";
-import { tierSoft, TONE_SOFT, TONE_TEXT } from "@/components/careers/statusColors";
+import { tierSoft, TONE_SOFT, TONE_TEXT, TONE_BORDER } from "@/components/careers/statusColors";
 
 function getRankingTier(score: number): string {
   if (score >= 85) return "Top Match";
@@ -115,12 +115,13 @@ export default function ApplicantsListView({
     const withAI = applicants.filter(a => a.aiAnalysis?.fitScore != null);
     const avgScore = withAI.length > 0 ? Math.round(withAI.reduce((s, a) => s + (a.aiAnalysis?.fitScore || 0), 0) / withAI.length) : null;
     const newCount = applicants.filter(a => a.status === "new").length;
-    const overdue = applicants.filter(a => {
-      const sla = STAGE_SLA_DAYS[a.status];
-      if (sla === undefined || !a.stageEnteredAt) return false;
-      return Math.floor((Date.now() - new Date(a.stageEnteredAt).getTime()) / (1000 * 60 * 60 * 24)) > sla;
-    }).length;
-    return { avgScore, newCount, overdue };
+    // "Overdue" was dropped: the stage SLAs are far shorter than this inbox is
+    // old, so ~86% of candidates tripped it. An alarm that fires on almost every
+    // row is noise, and it made the whole list read as an emergency. Awaiting-AI
+    // is the genuinely actionable gap in its place — those candidates can't be
+    // ranked or compared until they're scored.
+    const awaitingAi = applicants.filter(a => !a.aiAnalysis).length;
+    return { avgScore, scored: withAI.length, newCount, awaitingAi };
   }, [applicants]);
 
   // Batch actions
@@ -183,21 +184,26 @@ export default function ApplicantsListView({
           {applicants.length} total
         </div>
         {stats.avgScore !== null && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border text-xs font-medium">
+          <div
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border text-xs font-medium"
+            title={`Average across the ${stats.scored} candidates that have been scored`}>
             <Brain className={`w-3.5 h-3.5 ${TONE_TEXT.ai}`} aria-hidden="true" />
-            Avg Score: {stats.avgScore}
+            Avg score {stats.avgScore}
+            <span className="text-muted-foreground">· {stats.scored} scored</span>
           </div>
         )}
         {stats.newCount > 0 && (
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-medium text-primary">
             <Zap className="w-3.5 h-3.5" aria-hidden="true" />
-            {stats.newCount} new
+            {stats.newCount} unreviewed
           </div>
         )}
-        {stats.overdue > 0 && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-destructive/10 border border-destructive/20 text-xs font-medium text-destructive">
-            <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
-            {stats.overdue} overdue
+        {stats.awaitingAi > 0 && (
+          <div
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium ${TONE_SOFT.warning} ${TONE_BORDER.warning}`}
+            title="These candidates have no AI score yet, so they can't be ranked or compared">
+            <Brain className="w-3.5 h-3.5" aria-hidden="true" />
+            {stats.awaitingAi} awaiting AI
           </div>
         )}
       </div>
@@ -370,8 +376,9 @@ export default function ApplicantsListView({
                 const daysInStage = applicant.stageEnteredAt
                   ? Math.max(0, Math.floor((Date.now() - new Date(applicant.stageEnteredAt).getTime()) / (1000 * 60 * 60 * 24)))
                   : 0;
-                const sla = STAGE_SLA_DAYS[applicant.status];
-                const isOverdue = sla !== undefined && daysInStage > sla;
+                // Emphasis only for a genuinely long wait (a month+), and even then
+                // it just tints the number — no alarm icon, no red row.
+                const isLongWait = daysInStage >= 30;
                 const initials = applicant.fullName.trim().split(/\s+/).length >= 2
                   ? (applicant.fullName.trim().split(/\s+/)[0][0] + applicant.fullName.trim().split(/\s+/).pop()![0]).toUpperCase()
                   : applicant.fullName.substring(0, 2).toUpperCase();
@@ -388,14 +395,16 @@ export default function ApplicantsListView({
                     initial="hidden"
                     animate="visible"
                     custom={index}
-                    className={`group rounded-2xl bg-card border p-4 cursor-pointer transition-all duration-200 hover:shadow-lg ${
+                    /* Red rows are gone: with ~300 of 348 "overdue", most of the
+                       list rendered as an alert and the strongest candidates were
+                       visually indistinguishable from routine ones. Emphasis is now
+                       reserved for the top matches and the current selection. */
+                    className={`group rounded-2xl bg-card border p-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30 ${
                       isSelected
                         ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
                         : isTop3
                         ? "border-primary/30 bg-gradient-to-r from-primary/5 via-card to-card"
-                        : isOverdue
-                        ? "border-destructive/40 bg-gradient-to-r from-destructive/5 via-card to-card"
-                        : "border-border hover:border-primary/20"
+                        : "border-border"
                     }`}
                     onClick={() => batchMode ? toggleBatchSelect(applicant.id) : onSelectApplicant(applicant)}
                   >
@@ -459,16 +468,17 @@ export default function ApplicantsListView({
                             )}
                           </div>
 
+                          {/* Waiting time is stated plainly. The old red "SLA Breach"
+                              flag fired on ~86% of rows, so it signalled nothing and
+                              made routine screening look like a crisis. */}
                           <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground mt-1">
                             <span>{new Date(applicant.appliedDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-                            <span className="flex items-center gap-0.5">
-                              <Clock className="w-2.5 h-2.5" aria-hidden="true" />{daysInStage}d
+                            <span
+                              className={`flex items-center gap-0.5 ${isLongWait ? TONE_TEXT.warning : ""}`}
+                              title={`In ${statusInfo.label} for ${daysInStage} day${daysInStage === 1 ? "" : "s"}`}>
+                              <Clock className="w-2.5 h-2.5" aria-hidden="true" />
+                              {daysInStage}d waiting
                             </span>
-                            {isOverdue && (
-                              <span className="flex items-center gap-0.5 text-destructive font-medium">
-                                <AlertTriangle className="w-2.5 h-2.5" aria-hidden="true" />SLA Breach
-                              </span>
-                            )}
                           </div>
                         </div>
                       </div>

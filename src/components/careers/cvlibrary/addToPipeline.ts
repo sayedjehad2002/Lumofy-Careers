@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { candidateDisplayName } from "@/lib/utils";
+import { toTitleCase } from "@/lib/utils";
 
 /** The library-candidate fields needed to promote someone into a pipeline. */
 export interface LibraryCandidateForAdd {
@@ -61,7 +61,14 @@ export async function addLibraryCandidateToJob(
         id: applicantId,
         job_id: job.id,
         job_title: job.title,
-        full_name: candidateDisplayName(candidate.name, candidate.resume_file_name) || "Unknown",
+        // Persist ONLY a name that was genuinely read from the document. Never a
+        // placeholder ("Unknown") and never a filename GUESS: a guess is
+        // indistinguishable from a real name once stored, so it would survive
+        // forever and block the AI backfill (which refuses to overwrite a
+        // non-junk name). The filename fallback stays a DISPLAY-only affordance —
+        // an empty string satisfies the NOT NULL column while staying falsy, so
+        // auto-analyze-applicant can fill in the real name from the CV itself.
+        full_name: toTitleCase(candidate.name),
         email: candidate.email || null,
         phone: candidate.phone || "",
         location: candidate.location || "",

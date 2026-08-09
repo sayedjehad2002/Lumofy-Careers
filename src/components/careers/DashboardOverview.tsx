@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig,
 } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid } from "recharts";
 import type { Job, Applicant, ApplicantStatus } from "@/types/careers";
 import { APPLICANT_STATUSES } from "@/types/careers";
 import { FUNNEL_FILLS, TONE_SOFT, TONE_TEXT, TONE_BG, tierSoft } from "./statusColors";
@@ -66,34 +66,43 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
     return Math.round(total / withScore.length);
   }, [applicants]);
 
+  // Both rates are shares of the SAME population (everyone who ever applied), so
+  // they can be read against each other. The previous "to hired" used
+  // hired/(interview+hired) — a different denominator from "to interview" — which
+  // made 1 hire read as 14% next to 6 interviews reading as 2%.
   const conversionRates = useMemo(() => {
     const total = applicants.length;
-    const interviewCount = applicants.filter((a) => ["interview", "hired"].includes(a.status)).length;
+    const reachedInterview = applicants.filter((a) => ["interview", "hired"].includes(a.status)).length;
     const hiredCount = applicants.filter((a) => a.status === "hired").length;
-    const interviewOnly = applicants.filter((a) => a.status === "interview").length;
     return {
-      newToInterview: total > 0 ? Math.round((interviewCount / total) * 100) : 0,
-      interviewToHired: interviewOnly + hiredCount > 0 ? Math.round((hiredCount / (interviewOnly + hiredCount)) * 100) : 0,
+      reachedInterview,
+      hiredCount,
+      newToInterview: total > 0 ? Math.round((reachedInterview / total) * 100) : 0,
+      newToHired: total > 0 ? Math.round((hiredCount / total) * 100) : 0,
     };
   }, [applicants]);
 
-  const avgTimeToHire = useMemo(() => {
+  // Returns the sample size too: an "average" over one hire is not an average, and
+  // presenting it as a trend-worthy KPI invites decisions it can't support.
+  const timeToHire = useMemo(() => {
     const hired = applicants.filter((a) => a.status === "hired");
-    if (!hired.length) return null;
+    if (!hired.length) return { days: null as number | null, n: 0 };
     const days = hired.map((a) => {
       const start = new Date(a.appliedDate).getTime();
       const end = new Date(a.stageEnteredAt || a.appliedDate).getTime();
       return Math.max(0, (end - start) / DAY);
     });
-    return Math.round(days.reduce((s, d) => s + d, 0) / days.length);
+    return { days: Math.round(days.reduce((s, d) => s + d, 0) / days.length), n: hired.length };
   }, [applicants]);
+
+  const scoredCount = useMemo(() => applicants.filter((a) => a.aiAnalysis?.fitScore).length, [applicants]);
+  const analyzedPct = applicants.length > 0 ? Math.round((scoredCount / applicants.length) * 100) : 0;
 
   // ── live intelligence (honest derivations from real fields) ──
   const appliedSeries = useMemo(() => dailyCounts(applicants.map((a) => a.appliedDate), 14, now), [applicants, now]);
   const showAppliedTrend = hasTrend(appliedSeries);
   const appliedDelta = trendDeltaPct(appliedSeries);
   const attention = useMemo(() => computeAttention(applicants, jobs, now), [applicants, jobs, now]);
-  const attentionTotal = attention.unreviewed + attention.stalledInterviews + attention.jobsClosingSoon + attention.slaBreaches;
   const inPipeline = useMemo(() => applicants.filter((a) => !["hired", "rejected"].includes(a.status)).length, [applicants]);
   const hiredLast30 = useMemo(
     () => applicants.filter((a) => a.status === "hired" && (now - new Date(a.stageEnteredAt || a.appliedDate).getTime()) / DAY <= 30).length,
@@ -108,11 +117,22 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
     }));
   }, [applicants]);
 
-  const stageBarData = useMemo(
-    () => APPLICANT_STATUSES.map((s) => ({ stage: s.label, count: applicants.filter((a) => a.status === s.value).length })),
-    [applicants]
-  );
-  const stageChartConfig: ChartConfig = { count: { label: "Candidates", color: "hsl(var(--primary))" } };
+  // Replaces the old "candidates by stage" bar chart, which duplicated the
+  // pipeline panel beside it AND was unreadable: with 334 in New and 1 in Hired,
+  // a linear axis renders five of six bars as invisible slivers. Score bands are
+  // new information, use the tier vocabulary HR already sees on each candidate,
+  // and distribute across four comparably-sized buckets.
+  const qualityBands = useMemo(() => {
+    const scored = applicants.map((a) => a.aiAnalysis?.fitScore).filter((s): s is number => typeof s === "number");
+    const band = (min: number, max: number) => scored.filter((s) => s >= min && s <= max).length;
+    return [
+      { band: "Weak", range: "0–49", count: band(0, 49), fill: "hsl(var(--destructive))" },
+      { band: "Moderate", range: "50–69", count: band(50, 69), fill: "hsl(var(--intel-warning))" },
+      { band: "Strong", range: "70–84", count: band(70, 84), fill: "hsl(var(--primary))" },
+      { band: "Top", range: "85–100", count: band(85, 100), fill: "hsl(var(--intel-success))" },
+    ];
+  }, [applicants]);
+  const qualityChartConfig: ChartConfig = { count: { label: "Candidates", color: "hsl(var(--primary))" } };
 
   const topJobs = useMemo(() => {
     return jobs
@@ -153,20 +173,31 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
   }, []);
   const todayStr = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
+  // Every tile carries its own denominator or sample size. A bare "67" or "8d"
+  // reads as a fact about the whole pipeline when it is really about 231 scored
+  // candidates and a single hire.
   const metrics = [
-    { label: "Open positions", value: <AnimatedCounter value={openJobs} duration={1.2} />, tab: "jobs", series: undefined as number[] | undefined, delta: undefined as number | null | undefined },
-    { label: "Total applicants", value: <AnimatedCounter value={applicants.length} duration={1.2} />, tab: "applicants", series: showAppliedTrend ? appliedSeries : undefined, delta: showAppliedTrend ? appliedDelta : undefined },
-    { label: "Avg AI score", value: avgFitScore !== null ? <AnimatedCounter value={avgFitScore} duration={1.2} /> : "—", tab: "applicants", series: undefined, delta: undefined },
-    { label: "Avg time-to-hire", value: avgTimeToHire !== null ? <AnimatedCounter value={avgTimeToHire} suffix="d" duration={1.2} /> : "—", tab: "pipeline", series: undefined, delta: undefined },
-    { label: "To interview", value: <AnimatedCounter value={conversionRates.newToInterview} suffix="%" duration={1.2} />, tab: "pipeline", series: undefined, delta: undefined },
-    { label: "To hired", value: <AnimatedCounter value={conversionRates.interviewToHired} suffix="%" duration={1.2} />, tab: "pipeline", series: undefined, delta: undefined },
+    { label: "Open positions", value: <AnimatedCounter value={openJobs} duration={1.2} />, sub: `${jobs.length} total`, tab: "jobs", series: undefined as number[] | undefined, delta: undefined as number | null | undefined },
+    { label: "Total applicants", value: <AnimatedCounter value={applicants.length} duration={1.2} />, sub: `${inPipeline} still active`, tab: "applicants", series: showAppliedTrend ? appliedSeries : undefined, delta: showAppliedTrend ? appliedDelta : undefined },
+    { label: "AI coverage", value: <AnimatedCounter value={analyzedPct} suffix="%" duration={1.2} />, sub: `${applicants.length - scoredCount} not yet scored`, tab: "applicants", series: undefined, delta: undefined },
+    { label: "Avg AI score", value: avgFitScore !== null ? <AnimatedCounter value={avgFitScore} duration={1.2} /> : "—", sub: scoredCount ? `across ${scoredCount} scored` : "none scored yet", tab: "applicants", series: undefined, delta: undefined },
+    { label: "Reached interview", value: <AnimatedCounter value={conversionRates.newToInterview} suffix="%" duration={1.2} />, sub: `${conversionRates.reachedInterview} of ${applicants.length}`, tab: "pipeline", series: undefined, delta: undefined },
+    {
+      label: "Time to hire",
+      value: timeToHire.days !== null ? <AnimatedCounter value={timeToHire.days} suffix="d" duration={1.2} /> : "—",
+      sub: timeToHire.n === 0 ? "no hires yet" : timeToHire.n === 1 ? "from 1 hire — not an average" : `avg of ${timeToHire.n} hires`,
+      tab: "pipeline", series: undefined, delta: undefined,
+    },
   ];
 
   const attentionRows = [
     { label: "Unreviewed applicants", count: attention.unreviewed, tone: TONE_SOFT.warning, tab: "applicants" },
     { label: "Interviews stalled >7d", count: attention.stalledInterviews, tone: TONE_SOFT.danger, tab: "pipeline" },
     { label: "Jobs closing this week", count: attention.jobsClosingSoon, tone: TONE_SOFT.bronze, tab: "jobs" },
-    { label: "SLA breaches", count: attention.slaBreaches, tone: TONE_SOFT.danger, tab: "pipeline" },
+    // "SLA breaches" removed: the stage SLAs are much shorter than this inbox is
+    // old, so it counted ~86% of everyone and drowned the rows that genuinely need
+    // a decision. Candidates with no AI score is the real blocker in its place.
+    { label: "Awaiting AI analysis", count: attention.awaitingAnalysis, tone: TONE_SOFT.ai, tab: "applicants" },
   ].filter((r) => r.count > 0);
 
   const recColorMap: Record<string, string> = { "Fast-Track": TONE_BG.success, Proceed: "bg-primary", Hold: TONE_BG.warning, "Not Recommended": "bg-destructive" };
@@ -197,34 +228,48 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
         </div>
         <p className="mt-1 text-sm text-muted-foreground">{greeting} · {todayStr}</p>
         <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+          {/* Three DISTINCT, individually actionable facts. The old headline added
+              overlapping buckets into "652 need attention" — more than the entire
+              applicant population — and even deduplicated it would read ~340 of
+              343, which is true but tells an HR manager nothing they can act on. */}
           <span className="tabular-nums text-foreground">{inPipeline}</span> in pipeline
           {" · "}
-          <span className="tabular-nums text-foreground">{attentionTotal}</span> need attention
+          <span className="tabular-nums text-foreground">{attention.unreviewed}</span> unreviewed
+          {attention.awaitingAnalysis > 0 && (
+            <>
+              {" · "}
+              <span className="tabular-nums text-foreground">{attention.awaitingAnalysis}</span> awaiting AI
+            </>
+          )}
         </p>
       </div>
 
       {/* ── Hero metric row ── */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {metrics.map((m) => (
-          <MetricTile key={m.label} label={m.label} value={m.value} delta={m.delta} series={m.series} onClick={() => onNavigate(m.tab)} />
+          <MetricTile key={m.label} label={m.label} value={m.value} hint={m.sub} delta={m.delta} series={m.series} onClick={() => onNavigate(m.tab)} />
         ))}
       </div>
 
       {/* ── Pipeline strip ── */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Panel title="Recruitment pipeline" icon={Activity}>
+          {/* Share of ALL applicants, not stage-to-stage conversion. Candidates can
+              skip stages here (someone can go straight from New to Interview), so
+              dividing a stage by the one before it is not a conversion rate — it
+              produced "600%" on screen. Share-of-total is always well-defined. */}
           <div className="space-y-3">
             {funnelData.map((stage, i) => {
+              const totalAll = Math.max(applicants.length, 1);
+              const share = Math.round((stage.value / totalAll) * 100);
               const maxVal = Math.max(...funnelData.map((s) => s.value), 1);
               const pct = (stage.value / maxVal) * 100;
-              const prev = i > 0 ? funnelData[i - 1].value : null;
-              const conv = prev && prev > 0 ? Math.round((stage.value / prev) * 100) : null;
               return (
-                <div key={stage.name}>
+                <div key={stage.name} className="group">
                   <div className="mb-1 flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">{stage.name}</span>
+                    <span className="text-muted-foreground transition-colors group-hover:text-foreground">{stage.name}</span>
                     <span className="font-mono tabular-nums text-muted-foreground">
-                      {conv !== null && <span className="mr-2 text-muted-foreground/60">{conv}%↦</span>}
+                      <span className="mr-2 text-muted-foreground/60">{share}%</span>
                       <span className="font-semibold text-foreground">{stage.value}</span>
                     </span>
                   </div>
@@ -241,19 +286,36 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
                 </div>
               );
             })}
+            <p className="pt-1 text-[11px] text-muted-foreground">
+              Share of all {applicants.length} applicants. Candidates can skip stages, so these don't chain.
+            </p>
           </div>
         </Panel>
 
-        <Panel title="Candidates by stage" icon={BarChart3}>
-          <ChartContainer config={stageChartConfig} className="h-[220px] w-full">
-            <BarChart data={stageBarData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" vertical={false} />
-              <XAxis dataKey="stage" tick={{ fontSize: 11 }} className="fill-muted-foreground" tickLine={false} axisLine={false} />
-              <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" allowDecimals={false} tickLine={false} axisLine={false} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ChartContainer>
+        <Panel title="Candidate quality" icon={BarChart3}>
+          {scoredCount === 0 ? (
+            <div className="flex h-[220px] flex-col items-center justify-center text-center">
+              <Brain className="h-8 w-8 text-muted-foreground/40" aria-hidden="true" />
+              <p className="mt-2 text-sm font-medium">No CVs scored yet</p>
+              <p className="text-xs text-muted-foreground">Scores appear here as candidates are analyzed.</p>
+            </div>
+          ) : (
+            <ChartContainer config={qualityChartConfig} className="h-[220px] w-full">
+              <BarChart data={qualityBands} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" vertical={false} />
+                <XAxis dataKey="band" tick={{ fontSize: 11 }} className="fill-muted-foreground" tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" allowDecimals={false} tickLine={false} axisLine={false} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                  {qualityBands.map((b) => <Cell key={b.band} fill={b.fill} />)}
+                </Bar>
+              </BarChart>
+            </ChartContainer>
+          )}
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {scoredCount} of {applicants.length} scored
+            {attention.awaitingAnalysis > 0 && ` · ${attention.awaitingAnalysis} still awaiting analysis`}
+          </p>
         </Panel>
       </div>
 

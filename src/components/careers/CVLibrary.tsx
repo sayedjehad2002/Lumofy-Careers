@@ -659,7 +659,11 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
             <div className="rounded-2xl bg-card border border-border p-6 light-glow">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h1 className="text-2xl font-bold">{candidateDisplayName(c.name, c.resume_file_name) || "Unknown Candidate"}</h1>
+                  {/* Match the applicant profile: state the absence honestly
+                      rather than inventing a person called "Unknown". */}
+                  {candidateDisplayName(c.name, c.resume_file_name)
+                    ? <h1 className="text-2xl font-bold">{candidateDisplayName(c.name, c.resume_file_name)}</h1>
+                    : <h1 className="text-2xl font-bold text-muted-foreground">No name on file</h1>}
                   <p className="text-sm text-muted-foreground mt-1">{c.resume_file_name}</p>
                 </div>
                 <div className="flex items-center gap-2">

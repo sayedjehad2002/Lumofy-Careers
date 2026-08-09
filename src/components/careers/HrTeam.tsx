@@ -16,10 +16,22 @@ interface Invite { id: string; email: string; role: string; expires_at: string; 
 
 const siteUrl = () => (import.meta.env.VITE_SITE_URL as string) || window.location.origin;
 
+// navigator.clipboard can be undefined (non-secure origin, some embedded
+// webviews) — accessing .writeText on it then throws SYNCHRONOUSLY, before any
+// promise exists to .catch(). Wrap the whole thing so any failure (sync or
+// async) degrades to false instead of escaping to the caller's try/catch.
+const copyToClipboard = async (text: string): Promise<boolean> => {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch { return false; }
+};
+
 const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
   const [members, setMembers] = useState<Member[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
-  const [callerRole, setCallerRole] = useState<string>("");
+  // Whether THIS caller may manage the team — decided server-side (a fixed
+  // email allowlist in hr-team), not derived from role. An "admin" who isn't
+  // on that list must not see the management controls.
+  const [canManage, setCanManage] = useState(false);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"admin" | "viewer">("admin");
@@ -46,14 +58,12 @@ const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
       const data = await call({ action: "list" });
       setMembers((data.members as Member[]) || []);
       setInvites((data.invites as Invite[]) || []);
-      setCallerRole((data.callerRole as string) || "");
+      setCanManage((data.canManage as boolean) ?? false);
     } catch (e) { toast.error((e as Error).message); }
     finally { setLoading(false); }
   }, [call]);
 
   useEffect(() => { refresh(); }, [refresh]);
-
-  const canManage = callerRole === "owner" || callerRole === "admin";
 
   const makeLink = (token: string) => `${siteUrl()}/hr/join?token=${token}`;
 
@@ -66,8 +76,8 @@ const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
       const link = makeLink(data.token as string);
       setLastLink(link);
       setEmail("");
-      try { await navigator.clipboard.writeText(link); } catch { /* ignore */ }
-      toast.success("Invite link created and copied. Send it to your teammate.");
+      const copiedOk = await copyToClipboard(link);
+      toast.success(copiedOk ? "Invite link created and copied. Send it to your teammate." : "Invite link created. Copy it below to send to your teammate.");
       refresh();
     } catch (e) { toast.error((e as Error).message); }
     finally { setCreating(false); }
@@ -78,8 +88,8 @@ const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
       const data = await call({ action: "invite", email: inv.email, role: inv.role });
       const link = makeLink(data.token as string);
       setLastLink(link);
-      try { await navigator.clipboard.writeText(link); } catch { /* ignore */ }
-      toast.success("Fresh link created + copied.");
+      const copiedOk = await copyToClipboard(link);
+      toast.success(copiedOk ? "Fresh link created + copied." : "Fresh link created. Copy it below.");
       refresh();
     } catch (e) { toast.error((e as Error).message); }
   };
@@ -104,7 +114,9 @@ const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
     <div className="max-w-3xl space-y-5">
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-foreground">HR Team</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">Invite teammates and control who can access the dashboard.</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          {canManage ? "Invite teammates and control who can access the dashboard." : "Who has access to the HR dashboard. Only account owners can invite or manage members."}
+        </p>
       </div>
 
       {canManage && (

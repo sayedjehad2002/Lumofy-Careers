@@ -73,29 +73,27 @@ const InterviewPrep = ({ applicant, job }: InterviewPrepProps) => {
         focus: "Adaptability",
       });
 
-      // Add AI-suggested interview questions
-      if (ai?.interviewQuestions) {
-        ai.interviewQuestions.slice(0, 3).forEach(q => {
-          questions.push({ question: q, category: "AI Suggested", focus: "Role Fit" });
-        });
-      }
+      // AI-suggested questions are NOT copied in: the analysis Interview tab
+      // (directly above this card in the same column) already renders them,
+      // grouped and with "why ask" rationale. This kit contributes only the
+      // locally-derived gap/skill/behavioural probes that exist nowhere else.
 
+      // Stable evaluation criteria. Analysis prose (organizationalFit /
+      // growthPotential / detectedSkills) is deliberately NOT pasted here — it is
+      // shown in full in the Experience & Fit and Skills tabs, and this cell
+      // truncates, which made the copy strictly worse than the original.
       const scorecard: PrepKit["scorecard"] = [
-        { criterion: "Technical Skills", weight: "30%", lookFor: `Proficiency in ${(ai?.detectedSkills || []).slice(0, 3).join(", ") || "required stack"}` },
+        { criterion: "Technical Skills", weight: "30%", lookFor: `Depth in the ${job?.title || "role"}'s core stack, with worked examples` },
         { criterion: "Problem Solving", weight: "25%", lookFor: "Structured thinking, creative solutions, data-driven approach" },
         { criterion: "Role Fit", weight: "20%", lookFor: `Alignment with ${job?.title || "role"} requirements` },
-        { criterion: "Culture Fit", weight: "15%", lookFor: ai?.organizationalFit || "Values alignment, collaboration style" },
-        { criterion: "Growth Potential", weight: "10%", lookFor: ai?.growthPotential || "Learning agility, career trajectory" },
+        { criterion: "Culture Fit", weight: "15%", lookFor: "Values alignment, collaboration style" },
+        { criterion: "Growth Potential", weight: "10%", lookFor: "Learning agility, career trajectory" },
       ];
 
-      const redFlags = ai?.redFlags || ai?.riskIndicators || [];
-      const talkingPoints = [
-        ...(ai?.recommendation ? [`AI Recommendation: ${ai.recommendation}`] : []),
-        ...(ai?.fitLevel ? [`Fit Level: ${ai.fitLevel} (${ai.fitScore}/100)`] : []),
-        ...(ai?.experienceVerification ? [`Experience: ${ai.experienceVerification.totalYears}, Seniority: ${ai.experienceVerification.seniorityAlignment}`] : []),
-      ];
-
-      setKit({ questions, scorecard, redFlags, talkingPoints });
+      // Red flags and briefing notes removed: both re-rendered content shown a few
+      // hundred pixels higher (Evidence & Verify owns risk; the executive summary
+      // owns the recommendation/fit/experience facts).
+      setKit({ questions, scorecard, redFlags: [], talkingPoints: [] });
       toast.success("Interview prep kit generated");
     } catch {
       toast.error("Failed to generate prep kit");

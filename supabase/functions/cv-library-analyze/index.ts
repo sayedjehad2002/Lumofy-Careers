@@ -108,6 +108,8 @@ The candidate was pre-classified as: Department="${suggestedDept}", Role="${sugg
 You MUST respond with a single valid JSON object (no markdown, no code blocks). EVERY field below is REQUIRED — you MUST include "candidateName", "professionalIdentity", "careerTrackAnalysis", "evidenceFor", "evidenceAgainst", "alternativesConsidered", "departmentMatches", and "recruiterVerdict". NEVER omit them.
 {
   "candidateName": "<the candidate's full personal name EXACTLY as printed on the CV (usually the most prominent text at the top of the first page, or in the header/sidebar/contact block). Read it from the document — never invent one. null ONLY if no human name is printed anywhere in the document.>",
+  "candidateEmail": "<the candidate's own email address EXACTLY as printed on the CV (contact block, header, or footer). Copy it character-for-character — never guess, correct, or construct one from their name. null if no email is printed. If several appear, choose the candidate's personal address, never a referee's or a company's.>",
+  "candidatePhone": "<the candidate's own phone number EXACTLY as printed, including country code if shown. Never invent or reformat. null if none is printed.>",
   "professionalIdentity": {
     "primary": "<the candidate's TRUE primary role/identity>",
     "primaryConfidence": <0-100>,
@@ -252,6 +254,30 @@ You MUST respond with a single valid JSON object (no markdown, no code blocks). 
         .update({ name: aiName })
         .eq("id", candidateId)
         .is("name", null);
+    }
+
+    // Contact backfill — same rationale as the name above: parse is the only
+    // extractor of email/phone and it fails on stubborn PDFs, while THIS call read
+    // the document fine. `.is(field, null)` makes each write fill an empty slot
+    // only, so an HR-entered value can never be clobbered.
+    const aiEmail = typeof analysis.candidateEmail === "string" ? analysis.candidateEmail.trim() : "";
+    if (/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(aiEmail) && aiEmail.length <= 254) {
+      await supabase
+        .from("cv_library_candidates")
+        .update({ email: aiEmail.toLowerCase() })
+        .eq("id", candidateId)
+        .is("email", null);
+    }
+    const aiPhone = typeof analysis.candidatePhone === "string" ? analysis.candidatePhone.trim() : "";
+    if (
+      aiPhone.length >= 7 && aiPhone.length <= 32 &&
+      /\d{6,}/.test(aiPhone.replace(/\D/g, "")) && !/[a-z]{3,}/i.test(aiPhone)
+    ) {
+      await supabase
+        .from("cv_library_candidates")
+        .update({ phone: aiPhone })
+        .eq("id", candidateId)
+        .is("phone", null);
     }
 
     if (updateErr) {

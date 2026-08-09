@@ -16,14 +16,28 @@ function deriveNameFromFilename(fileName?: string | null): string | null {
   let base = fileName.replace(/\.[^.]+$/, "");                 // strip extension
   base = base.replace(/[._\-]+/g, " ");                         // separators -> spaces
   // Drop common CV words, versions, anonymization markers, and standalone numbers.
-  base = base.replace(/\b(cv|resume|resumee|curriculum\s*vitae|vitae|profile|final|updated?|latest|copy|new|draft|anonymous|anon|redacted|\d{2,4})\b/gi, " ");
+  // No \b: filenames are often concatenated ("MyResume.pdf", "cvUpdated.pdf",
+  // "LinkedInProfile.pdf") and a word-boundary match would leave the noise intact
+  // and hand back "Myresume" as a person's name.
+  base = base.replace(/(cv|resumee|resume|curriculum\s*vitae|vitae|profile|linkedin|final|updated?|latest|copy|draft|anonymous|anon|redacted|\d{2,4})/gi, " ");
   base = base.replace(/\s+/g, " ").trim();
-  const junk = new Set(["document", "untitled", "download", "file", "the", "my", "mr", "mrs", "ms", "dr", "eng"]);
+  const junk = new Set([
+    "document", "untitled", "download", "file", "the", "my", "mr", "mrs", "ms", "dr", "eng",
+    // Document nouns: never a person, and common for phone scans / bulk uploads.
+    "doc", "docs", "scan", "scanned", "screenshot", "image", "img", "photo", "picture",
+    "attachment", "application", "applicant", "candidate", "passport", "id", "certificate",
+    "template", "sample", "portfolio", "lebenslauf", "confidential", "interview", "new", "untitled1",
+  ]);
   // Allow single-letter initials ("Leena A") — don't require every part to be 2+ chars.
   const words = base
     .split(" ")
     .filter((w) => /^[A-Za-z][A-Za-z.'’-]*$/.test(w) && !junk.has(w.toLowerCase()));
-  if (words.length < 2 || words.length > 6) return null;        // need a plausible human name
+  if (words.length === 0 || words.length > 6) return null;
+  // A SINGLE surviving token is accepted only when substantial (>=3 letters):
+  // "Resume_Kavya.pdf" loses "Resume" as noise and must still yield "Kavya",
+  // while "Profile.pdf" / "a.pdf" stay null. Mirrors src/lib/utils.ts so display
+  // and storage agree (the role-word guard below still applies).
+  if (words.length === 1 && words[0].replace(/[.'’-]/g, "").length < 3) return null;
   // But require at least one real (multi-letter) name part, so "a b c" isn't a name.
   if (!words.some((w) => w.replace(/[.'’-]/g, "").length >= 2)) return null;
   // Role/title words are never parts of a human name in a CV filename —

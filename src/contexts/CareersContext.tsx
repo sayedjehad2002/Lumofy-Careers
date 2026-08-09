@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { adminQuery } from "@/lib/adminQuery";
-import { toTitleCase } from "@/lib/utils";
+import { toTitleCase, applicantDisplayName } from "@/lib/utils";
 import type { Job, Applicant, ApplicantStatus, AIAnalysis, ScreeningQuestion, CandidateRating, AIScoringWeights, DEFAULT_AI_WEIGHTS } from "@/types/careers";
 
 interface CareersContextType {
@@ -13,6 +13,7 @@ interface CareersContextType {
   authReady: boolean;
   isHrUser: boolean;
   hrRole: string | null;
+  hrEmail: string | null;
   hrChecked: boolean;
   addJob: (job: Job) => Promise<void>;
   updateJob: (job: Job) => Promise<void>;
@@ -104,7 +105,11 @@ export function dbRowToApplicant(row: any): Applicant {
     id: row.id,
     jobId: row.job_id,
     jobTitle: row.job_title || undefined,
-    fullName: toTitleCase(row.full_name),
+    // Single repair point for every applicant render site: recover a name from the
+    // CV file name when the stored one is missing or a junk placeholder that older
+    // rows persisted ("Unknown"/"N/A"/…). Avoids a data migration and keeps the
+    // avatar initial, header, emails and exports from showing "Unknown".
+    fullName: applicantDisplayName(row.full_name, row.cv_file_name),
     email: row.email || "", // email is optional for HR-added candidates; coerce null → "" so consumers (mailto, dedup) stay safe
     phone: row.phone,
     location: row.location,
@@ -165,6 +170,7 @@ export function CareersProvider({ children }: { children: ReactNode }) {
   const [authReady, setAuthReady] = useState(false);
   const [isHrUser, setIsHrUser] = useState(false);
   const [hrRole, setHrRole] = useState<string | null>(null);
+  const [hrEmail, setHrEmail] = useState<string | null>(null);
   const [hrChecked, setHrChecked] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -233,7 +239,7 @@ export function CareersProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!authReady) return;
     let active = true;
-    if (!sessionToken) { setIsHrUser(false); setHrRole(null); setHrChecked(true); return; }
+    if (!sessionToken) { setIsHrUser(false); setHrRole(null); setHrEmail(null); setHrChecked(true); return; }
     setHrChecked(false);
     supabase.functions
       .invoke("hr-me", { body: { sessionToken } })
@@ -241,9 +247,10 @@ export function CareersProvider({ children }: { children: ReactNode }) {
         if (!active) return;
         setIsHrUser(!!data?.authorized);
         setHrRole((data?.role as string) ?? null);
+        setHrEmail((data?.email as string) ?? null);
         setHrChecked(true);
       })
-      .catch(() => { if (active) { setIsHrUser(false); setHrRole(null); setHrChecked(true); } });
+      .catch(() => { if (active) { setIsHrUser(false); setHrRole(null); setHrEmail(null); setHrChecked(true); } });
     return () => { active = false; };
   }, [sessionToken, authReady]);
 
@@ -439,7 +446,7 @@ export function CareersProvider({ children }: { children: ReactNode }) {
   const getJobById = useCallback((id: string) => jobs.find(j => j.id === id), [jobs]);
 
   return (
-    <CareersContext.Provider value={{ jobs, applicants, loading, sessionToken, setSessionToken, authReady, isHrUser, hrRole, hrChecked, addJob, updateJob, deleteJob, archiveJob, restoreJob, addApplicant, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, updateApplicantFields, getJobById, refreshData: fetchData, silentRefresh, lastUpdated, refreshing }}>
+    <CareersContext.Provider value={{ jobs, applicants, loading, sessionToken, setSessionToken, authReady, isHrUser, hrRole, hrEmail, hrChecked, addJob, updateJob, deleteJob, archiveJob, restoreJob, addApplicant, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, updateApplicantFields, getJobById, refreshData: fetchData, silentRefresh, lastUpdated, refreshing }}>
       {children}
     </CareersContext.Provider>
   );

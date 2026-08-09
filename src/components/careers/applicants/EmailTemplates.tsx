@@ -26,7 +26,10 @@ const TEMPLATES: { type: TemplateType; label: string; icon: React.ReactNode; col
 ];
 
 function generateTemplate(type: TemplateType, applicant: Applicant, job: Job | undefined): { subject: string; body: string } {
-  const name = applicant.fullName.split(" ")[0];
+  // fullName is legitimately empty for a CV whose file name carries no name and
+  // whose AI backfill hasn't run yet. Never render "Hi ," into a draft that is one
+  // click from being sent to a real candidate.
+  const name = applicant.fullName.trim().split(/\s+/)[0] || "there";
   const jobTitle = job?.title || "the position";
   const company = "Lumofy";
 

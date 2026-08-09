@@ -154,11 +154,19 @@ export function MetricTile({
         <DeltaBadge delta={delta} />
       </div>
       <span className="text-2xl font-semibold tabular-nums leading-none text-foreground">{value}</span>
-      {series && series.length > 0 ? (
-        <Sparkline data={series} className={`h-6 w-20 ${seriesClassName || "text-primary"}`} />
-      ) : hint ? (
-        <span className="font-mono text-[11px] text-muted-foreground">{hint}</span>
-      ) : null}
+      {/* Hint and sparkline coexist: the hint carries the metric's denominator or
+          sample size, which is what stops a bare number being read as a fact
+          about the whole pipeline. It must not be crowded out by a trend line. */}
+      {(hint || (series && series.length > 0)) && (
+        <div className="flex items-end justify-between gap-2">
+          {hint
+            ? <span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground" title={hint}>{hint}</span>
+            : <span />}
+          {series && series.length > 0 && (
+            <Sparkline data={series} className={`h-6 w-20 flex-shrink-0 ${seriesClassName || "text-primary"}`} />
+          )}
+        </div>
+      )}
     </Tag>
   );
 }
