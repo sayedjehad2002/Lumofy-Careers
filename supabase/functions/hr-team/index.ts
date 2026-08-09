@@ -1,17 +1,21 @@
-// HR team management: any active HR user can list members + pending invites,
-// but creating an invite, revoking one, or enabling/disabling a member is
-// restricted to a fixed set of account owners — see ALLOWED_MANAGERS below.
-// All actions are authorized via validate-session (which enforces the
-// hr_users allowlist) PLUS the manager-email check here.
+// HR team management.
+//
+// Any active HR user can SEE who has access. Changing access — inviting,
+// revoking, disabling, or changing someone's role — is restricted to users whose
+// hr_users.role is 'owner'.
+//
+// The permission used to be a hardcoded email list here, which meant the `role`
+// column said one thing while the code did another, and changing who manages the
+// team needed a code edit + redeploy. Role is now the single source of truth, so
+// it can be changed from the dashboard and is visible in the members list.
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateSession } from "../_shared/validate-session.ts";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Only these people can create invite links, revoke them, or enable/disable
-// team members. To change this list, edit here and redeploy hr-team (edge
-// functions do not auto-deploy on git push — see docs/DEPLOY.md).
-const ALLOWED_MANAGERS = new Set(["jhasan@lumofy.com", "halhashimi@lumofy.com"]);
+/** Roles that may be handed out from the dashboard. 'owner' is deliberately not
+ *  assignable here — promoting an owner is a deliberate database action. */
+const ASSIGNABLE_ROLES = new Set(["admin", "viewer"]);
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -25,23 +29,12 @@ Deno.serve(async (req) => {
 
     const auth = await validateSession(sessionToken, corsHeaders);
     if (!auth.valid) return auth.response;
-    const supabase = auth.supabase;
+    const { supabase, role: callerRole, email: callerEmail, userId: callerId } = auth;
 
-    // Identify the caller + their role. Only a real Supabase Auth session (a
-    // 3-segment JWT) can prove an email — the legacy admin_sessions path
-    // cannot, so it can never satisfy ALLOWED_MANAGERS below (fail-closed).
-    let callerId: string | null = null;
-    let callerEmail = "";
-    if (sessionToken && String(sessionToken).split(".").length === 3) {
-      const { data: u } = await supabase.auth.getUser(sessionToken);
-      callerId = u?.user?.id ?? null;
-      callerEmail = (u?.user?.email || "").toLowerCase();
-    }
-    const { data: caller } = callerId
-      ? await supabase.from("hr_users").select("role").eq("user_id", callerId).maybeSingle()
-      : { data: null };
-    const callerRole = caller?.role ?? (callerId ? null : "owner"); // legacy token → owner (read-only "list" only)
-    const canManage = ALLOWED_MANAGERS.has(callerEmail);
+    // A legacy admin_sessions token is treated as owner-level for reading, but it
+    // cannot prove WHO it belongs to (no user_id, no email). Management therefore
+    // requires an identified Supabase Auth user — fail-closed by construction.
+    const canManage = callerRole === "owner" && callerId !== null;
 
     if (action === "list") {
       const { data: members } = await supabase
@@ -50,20 +43,22 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: true });
       const { data: invites } = await supabase
         .from("invites")
-        .select("id, email, role, expires_at, created_at")
+        .select("id, email, role, expires_at, created_at, invited_by_email")
         .is("accepted_at", null)
         .is("revoked_at", null)
         .order("created_at", { ascending: false });
       const now = Date.now();
       const pending = (invites || []).filter((i) => new Date(i.expires_at).getTime() > now);
-      return json({ members: members || [], invites: pending, callerRole, canManage });
+      // callerEmail lets the UI mark "you" without a second round trip.
+      return json({ members: members || [], invites: pending, callerRole, callerEmail, canManage });
     }
 
-    if (!canManage) return json({ error: "Team management is restricted to the account owners." }, 403);
+    if (!canManage) return json({ error: "Only an owner can change team access." }, 403);
 
     if (action === "invite") {
       const email = String((body as { email?: string }).email || "").trim().toLowerCase();
-      const role = (body as { role?: string }).role === "viewer" ? "viewer" : "admin";
+      const requested = String((body as { role?: string }).role || "admin");
+      const role = ASSIGNABLE_ROLES.has(requested) ? requested : "admin";
       if (!EMAIL_RE.test(email)) return json({ error: "Please enter a valid email." }, 400);
 
       const { data: existing } = await supabase.from("hr_users").select("status").eq("email", email).maybeSingle();
@@ -96,10 +91,28 @@ Deno.serve(async (req) => {
       const status = (body as { status?: string }).status === "active" ? "active" : "disabled";
       const { data: target } = await supabase.from("hr_users").select("role, email").eq("id", id).maybeSingle();
       if (!target) return json({ error: "Member not found." }, 404);
-      if (target.role === "owner") return json({ error: "The owner cannot be disabled." }, 403);
+      if (target.role === "owner") return json({ error: "An owner cannot be disabled." }, 403);
       if (target.email === callerEmail) return json({ error: "You cannot disable yourself." }, 403);
       await supabase.from("hr_users").update({ status }).eq("id", id);
       return json({ ok: true });
+    }
+
+    if (action === "set-role") {
+      const id = String((body as { id?: string }).id || "");
+      const role = String((body as { role?: string }).role || "");
+      if (!id) return json({ error: "Missing member id." }, 400);
+      if (!ASSIGNABLE_ROLES.has(role)) return json({ error: "Choose either Admin or Viewer." }, 400);
+
+      const { data: target } = await supabase.from("hr_users").select("role, email").eq("id", id).maybeSingle();
+      if (!target) return json({ error: "Member not found." }, 404);
+      // Owners are protected both ways: one owner must not be able to demote
+      // another, and nobody can demote themselves into a lockout.
+      if (target.role === "owner") return json({ error: "An owner's role cannot be changed here." }, 403);
+      if (target.email === callerEmail) return json({ error: "You cannot change your own role." }, 403);
+
+      const { error: updErr } = await supabase.from("hr_users").update({ role }).eq("id", id);
+      if (updErr) return json({ error: "Could not update the role." }, 500);
+      return json({ ok: true, role });
     }
 
     return json({ error: "Unknown action." }, 400);

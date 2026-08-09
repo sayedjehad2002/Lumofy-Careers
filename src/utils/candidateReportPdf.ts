@@ -2,9 +2,25 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Applicant, Job, AIAnalysis } from "@/types/careers";
+import { FOOTER_LINE, INK, LOCKUP_ALIAS, loadLockup, type Lockup } from "./pdf/houseStyle";
+
+// House style: logo lockup top left over a hairline rule, monochrome sections,
+// company address centred in the footer (see utils/pdf/houseStyle.ts).
+//
+// This report keeps its own 14mm text column rather than the JD's 25.4mm one —
+// its tables need the width — and the letterhead aligns to that column, which is
+// where a letterhead belongs.
+const MARGIN = 14;
+const LOGO_BOX = { x: MARGIN, y: 12.7, w: 34.6, h: 7.9 };
+const HEAD_RULE_Y = 26.8;
+const BODY_TOP = 34;
+const FOOT_RULE_Y = 277.6;
+const FOOT_TEXT_Y = 283.5;
 
 // Lumofy brand colors
 const LUMOFY_BLUE: [number, number, number] = [37, 99, 235];
+/** Table headers follow the template's monochrome discipline, not brand blue. */
+const TABLE_HEAD: [number, number, number] = [12, 12, 12];
 const LUMOFY_DARK: [number, number, number] = [15, 23, 42];
 const LUMOFY_GRAY: [number, number, number] = [100, 116, 139];
 const WHITE: [number, number, number] = [255, 255, 255];
@@ -18,7 +34,7 @@ type RGB = [number, number, number];
 function tableStyles(opts?: { bodyFontSize?: number }) {
   return {
     styles: { fontSize: opts?.bodyFontSize ?? 8, cellPadding: 2.5, textColor: LUMOFY_DARK },
-    headStyles: { fillColor: LUMOFY_BLUE, textColor: WHITE, fontStyle: "bold" as const, fontSize: 8 },
+    headStyles: { fillColor: TABLE_HEAD, textColor: WHITE, fontStyle: "bold" as const, fontSize: 8 },
     theme: "grid" as const,
     tableLineColor: TABLE_LINE,
     tableLineWidth: 0.2,
@@ -26,65 +42,78 @@ function tableStyles(opts?: { bodyFontSize?: number }) {
   };
 }
 
+// Set once per export, then read by drawHeader on every page break. Generation is
+// synchronous after the logo resolves, so there is no interleaving to worry about.
+let sheetLogo: Lockup = null;
+
 function drawHeader(doc: jsPDF, title: string) {
   const pageW = doc.internal.pageSize.getWidth();
 
-  // Top gradient bar
-  doc.setFillColor(...LUMOFY_BLUE);
-  doc.rect(0, 0, pageW, 28, "F");
+  if (sheetLogo) {
+    // Alias keeps a multi-page report down to one embedded copy of the lockup.
+    doc.addImage(sheetLogo, "PNG", LOGO_BOX.x, LOGO_BOX.y, LOGO_BOX.w, LOGO_BOX.h, LOCKUP_ALIAS, "FAST");
+  } else {
+    // Asset unavailable: fall back to type rather than losing the letterhead.
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(17);
+    doc.setTextColor(...(INK.text as unknown as RGB));
+    doc.text("Lumofy", LOGO_BOX.x, LOGO_BOX.y + 6.4);
+  }
 
-  // Subtle accent line
-  doc.setFillColor(29, 78, 216); // darker blue
-  doc.rect(0, 28, pageW, 1.5, "F");
-
-  // Logo text
+  // Document label opposite the logo — a report needs naming on every page, and
+  // the JD template simply had nothing to put here.
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(...WHITE);
-  doc.text("LUMOFY", 14, 14);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.text("Talent Hub", 14, 20);
+  doc.setFontSize(9.5);
+  doc.setTextColor(...(INK.text as unknown as RGB));
+  doc.text(title, pageW - MARGIN, LOGO_BOX.y + 3.4, { align: "right" });
 
-  // Report title (right aligned)
-  doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text(title, pageW - 14, 14, { align: "right" });
-
-  // Date
   doc.setFontSize(8);
+  doc.setTextColor(...(INK.muted as unknown as RGB));
   doc.text(
-    `Generated: ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}`,
-    pageW - 14, 20, { align: "right" }
+    `Confidential  |  ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`,
+    pageW - MARGIN, LOGO_BOX.y + 8, { align: "right" }
   );
+
+  doc.setDrawColor(...(INK.hairline as unknown as RGB));
+  doc.setLineWidth(0.25);
+  doc.line(MARGIN, HEAD_RULE_Y, pageW - MARGIN, HEAD_RULE_Y);
 }
 
 function drawFooter(doc: jsPDF, pageNum: number, totalPages: number) {
   const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
 
-  doc.setDrawColor(...(LIGHT_BG as unknown as RGB));
-  doc.setLineWidth(0.5);
-  doc.line(14, pageH - 16, pageW - 14, pageH - 16);
+  doc.setDrawColor(...(INK.hairline as unknown as RGB));
+  doc.setLineWidth(0.2);
+  doc.line(MARGIN, FOOT_RULE_Y, pageW - MARGIN, FOOT_RULE_Y);
 
-  doc.setFontSize(7);
-  doc.setTextColor(...LUMOFY_GRAY);
   doc.setFont("helvetica", "normal");
-  doc.text("CONFIDENTIAL — Lumofy Talent Hub", 14, pageH - 10);
-  doc.text(`Page ${pageNum} of ${totalPages}`, pageW - 14, pageH - 10, { align: "right" });
+  doc.setTextColor(...(INK.muted as unknown as RGB));
+  doc.setFontSize(9.5);
+  doc.text(FOOTER_LINE, pageW / 2, FOOT_TEXT_Y, { align: "center" });
+
+  // Pagination sits on the same baseline, outside the centred address block.
+  doc.setFontSize(8);
+  doc.text(`Page ${pageNum} of ${totalPages}`, pageW - MARGIN, FOOT_TEXT_Y, { align: "right" });
 }
 
 function sectionTitle(doc: jsPDF, y: number, text: string, icon?: string): number {
+  const pageW = doc.internal.pageSize.getWidth();
+
+  // The template separates major sections with a medium-grey rule rather than a
+  // coloured accent bar. Skipped at the top of a page, where the letterhead's own
+  // hairline already sits a few mm above and a second rule would read as a box.
+  if (y > BODY_TOP + 1) {
+    doc.setDrawColor(...(INK.divider as unknown as RGB));
+    doc.setLineWidth(0.35);
+    doc.line(MARGIN, y, pageW - MARGIN, y);
+  }
+
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...LUMOFY_DARK);
-
-  // Small accent bar
-  doc.setFillColor(...LUMOFY_BLUE);
-  doc.roundedRect(14, y - 1, 3, 6, 1, 1, "F");
-
-  doc.text(text, 20, y + 4);
-  return y + 10;
+  doc.setTextColor(...(INK.text as unknown as RGB));
+  doc.text(text, MARGIN, y + 7);
+  return y + 12;
 }
 
 function labelValue(doc: jsPDF, y: number, label: string, value: string, x = 14, maxW = 80): number {
@@ -104,19 +133,22 @@ function checkNewPage(doc: jsPDF, y: number, needed: number): number {
   if (y + needed > pageH - 25) {
     doc.addPage();
     drawHeader(doc, "Candidate Report");
-    return 38;
+    return BODY_TOP;
   }
   return y;
 }
 
-export function generateCandidateReport(applicant: Applicant, job: Job | undefined) {
+export async function generateCandidateReport(applicant: Applicant, job: Job | undefined) {
+  // Resolve the letterhead art before any drawing so every page gets it.
+  sheetLogo = await loadLockup();
+
   const doc = new jsPDF("p", "mm", "a4");
   const pageW = doc.internal.pageSize.getWidth();
-  const contentW = pageW - 28;
+  const contentW = pageW - MARGIN * 2;
 
   drawHeader(doc, "Candidate Report");
 
-  let y = 38;
+  let y = BODY_TOP;
 
   // ─── Candidate Overview ─────────────────────────
   y = sectionTitle(doc, y, "Candidate Overview");
@@ -259,7 +291,7 @@ export function generateCandidateReport(applicant: Applicant, job: Job | undefin
         body: breakdownData,
         margin: { left: 14, right: 14 },
         styles: { fontSize: 8, cellPadding: 2.5, textColor: LUMOFY_DARK as unknown as number[] },
-        headStyles: { fillColor: LUMOFY_BLUE as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
+        headStyles: { fillColor: TABLE_HEAD as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         theme: "grid",
         tableLineColor: [226, 232, 240],
@@ -291,7 +323,9 @@ export function generateCandidateReport(applicant: Applicant, job: Job | undefin
       const sgData: string[][] = [];
       for (let i = 0; i < maxRows; i++) {
         sgData.push([
-          ai.strengths[i] ? `✓  ${ai.strengths[i]}` : "",
+          // Bullet, not a tick: jsPDF's standard fonts are WinAnsi-encoded and a
+          // U+2713 renders as a stray quote mark.
+          ai.strengths[i] ? `•  ${ai.strengths[i]}` : "",
           ai.gaps[i] ? `!  ${ai.gaps[i]}` : "",
         ]);
       }
@@ -302,7 +336,7 @@ export function generateCandidateReport(applicant: Applicant, job: Job | undefin
         body: sgData,
         margin: { left: 14, right: 14 },
         styles: { fontSize: 7.5, cellPadding: 2.5, textColor: LUMOFY_DARK as unknown as number[] },
-        headStyles: { fillColor: LUMOFY_BLUE as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
+        headStyles: { fillColor: TABLE_HEAD as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
         columnStyles: {
           0: { cellWidth: contentW / 2 },
           1: { cellWidth: contentW / 2 },
@@ -329,7 +363,7 @@ export function generateCandidateReport(applicant: Applicant, job: Job | undefin
         body: skillsData,
         margin: { left: 14, right: 14 },
         styles: { fontSize: 7.5, cellPadding: 2, textColor: LUMOFY_DARK as unknown as number[] },
-        headStyles: { fillColor: LUMOFY_BLUE as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
+        headStyles: { fillColor: TABLE_HEAD as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
         columnStyles: {
           0: { cellWidth: 40 },
           1: { cellWidth: 18, halign: "center" },
@@ -363,7 +397,7 @@ export function generateCandidateReport(applicant: Applicant, job: Job | undefin
         ],
         margin: { left: 14, right: 14 },
         styles: { fontSize: 8, cellPadding: 2.5, textColor: LUMOFY_DARK as unknown as number[] },
-        headStyles: { fillColor: LUMOFY_BLUE as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
+        headStyles: { fillColor: TABLE_HEAD as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
         theme: "grid",
         tableLineColor: [226, 232, 240],
         tableLineWidth: 0.2,
@@ -382,7 +416,7 @@ export function generateCandidateReport(applicant: Applicant, job: Job | undefin
         body: iqData,
         margin: { left: 14, right: 14 },
         styles: { fontSize: 8, cellPadding: 2.5, textColor: LUMOFY_DARK as unknown as number[] },
-        headStyles: { fillColor: LUMOFY_BLUE as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
+        headStyles: { fillColor: TABLE_HEAD as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
         columnStyles: { 0: { cellWidth: 10, halign: "center" } },
         theme: "grid",
         tableLineColor: [226, 232, 240],
@@ -405,7 +439,7 @@ export function generateCandidateReport(applicant: Applicant, job: Job | undefin
       doc.setFontSize(7.5);
       risks.forEach(r => {
         y = checkNewPage(doc, y, 6);
-        doc.text(`⚠  ${r}`, 16, y);
+        doc.text(`•  ${r}`, 16, y);
         y += 4;
       });
       y += 2;
@@ -468,7 +502,7 @@ export function generateCandidateReport(applicant: Applicant, job: Job | undefin
       body: qaData,
       margin: { left: 14, right: 14 },
       styles: { fontSize: 8, cellPadding: 3, textColor: LUMOFY_DARK as unknown as number[], overflow: "linebreak" },
-      headStyles: { fillColor: LUMOFY_BLUE as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
+      headStyles: { fillColor: TABLE_HEAD as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
       columnStyles: {
         0: { cellWidth: contentW * 0.45, fontStyle: "bold" },
         1: { cellWidth: contentW * 0.55 },
@@ -486,8 +520,11 @@ export function generateCandidateReport(applicant: Applicant, job: Job | undefin
     y = sectionTitle(doc, y, "Candidate Rating");
 
     const ratingData = Object.entries(applicant.rating).map(([key, val]) => [
-      key.replace(/([A-Z])/g, " $1").trim(),
-      `${"★".repeat(val as number)}${"☆".repeat(5 - (val as number))}`,
+      // "overallRecommendation" -> "Overall Recommendation" (the split alone left
+      // the first letter lowercase: "overall Recommendation").
+      key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()).trim(),
+      // Bullet + middle dot rather than star glyphs, which WinAnsi cannot encode.
+      `${"•".repeat(val as number)}${"·".repeat(5 - (val as number))}`,
       `${val}/5`,
     ]);
 
@@ -507,7 +544,7 @@ export function generateCandidateReport(applicant: Applicant, job: Job | undefin
       body: ratingData,
       margin: { left: 14, right: 14 },
       styles: { fontSize: 8, cellPadding: 2.5, textColor: LUMOFY_DARK as unknown as number[] },
-      headStyles: { fillColor: LUMOFY_BLUE as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
+      headStyles: { fillColor: TABLE_HEAD as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
       columnStyles: {
         1: { halign: "center", textColor: [234, 179, 8] as unknown as number[] },
         2: { halign: "center", fontStyle: "bold" },
@@ -532,7 +569,7 @@ export function generateCandidateReport(applicant: Applicant, job: Job | undefin
       body: notesData,
       margin: { left: 14, right: 14 },
       styles: { fontSize: 8, cellPadding: 2.5, textColor: LUMOFY_DARK as unknown as number[], overflow: "linebreak" },
-      headStyles: { fillColor: LUMOFY_BLUE as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
+      headStyles: { fillColor: TABLE_HEAD as unknown as number[], textColor: WHITE as unknown as number[], fontStyle: "bold", fontSize: 8 },
       columnStyles: { 0: { cellWidth: 10, halign: "center" } },
       theme: "grid",
       tableLineColor: [226, 232, 240],

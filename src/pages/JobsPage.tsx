@@ -441,9 +441,9 @@ const JobsPage = () => {
             <aside className="hidden w-64 shrink-0 lg:block">
               <div className="sticky top-24">
                 <div className="rounded-2xl border border-border bg-card p-4 light-glow">
-                  <ScrollArea className="max-h-[calc(100vh-10rem)]">
+                  <div className="max-h-[calc(100vh-10rem)] overflow-y-auto overscroll-contain scrollbar-slim">
                     <FilterSidebarContent {...sidebarProps} />
-                  </ScrollArea>
+                  </div>
                 </div>
               </div>
             </aside>

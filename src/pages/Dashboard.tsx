@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import lumofyLogo from "@/assets/lumofy-mark.png";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   Briefcase, Users, BarChart3, ChevronDown,
   Eye, EyeOff, MapPin, Clock, FileText, Star, MessageSquare,
@@ -57,14 +57,32 @@ import PipelineHealthScorecard from "@/components/careers/pipeline/PipelineHealt
 
 type Tab = "overview" | "jobs" | "applicants" | "pipeline" | "cv-library" | "hr-team";
 
+const TAB_IDS: Tab[] = ["overview", "jobs", "applicants", "pipeline", "cv-library", "hr-team"];
+const isTab = (v: string | undefined): v is Tab => !!v && (TAB_IDS as string[]).includes(v);
+/** Every section has its own path, e.g. /dashboard/cv-library/insights. */
+export const dashboardPath = (tab: string, sub?: string) => `/dashboard/${tab}${sub ? `/${sub}` : ""}`;
+
+/** framer-motion wrapper around react-router's Link, so nav items keep their
+ *  animations while still rendering a real anchor the browser can open. */
+const MotionLink = motion(Link);
+
 // Client-side gate for pipeline stage moves. Server-side enforcement is handled
 // separately; this just prevents obviously-illegal drags in the UI.
 // A candidate may advance to the next stage(s), be rejected from any active
 // stage, or be moved back one step (to correct mistakes). "hired"/"rejected"
 // are terminal except for reverting out of them.
 const Dashboard = () => {
-  const { jobs, applicants, loading, sessionToken, authReady, isHrUser, hrEmail, hrChecked, addJob, updateJob, archiveJob, restoreJob, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, refreshData } = useCareers();
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const { jobs, applicants, loading, sessionToken, authReady, isHrUser, hrEmail, hrRole, hrChecked, addJob, updateJob, archiveJob, restoreJob, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, refreshData } = useCareers();
+  // The section lives in the URL rather than component state: every tab is then
+  // bookmarkable, shareable, survives a refresh, and the browser's back button
+  // and "open in new tab" behave the way people expect.
+  const { tab: tabParam, sub: subParam } = useParams<{ tab?: string; sub?: string }>();
+  const navigate = useNavigate();
+  const activeTab: Tab = isTab(tabParam) ? tabParam : "overview";
+  const setActiveTab = useCallback(
+    (t: Tab, sub?: string) => navigate(dashboardPath(t, sub)),
+    [navigate]
+  );
   const [selectedJobId, setSelectedJobId] = useState<string>("all");
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
   const [jobFormOpen, setJobFormOpen] = useState(false);
@@ -343,13 +361,17 @@ const Dashboard = () => {
               <div key={group} className="space-y-0.5">
                 <p className="px-3 pb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/50">{group}</p>
                 {mainTabs.filter((t) => t.group === group).map((tab) => (
-                  <motion.button
+                  // A real <a href>, not a button: only an anchor gives the
+                  // browser's "Open link in new tab" on right-click, which is
+                  // what made every section feel like one page.
+                  <MotionLink
                     key={tab.id}
+                    to={dashboardPath(tab.id)}
                     custom={mainTabs.indexOf(tab)}
                     variants={sidebarItemVariants}
                     initial="initial"
                     animate="animate"
-                    onClick={() => { setActiveTab(tab.id); setSelectedApplicant(null); }}
+                    onClick={() => setSelectedApplicant(null)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] tracking-wide transition-colors duration-200 relative overflow-hidden group ${
                       activeTab === tab.id
                         ? "text-primary font-semibold"
@@ -372,7 +394,7 @@ const Dashboard = () => {
                         {applicants.length}
                       </span>
                     )}
-                  </motion.button>
+                  </MotionLink>
                 ))}
               </div>
             ))}
@@ -387,6 +409,13 @@ const Dashboard = () => {
               <div className="min-w-0">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70 leading-none">Logged in as</p>
                 <p className="truncate text-xs font-medium text-foreground leading-tight mt-0.5">{hrEmail}</p>
+                {/* Role is shown here because it decides what the server will
+                    accept — a viewer's edits are refused, so say so up front. */}
+                {hrRole && (
+                  <p className="mt-0.5 text-[10px] capitalize leading-none text-muted-foreground/70">
+                    {hrRole}{hrRole === "viewer" ? " · read-only" : ""}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -423,9 +452,10 @@ const Dashboard = () => {
           className="flex items-center gap-1.5 px-3 pb-2 overflow-x-auto scrollbar-none"
         >
           {mainTabs.map((tab) => (
-            <button
+            <Link
               key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setSelectedApplicant(null); }}
+              to={dashboardPath(tab.id)}
+              onClick={() => setSelectedApplicant(null)}
               aria-current={activeTab === tab.id ? "page" : undefined}
               className={`flex items-center gap-1.5 shrink-0 min-h-[44px] px-3.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors ${
                 activeTab === tab.id
@@ -435,7 +465,7 @@ const Dashboard = () => {
             >
               <span className="flex items-center" aria-hidden="true">{tab.icon}</span>
               {tab.label}
-            </button>
+            </Link>
           ))}
         </nav>
       </div>
@@ -831,7 +861,14 @@ const Dashboard = () => {
 
           {/* CV LIBRARY TAB */}
           {activeTab === "cv-library" && sessionToken && (
-            <CVLibrary sessionToken={sessionToken} jobs={jobs.map(j => ({ id: j.id, title: j.title, department: j.department, status: j.status, requirements: j.requirements as string[] }))} onSessionExpired={handleSessionExpired} />
+            <CVLibrary
+              sessionToken={sessionToken}
+              jobs={jobs.map(j => ({ id: j.id, title: j.title, department: j.department, status: j.status, requirements: j.requirements as string[] }))}
+              onSessionExpired={handleSessionExpired}
+              // Sub-tab is the third URL segment, e.g. /dashboard/cv-library/insights
+              subTab={subParam}
+              onSubTabChange={(sub) => navigate(dashboardPath("cv-library", sub), { replace: true })}
+            />
           )}
 
           {/* HR TEAM TAB */}

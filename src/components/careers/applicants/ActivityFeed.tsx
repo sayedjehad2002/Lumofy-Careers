@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Activity, Brain, MessageSquare, ArrowRight, UserPlus, Clock, Trash2
 } from "lucide-react";
@@ -92,7 +91,7 @@ const ActivityFeed = ({ applicants, getJobTitle }: ActivityFeedProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="max-h-[500px]">
+        <div className="max-h-[500px] overflow-y-auto overscroll-contain scrollbar-slim">
           <div className="space-y-1">
             {feed.map((item, i) => {
               const Icon = item.icon;
@@ -126,7 +125,7 @@ const ActivityFeed = ({ applicants, getJobTitle }: ActivityFeedProps) => {
               <div className="py-10 text-center text-sm text-muted-foreground">No activity yet</div>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </CardContent>
     </Card>
   );

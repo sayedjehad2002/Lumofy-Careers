@@ -130,7 +130,12 @@ function AnimatedRoutes() {
               <Route path="/jobs" element={<JobsPage />} />
               <Route path="/jobs/:id" element={<JobDetails />} />
               <Route path="/jobs/:id/apply" element={<ApplyPage />} />
+              {/* Each dashboard section is a real URL so it can be bookmarked,
+                  shared, and opened in a new tab. /dashboard alone redirects to
+                  the overview inside the component. */}
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard/:tab" element={<Dashboard />} />
+              <Route path="/dashboard/:tab/:sub" element={<Dashboard />} />
               <Route path="/hr/join" element={<HrJoin />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

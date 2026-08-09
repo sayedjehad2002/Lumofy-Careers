@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
     const sessionToken = formData.get("sessionToken") as string | null;
 
     // Validate admin session
-    const auth = await validateSession(sessionToken, corsHeaders);
+    const auth = await validateSession(sessionToken, corsHeaders, { require: "write" });
     if (!auth.valid) return auth.response;
     const { supabase } = auth;
 

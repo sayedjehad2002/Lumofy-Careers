@@ -39,6 +39,8 @@ import { Label } from "@/components/ui/label";
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { TONE_SOFT, TONE_TEXT, TONE_BORDER, scoreTone } from "./statusColors";
+import { Link } from "react-router-dom";
+import { roleFamily } from "@/lib/roleFamilies";
 
 interface CVCandidate {
   id: string;
@@ -108,9 +110,16 @@ interface Props {
   sessionToken: string;
   jobs?: { id: string; title: string; department: string; status: string; requirements: string[] }[];
   onSessionExpired?: () => void;
+  /** Sub-tab taken from the URL (/dashboard/cv-library/<sub>), so each view is
+   *  linkable and can be opened in its own tab. */
+  subTab?: string;
+  onSubTabChange?: (sub: string) => void;
 }
 
-export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }: Props) {
+const SUB_TAB_IDS: CVSubTab[] = ['library','duplicates','insights','matching','reparse','export','completeness','gdpr','audit','trash'];
+const isSubTab = (v?: string): v is CVSubTab => !!v && (SUB_TAB_IDS as string[]).includes(v);
+
+export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, subTab: subTabProp, onSubTabChange }: Props) {
   const [candidates, setCandidates] = useState<CVCandidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -140,7 +149,13 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
   const [folderOpen, setFolderOpen] = useState<Record<string, boolean>>({});
   const [selectedFolder, setSelectedFolder] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
-  const [subTab, setSubTab] = useState<CVSubTab>("library");
+  // Driven by the URL when the dashboard supplies it, so every view has its own
+  // address and can be opened in a new tab. Falls back to local state otherwise.
+  const [localSubTab, setLocalSubTab] = useState<CVSubTab>("library");
+  const subTab: CVSubTab = isSubTab(subTabProp) ? subTabProp : (onSubTabChange ? "library" : localSubTab);
+  const setSubTab = useCallback((t: CVSubTab) => {
+    if (onSubTabChange) onSubTabChange(t); else setLocalSubTab(t);
+  }, [onSubTabChange]);
   const [parsedQuery, setParsedQuery] = useState<ParsedQuery>({ include: [], exclude: [], raw: "" });
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   // Multi-select for bulk actions (survives filter/folder changes on purpose —
@@ -512,58 +527,20 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
     !c.manual_department && (!c.suggested_department || c.classification_confidence === "Low"),
   []);
 
-  // Build folder tree
-  const folderTree = useMemo(() => {
-    const tree: Record<string, Set<string>> = {};
-    let unclassifiedCount = 0;
-    candidates.forEach(c => {
-      const dept = c.manual_department || c.suggested_department;
-      const title = c.manual_job_title || c.suggested_job_title;
-      if (isUnclassified(c)) {
-        unclassifiedCount++;
-        return;
-      }
-      if (!tree[dept!]) tree[dept!] = new Set();
-      if (title) tree[dept!].add(title);
-    });
-    return { tree, unclassifiedCount };
-  }, [candidates, isUnclassified]);
+  const effDeptOf = useCallback((c: CVCandidate) => c.manual_department || c.suggested_department || "", []);
+  const effTitleOf = useCallback((c: CVCandidate) => c.manual_job_title || c.suggested_job_title || "", []);
+  const familyOf = useCallback(
+    (c: CVCandidate) => roleFamily(effDeptOf(c), effTitleOf(c)).family,
+    [effDeptOf, effTitleOf]
+  );
 
-  // A re-classification can dissolve the selected folder (candidate moved to a
-  // different department) — fall back to "All CVs" instead of silently filtering
-  // the list down to a misleading "No CVs found" empty state.
-  useEffect(() => {
-    if (selectedFolder === "all" || selectedFolder === "unclassified") return;
-    const [dept, title] = selectedFolder.includes("::")
-      ? selectedFolder.split("::")
-      : [selectedFolder, null as string | null];
-    const exists = title ? !!folderTree.tree[dept]?.has(title) : !!folderTree.tree[dept];
-    if (!exists) setSelectedFolder("all");
-  }, [folderTree, selectedFolder]);
+  // Everything EXCEPT the folder facet: search, department, status, confidence.
+  // The sidebar counts THIS, so a folder's number predicts what clicking it
+  // returns. Counting the raw `candidates` array made the tree promise
+  // "Engineering 99" while an active status filter returned 6 on click.
+  const facetBase = useMemo(() => {
+    let result = candidates;
 
-  // Filtered and sorted candidates
-  const filteredCandidates = useMemo(() => {
-    let result = [...candidates];
-
-    if (selectedFolder !== "all") {
-      if (selectedFolder === "unclassified") {
-        result = result.filter(isUnclassified);
-      } else if (selectedFolder.includes("::")) {
-        const [dept, title] = selectedFolder.split("::");
-        result = result.filter(c => {
-          const cDept = c.manual_department || c.suggested_department;
-          const cTitle = c.manual_job_title || c.suggested_job_title;
-          return !isUnclassified(c) && cDept === dept && cTitle === title;
-        });
-      } else {
-        result = result.filter(c => {
-          const cDept = c.manual_department || c.suggested_department;
-          return !isUnclassified(c) && cDept === selectedFolder;
-        });
-      }
-    }
-
-    // Smart boolean search
     if (parsedQuery.include.length > 0 || parsedQuery.exclude.length > 0) {
       result = result.filter(c => {
         const text = [
@@ -589,9 +566,77 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
       );
     }
 
-    if (filterDept !== "all") result = result.filter(c => (c.manual_department || c.suggested_department) === filterDept);
+    // Same membership rule as the tree. Without the isUnclassified guard a
+    // Low-confidence CV sat in the tree's "Unclassified" folder AND in this
+    // select's department simultaneously, so two controls both labelled
+    // Engineering returned different sets.
+    if (filterDept === "unclassified") result = result.filter(isUnclassified);
+    else if (filterDept !== "all") {
+      result = result.filter(c => !isUnclassified(c) && effDeptOf(c) === filterDept);
+    }
     if (filterStatus !== "all") result = result.filter(c => c.status === filterStatus);
     if (filterConfidence !== "all") result = result.filter(c => c.classification_confidence === filterConfidence);
+
+    return result;
+  }, [candidates, parsedQuery, searchQuery, filterDept, filterStatus, filterConfidence, isUnclassified, effDeptOf]);
+
+  /** Department -> role family -> { count, the original titles inside it }.
+   *  Families are derived at render time (src/lib/roleFamilies.ts) — nothing in
+   *  the database is rewritten and the original title stays the row's label. */
+  const buildTree = useCallback((list: CVCandidate[]) => {
+    const tree = new Map<string, Map<string, { n: number; titles: Map<string, number> }>>();
+    const deptTotals = new Map<string, number>();
+    let unclassifiedCount = 0;
+    for (const c of list) {
+      if (isUnclassified(c)) { unclassifiedCount++; continue; }
+      const dept = effDeptOf(c);
+      const family = familyOf(c);
+      deptTotals.set(dept, (deptTotals.get(dept) || 0) + 1);
+      let fams = tree.get(dept);
+      if (!fams) { fams = new Map(); tree.set(dept, fams); }
+      let entry = fams.get(family);
+      if (!entry) { entry = { n: 0, titles: new Map() }; fams.set(family, entry); }
+      entry.n++;
+      const label = effTitleOf(c) || "No title on file";
+      entry.titles.set(label, (entry.titles.get(label) || 0) + 1);
+    }
+    return { tree, deptTotals, unclassifiedCount };
+  }, [isUnclassified, effDeptOf, effTitleOf, familyOf]);
+
+  // One pass each, instead of re-filtering all 410 candidates per folder row.
+  const folderTree = useMemo(() => buildTree(facetBase), [buildTree, facetBase]);
+  /** Unfiltered totals, so a filtered folder can honestly read "12 / 99". */
+  const fullTree = useMemo(() => buildTree(candidates), [buildTree, candidates]);
+  const filtersActive =
+    !!searchQuery || filterDept !== "all" || filterStatus !== "all" || filterConfidence !== "all";
+
+  // A re-classification can dissolve the selected folder (candidate moved to a
+  // different department) — fall back to "All CVs" instead of silently filtering
+  // the list down to a misleading "No CVs found" empty state.
+  useEffect(() => {
+    if (selectedFolder === "all" || selectedFolder === "unclassified") return;
+    const [dept, family] = selectedFolder.includes("::")
+      ? selectedFolder.split("::")
+      : [selectedFolder, null as string | null];
+    const exists = family ? !!fullTree.tree.get(dept)?.has(family) : fullTree.tree.has(dept);
+    if (!exists) setSelectedFolder("all");
+  }, [fullTree, selectedFolder]);
+
+  // Filtered and sorted candidates — search/status/confidence/department already
+  // applied by facetBase, so only the folder facet and sorting happen here.
+  const filteredCandidates = useMemo(() => {
+    let result = [...facetBase];
+
+    if (selectedFolder !== "all") {
+      if (selectedFolder === "unclassified") {
+        result = result.filter(isUnclassified);
+      } else if (selectedFolder.includes("::")) {
+        const [dept, family] = selectedFolder.split("::");
+        result = result.filter(c => !isUnclassified(c) && effDeptOf(c) === dept && familyOf(c) === family);
+      } else {
+        result = result.filter(c => !isUnclassified(c) && effDeptOf(c) === selectedFolder);
+      }
+    }
 
     switch (sortBy) {
       case "name": result.sort((a, b) => (a.name || "").localeCompare(b.name || "")); break;
@@ -605,7 +650,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
     }
 
     return result;
-  }, [candidates, selectedFolder, searchQuery, filterDept, filterStatus, filterConfidence, sortBy]);
+  }, [facetBase, selectedFolder, sortBy, isUnclassified, effDeptOf, familyOf]);
 
   // ---- Sub-tab helpers (must be before early return) ----
   const handleSmartSearch = useCallback((query: string, parsed: ParsedQuery) => {
@@ -935,20 +980,31 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
 
       {/* Sub-Tab Navigation */}
       <div className="flex gap-1 mb-4 overflow-x-auto pb-1 scrollbar-none">
-        {SUB_TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setSubTab(tab.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-              subTab === tab.id
-                ? "bg-primary/10 text-primary border border-primary/20"
-                : "text-muted-foreground hover:bg-secondary border border-transparent"
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
+        {SUB_TABS.map(tab => {
+          const cls = `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+            subTab === tab.id
+              ? "bg-primary/10 text-primary border border-primary/20"
+              : "text-muted-foreground hover:bg-secondary border border-transparent"
+          }`;
+          // Anchors when the dashboard owns the route, so right-click offers
+          // "Open link in new tab"; plain buttons in any standalone usage.
+          return onSubTabChange ? (
+            <Link
+              key={tab.id}
+              to={`/dashboard/cv-library/${tab.id}`}
+              aria-current={subTab === tab.id ? "page" : undefined}
+              className={cls}
+            >
+              {tab.icon}
+              {tab.label}
+            </Link>
+          ) : (
+            <button key={tab.id} onClick={() => setSubTab(tab.id)} className={cls}>
+              {tab.icon}
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Bulk add-to-pipeline dialog. Rendered here (NOT inside the library
@@ -1095,50 +1151,68 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
 
           <div className="flex gap-4">
             {/* Folder Tree */}
-            <div className="hidden lg:block w-56 flex-shrink-0">
+            {/* 224px could not fit a role name: after padding, the 28px indent, the
+                scrollbar and the count, only ~122px of text survived — about 19
+                characters, which is exactly where "Frontend Developer (" was being
+                cut. Wider column + slim scrollbar + wrapping fixes it. */}
+            <div className="hidden lg:block w-72 xl:w-80 flex-shrink-0">
               {/* Sticky sidebar with its OWN scroll: an expanded department (e.g. 39
                   Customer Success roles) grows taller than the viewport — without
                   max-h + overflow the wheel can't reach the items below the fold. */}
-              <div className="rounded-xl bg-card border border-border p-3 sticky top-4 max-h-[calc(100vh-6rem)] overflow-y-auto overscroll-contain">
+              <div className="rounded-xl bg-card border border-border p-3 sticky top-4 max-h-[calc(100vh-6rem)] overflow-y-auto overscroll-contain scrollbar-slim">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Folders</p>
                 <button
                   className={`w-full text-left text-sm px-2 py-1.5 rounded-md ${selectedFolder === "all" ? "bg-primary/10 text-primary font-medium" : "hover:bg-secondary text-foreground"}`}
                   onClick={() => setSelectedFolder("all")}
                 >
-                  All CVs ({candidates.length})
+                  All CVs ({filtersActive ? `${facetBase.length}/${candidates.length}` : candidates.length})
                 </button>
 
-                {Object.entries(folderTree.tree).sort(([a], [b]) => a.localeCompare(b)).map(([dept, titles]) => {
-                  const deptCount = candidates.filter(c => !isUnclassified(c) && (c.manual_department || c.suggested_department) === dept).length;
+                {Array.from(fullTree.tree.keys()).sort((a, b) => a.localeCompare(b)).map(dept => {
+                  const shown = folderTree.deptTotals.get(dept) ?? 0;
+                  const total = fullTree.deptTotals.get(dept) ?? 0;
                   const isOpen = folderOpen[dept] ?? false;
+                  // Families present in the UNFILTERED tree, so a family never
+                  // vanishes mid-search; its count just drops to 0.
+                  const families = Array.from(fullTree.tree.get(dept)?.entries() ?? [])
+                    .sort((a, b) => b[1].n - a[1].n || a[0].localeCompare(b[0]));
                   return (
                     <div key={dept}>
                       <button
-                        className={`w-full flex items-center gap-1 text-sm px-2 py-1.5 rounded-md ${selectedFolder === dept ? "bg-primary/10 text-primary font-medium" : "hover:bg-secondary text-foreground"}`}
+                        className={`w-full flex items-start gap-1 text-sm px-2 py-1.5 rounded-md text-left ${selectedFolder === dept ? "bg-primary/10 text-primary font-medium" : "hover:bg-secondary text-foreground"}`}
                         onClick={() => {
                           setFolderOpen(prev => ({ ...prev, [dept]: !prev[dept] }));
                           setSelectedFolder(dept);
                         }}
+                        title={dept}
                       >
-                        {isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                        <span className="truncate">{dept}</span>
-                        <span className="text-xs text-muted-foreground ml-auto">{deptCount}</span>
+                        {isOpen
+                          ? <ChevronDown className="w-3 h-3 mt-1 flex-shrink-0" aria-hidden="true" />
+                          : <ChevronRight className="w-3 h-3 mt-1 flex-shrink-0" aria-hidden="true" />}
+                        <span className="min-w-0 flex-1 leading-snug">{dept}</span>
+                        <span className="ml-auto pl-1 text-xs tabular-nums text-muted-foreground flex-shrink-0">
+                          {filtersActive ? `${shown}/${total}` : total}
+                        </span>
                       </button>
-                      {isOpen && Array.from(titles).sort().map(title => {
-                        const titleCount = candidates.filter(c =>
-                          !isUnclassified(c) &&
-                          (c.manual_department || c.suggested_department) === dept &&
-                          (c.manual_job_title || c.suggested_job_title) === title
-                        ).length;
-                        const key = `${dept}::${title}`;
+
+                      {isOpen && families.map(([family, full]) => {
+                        const key = `${dept}::${family}`;
+                        const match = folderTree.tree.get(dept)?.get(family)?.n ?? 0;
+                        const variants = full.titles.size;
                         return (
                           <button
                             key={key}
-                            className={`w-full flex items-center text-left text-xs pl-7 pr-2 py-1 rounded-md ${selectedFolder === key ? "bg-primary/10 text-primary font-medium" : "hover:bg-secondary text-muted-foreground"}`}
+                            // Two-line wrap plus a native tooltip: the longest real
+                            // title is 73 characters, so a single clipped line can
+                            // never identify it.
+                            title={`${family} — ${variants} title variant${variants === 1 ? "" : "s"}:\n${Array.from(full.titles.keys()).join("\n")}`}
+                            className={`w-full flex items-start gap-1.5 text-left text-xs ml-2 pl-2 pr-1 py-1 rounded-md border-l ${selectedFolder === key ? "bg-primary/10 text-primary font-medium border-primary/40" : "hover:bg-secondary text-muted-foreground border-border/60"}`}
                             onClick={() => setSelectedFolder(key)}
                           >
-                            <span className="truncate">{title}</span>
-                            <span className="ml-auto pl-1 text-[10px] flex-shrink-0">({titleCount})</span>
+                            <span className="min-w-0 flex-1 line-clamp-2 leading-snug">{family}</span>
+                            <span className="ml-auto pl-1 text-[10px] tabular-nums flex-shrink-0">
+                              {filtersActive ? `${match}/${full.n}` : full.n}
+                            </span>
                           </button>
                         );
                       })}
@@ -1146,14 +1220,19 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired }:
                   );
                 })}
 
-                {folderTree.unclassifiedCount > 0 && (
+                {fullTree.unclassifiedCount > 0 && (
                   <button
                     className={`w-full flex items-center gap-1 text-sm px-2 py-1.5 rounded-md ${selectedFolder === "unclassified" ? "bg-primary/10 text-primary font-medium" : "hover:bg-secondary text-foreground"}`}
                     onClick={() => setSelectedFolder("unclassified")}
+                    title="No department could be determined from these CVs — re-parse or set one by hand."
                   >
-                    <AlertCircle className="w-3 h-3 text-destructive" />
+                    <AlertCircle className="w-3 h-3 text-destructive flex-shrink-0" aria-hidden="true" />
                     <span>Unclassified</span>
-                    <span className="text-xs text-muted-foreground ml-auto">{folderTree.unclassifiedCount}</span>
+                    <span className="text-xs text-muted-foreground ml-auto tabular-nums">
+                      {filtersActive
+                        ? `${folderTree.unclassifiedCount}/${fullTree.unclassifiedCount}`
+                        : fullTree.unclassifiedCount}
+                    </span>
                   </button>
                 )}
               </div>

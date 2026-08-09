@@ -28,9 +28,27 @@ board, and a searchable CV library. Live at https://careers.lumofy.ai.
   `supabase.auth.signInWithPassword` (`src/components/careers/DashboardAuth.tsx`);
   the session's access-token JWT is passed to edge functions as `sessionToken` and
   validated in `_shared/validate-session.ts` via `auth.getUser()` plus the
-  `hr_users` allowlist (role `owner`/`admin`/`viewer`, status must be `active`).
+  `hr_users` allowlist (status must be `active`).
   Team invites flow through `hr-team` (creates the invite link) → the `/hr/join`
   page → `hr-invite-accept` (creates the account).
+- **`hr_users.role` is the source of truth for permissions** — there is no
+  hardcoded email list any more:
+  - `owner` — full access **plus** team management (invite, disable, change roles).
+    Currently jhasan@ and halhashimi@. Promoting an owner is a deliberate DB action;
+    `hr-team` will only ever assign `admin` or `viewer`.
+  - `admin` — full hiring access, no team management.
+  - `viewer` — reads everything and may run AI analysis. The only things a viewer
+    can write are an internal **note**, a **rating**, and the **ai_analysis** of a
+    run they were allowed to perform (`VIEWER_UPDATE_FIELDS` in `update-applicant`).
+    Moving stages, editing candidate details, reassigning jobs, creating or
+    deleting anything all return 403. Note the allowlist permits `appendNote`
+    (server-side, additive) but *not* the raw `notes` array, so a viewer can add
+    to the record and never erase a colleague's note.
+  Enforcement lives in `validateSession(token, cors, { require: "write" })`.
+  Endpoints that mix reads and writes (`admin-data`, `cv-library-manage`,
+  `update-applicant`) call the exported `writeDenied()` per action/field instead.
+  `upload-cv` is deliberately ungated — it is the public applicant upload, not an
+  HR endpoint.
   The old custom `admin_passwords`/`admin_sessions` UUID-token path (the
   `verify-password` and `logout` functions) survives server-side as a legacy
   fallback only — nothing in `src/` calls it anymore.

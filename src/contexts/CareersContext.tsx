@@ -66,6 +66,9 @@ function dbRowToJob(row: any): Job {
     jdFilePath: row.jd_file_path || undefined,
     jdFileSize: row.jd_file_size || undefined,
     jdFileUploadedAt: row.jd_file_uploaded_at || undefined,
+    // The public RPC returns a has_jd boolean (no storage path); the admin select
+    // returns the real path. Derive one flag so both paths agree.
+    hasJd: row.has_jd ?? !!row.jd_file_path,
     aiScoringWeights: row.ai_scoring_weights || undefined,
     archivedAt: row.archived_at || undefined,
     closedAt: row.closed_at || undefined,

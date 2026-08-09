@@ -3,7 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <!-- Brand logo mark, "Primary light" (Halo #EFEFEF tile + Sirius mark). The
+         guidelines reserve the mark for profile pictures, favicons and app icons.
+         SVG is what modern browsers pick; the .ico carries pre-rendered 16/32/48
+         so small tab sizes stay crisp instead of being downscaled from one bitmap. -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://dufbgzfqehkfibclaphy.supabase.co" />

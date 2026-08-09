@@ -1,6 +1,19 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { validateSession } from "../_shared/validate-session.ts";
+import { validateSession, writeDenied } from "../_shared/validate-session.ts";
+
+// Viewers are read-only with three deliberate exceptions, so a reviewing hiring
+// manager can do their actual job:
+//   appendNote   leave an internal note
+//   rating       score the candidate
+//   ai_analysis  persist an analysis they were already allowed to run (the
+//                manual "Analyze CV" flow computes server-side then saves here;
+//                without this the run would cost credits and store nothing)
+//
+// `appendNote` is allowed but the raw `notes` array deliberately is NOT: appending
+// happens server-side and is additive, so a viewer can add to the record but can
+// never edit or erase what a colleague wrote.
+const VIEWER_UPDATE_FIELDS = new Set(["appendNote", "rating", "ai_analysis"]);
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -16,6 +29,16 @@ Deno.serve(async (req) => {
 
     const auth = await validateSession(sessionToken, corsHeaders);
     if (!auth.valid) return auth.response;
+
+    // Role gate is per-field rather than per-request: a viewer may comment and
+    // score, but must not move a candidate through the pipeline, edit their
+    // details, reassign their job, or create applicants.
+    if (auth.role === "viewer") {
+      const keys = updates && typeof updates === "object" ? Object.keys(updates) : [];
+      const permitted =
+        action !== "create" && keys.length > 0 && keys.every((k) => VIEWER_UPDATE_FIELDS.has(k));
+      if (!permitted) return writeDenied(corsHeaders);
+    }
 
     // CREATE: add an applicant row (used by the CV Library "Add to job" flow).
     if (action === "create") {

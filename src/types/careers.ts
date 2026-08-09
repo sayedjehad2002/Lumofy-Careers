@@ -34,9 +34,13 @@ export interface Job {
   deadline?: string;
   screeningQuestions: ScreeningQuestion[];
   jdFileName?: string;
+  /** Storage path — admin views only; the public RPC never exposes it. */
   jdFilePath?: string;
   jdFileSize?: number;
   jdFileUploadedAt?: string;
+  /** Whether a JD file exists. The only JD signal public visitors get, so it is
+   *  what the download buttons gate on — jdFilePath is undefined for them. */
+  hasJd?: boolean;
   aiScoringWeights?: AIScoringWeights;
   /** Set when the job is archived (soft-deleted) — hidden from the public site, kept in the dashboard. */
   archivedAt?: string;

@@ -36,7 +36,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Deploys only work from the repo root — go there no matter where we were invoked.
+# Keep this file pure ASCII. It has no BOM, so Windows PowerShell 5.1 decodes it
+# as Windows-1252: a UTF-8 em dash arrives as a curly quote, which PowerShell
+# treats as a real string delimiter and the whole script stops parsing.
+#
+# Deploys only work from the repo root, so go there no matter where we were invoked.
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
@@ -49,7 +53,7 @@ if (-not $env:SUPABASE_ACCESS_TOKEN -and (Test-Path $tokenFile)) {
   $env:SUPABASE_ACCESS_TOKEN = (Get-Content $tokenFile -Raw).Trim()
 }
 if (-not $env:SUPABASE_ACCESS_TOKEN) {
-  Write-Host "NOTE: no .supabase-token file and no SUPABASE_ACCESS_TOKEN set —" -ForegroundColor Yellow
+  Write-Host "NOTE: no .supabase-token file and no SUPABASE_ACCESS_TOKEN set." -ForegroundColor Yellow
   Write-Host "deploys will use the global CLI login, which 403s on this project." -ForegroundColor Yellow
   Write-Host "Fix: save a careers-account token to $tokenFile (see docs/DEPLOY.md)." -ForegroundColor Yellow
 }
@@ -61,6 +65,11 @@ $allFunctions = @(
   "hr-invite-accept", "hr-me", "hr-team", "logout", "submit-application",
   "transcribe-audio", "update-applicant", "upload-cv", "upload-jd", "verify-password"
 )
+
+# Pre-joined for messages below. Windows PowerShell 5.1 cannot parse a double
+# quote nested inside $(...) within a double-quoted string, so the -join has to
+# happen out here rather than inline.
+$fnList = $allFunctions -join "`n  "
 
 # Which functions bundle each _shared module at deploy time.
 $sharedImporters = @{
@@ -88,7 +97,7 @@ elseif ($Shared) {
 elseif ($Functions.Count -gt 0) {
   foreach ($fn in $Functions) {
     if ($allFunctions -notcontains $fn) {
-      Write-Error "Unknown function '$fn'. Valid names:`n  $($allFunctions -join "`n  ")"
+      Write-Error "Unknown function '$fn'. Valid names:`n  $fnList"
     }
   }
   $targets = $Functions
@@ -99,7 +108,7 @@ else {
   Write-Host "  deploy-functions.ps1 -Shared <module>      deploy all importers of _shared/<module>.ts"
   Write-Host "  deploy-functions.ps1 -All                  deploy every function"
   Write-Host ""
-  Write-Host "Functions:`n  $($allFunctions -join "`n  ")"
+  Write-Host "Functions:`n  $fnList"
   exit 1
 }
 

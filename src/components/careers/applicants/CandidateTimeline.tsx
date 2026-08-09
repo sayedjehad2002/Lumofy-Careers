@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   FileText, Brain, ArrowRight, Calendar, Clock
 } from "lucide-react";
@@ -97,7 +96,7 @@ const CandidateTimeline = ({ applicant }: CandidateTimelineProps) => {
         </div>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="max-h-[400px]">
+        <div className="max-h-[400px] overflow-y-auto overscroll-contain scrollbar-slim">
           <div className="relative pl-6">
             {/* Vertical line */}
             <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
@@ -131,7 +130,7 @@ const CandidateTimeline = ({ applicant }: CandidateTimelineProps) => {
               ))}
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </CardContent>
     </Card>
   );

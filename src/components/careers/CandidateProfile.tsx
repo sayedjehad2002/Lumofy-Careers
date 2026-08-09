@@ -387,7 +387,8 @@ const CandidateProfile = ({
                   onClick={async () => {
                     // Defer the ~205KB jspdf/html2canvas stack until an export is actually requested.
                     const { generateCandidateReport } = await import("@/utils/candidateReportPdf");
-                    generateCandidateReport(applicant, job);
+                    // Async now: it waits on the letterhead logo before drawing.
+                    await generateCandidateReport(applicant, job);
                   }}>
                   <FileDown className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
                   Export PDF report

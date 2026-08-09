@@ -1,6 +1,6 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { validateSession } from "../_shared/validate-session.ts";
+import { validateSession, writeDenied } from "../_shared/validate-session.ts";
 
 // ---------------------------------------------------------------------------
 // SECURITY MODEL (fix #1 — over-permissive proxy)
@@ -197,6 +197,11 @@ Deno.serve(async (req) => {
     const allowedColumnSet = new Set(selectColumns);
     const writableList = WRITABLE_COLUMNS[table];
     const writableSet = new Set(writableList || []);
+
+    // Viewers may read every allowlisted table but must not change anything.
+    // Gated here rather than at validateSession because this one endpoint serves
+    // both reads and writes.
+    if (action !== "select" && auth.role === "viewer") return writeDenied(corsHeaders);
 
     // For write operations, the table must have a WRITABLE allowlist.
     if (action !== "select" && !writableList) {

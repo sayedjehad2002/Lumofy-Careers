@@ -1,6 +1,6 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getClientIp, isRateLimited, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { validateSession } from "../_shared/validate-session.ts";
+import { validateSession, writeDenied } from "../_shared/validate-session.ts";
 import { deriveClassificationFromAnalysis, sanitizeCandidateName } from "../_shared/taxonomy.ts";
 
 Deno.serve(async (req) => {
@@ -18,6 +18,11 @@ Deno.serve(async (req) => {
     const auth = await validateSession(sessionToken, corsHeaders);
     if (!auth.valid) return auth.response;
     const supabase = auth.supabase;
+
+    // This endpoint mixes reads and writes, so viewers are filtered per action:
+    // browsing and opening a CV is fine, changing or removing one is not.
+    const READ_ACTIONS = new Set(["list", "list-trash", "get", "download"]);
+    if (auth.role === "viewer" && !READ_ACTIONS.has(action)) return writeDenied(corsHeaders);
 
     // LIST candidates (active only — soft-deleted rows are hidden)
     if (action === "list") {

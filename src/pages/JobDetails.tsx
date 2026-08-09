@@ -20,7 +20,7 @@ const JobDetails = () => {
   // positions" returns to the same filters; direct/shared links fall back to /jobs.
   const { state } = useLocation() as { state?: { search?: string } };
   const backToJobs = `/jobs${state?.search ?? ""}`;
-  const { getJobById, loading } = useCareers();
+  const { getJobById, loading, sessionToken } = useCareers();
   const job = getJobById(id || "");
   const [downloading, setDownloading] = useState(false);
 
@@ -93,17 +93,46 @@ const JobDetails = () => {
       .catch(() => toast.error("Couldn't copy — copy the URL from the address bar."));
   };
 
+  // A JD is offered when HR uploaded a file OR the role carries enough detail to
+  // typeset one. Roles with neither still show no button, so the control never
+  // promises a document that would come out blank.
+  const canDownloadJd =
+    job.hasJd ||
+    Boolean((job.description || job.summary || "").trim()) ||
+    job.responsibilities.length > 0 ||
+    job.requirements.length > 0;
+
   const handleDownloadJd = async () => {
-    if (!job.jdFilePath) return;
+    if (!canDownloadJd) return;
     setDownloading(true);
     try {
+      if (!job.hasJd) {
+        // No file on record: typeset one from the job's own fields, in the same
+        // house style as the uploaded JDs.
+        const { generateJobDescriptionPdf } = await import("@/utils/jobDescriptionPdf");
+        await generateJobDescriptionPdf(job);
+        return;
+      }
+
+      // Candidates download without a session; an HR viewer passes theirs so the
+      // same button also works on jobs that aren't publicly listed.
       const { data, error } = await supabase.functions.invoke("get-jd-url", {
-        body: { jobId: job.id },
+        body: { jobId: job.id, ...(sessionToken ? { sessionToken } : {}) },
       });
-      if (error || data?.error) throw new Error(data?.error || "Download failed");
-      
-      // Open signed URL to trigger download
-      window.open(data.url, "_blank");
+      if (error || data?.error || !data?.url) {
+        throw new Error(data?.error || "Download failed");
+      }
+
+      // The signed URL already carries an attachment disposition. An anchor click
+      // starts the download in place; window.open loses the user-gesture context
+      // across the await above and gets stopped by popup blockers.
+      const a = document.createElement("a");
+      a.href = data.url;
+      a.rel = "noopener";
+      a.download = job.jdFileName || "job-description.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     } catch (e: any) {
       toast.error(e.message || "Failed to download JD");
     } finally {
@@ -167,7 +196,7 @@ const JobDetails = () => {
                   >
                     Apply for this position
                   </Button>
-                  {job.jdFilePath && (
+                  {canDownloadJd && (
                     <Button
                       size="lg"
                       variant="outline"
@@ -296,7 +325,7 @@ const JobDetails = () => {
                   Copy link
                 </Button>
 
-                {job.jdFilePath && (
+                {canDownloadJd && (
                   <Button
                     variant="outline"
                     size="sm"

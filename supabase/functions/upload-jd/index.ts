@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     }
 
     // SESSION CONSISTENCY (fix #8): shared validator + service client.
-    const auth = await validateSession(sessionToken, corsHeaders);
+    const auth = await validateSession(sessionToken, corsHeaders, { require: "write" });
     if (!auth.valid) return auth.response;
     const supabase = auth.supabase;
 

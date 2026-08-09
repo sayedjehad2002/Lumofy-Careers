@@ -3,7 +3,6 @@ import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { Brain, GitCompareArrows, CheckCircle2, XCircle, Minus } from "lucide-react";
 import { toast } from "sonner";
@@ -79,7 +78,7 @@ const BulkComparison = ({ applicants }: BulkComparisonProps) => {
           </div>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="max-h-[250px]">
+          <div className="max-h-[250px] overflow-y-auto overscroll-contain scrollbar-slim">
             <div className="space-y-1.5">
               {withAI.map(a => (
                 <label
@@ -103,7 +102,7 @@ const BulkComparison = ({ applicants }: BulkComparisonProps) => {
                 </label>
               ))}
             </div>
-          </ScrollArea>
+          </div>
         </CardContent>
       </Card>
 

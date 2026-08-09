@@ -3,7 +3,6 @@ import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ClipboardList, Loader2, Brain, CheckCircle2, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -152,7 +151,7 @@ const InterviewPrep = ({ applicant, job }: InterviewPrepProps) => {
                   <Copy className="w-3 h-3 mr-1" /> Copy all
                 </Button>
               </h4>
-              <ScrollArea className="max-h-[300px]">
+              <div className="max-h-[300px] overflow-y-auto overscroll-contain scrollbar-slim">
                 <div className="space-y-2">
                   {kit.questions.map((q, i) => (
                     <motion.div
@@ -170,7 +169,7 @@ const InterviewPrep = ({ applicant, job }: InterviewPrepProps) => {
                     </motion.div>
                   ))}
                 </div>
-              </ScrollArea>
+              </div>
             </div>
 
             {/* Scorecard */}

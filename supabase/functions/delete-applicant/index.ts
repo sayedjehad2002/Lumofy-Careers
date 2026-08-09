@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
 
     const { sessionToken, applicantId } = await req.json();
 
-    const auth = await validateSession(sessionToken, corsHeaders);
+    const auth = await validateSession(sessionToken, corsHeaders, { require: "write" });
     if (!auth.valid) return auth.response;
 
     if (!applicantId) {
