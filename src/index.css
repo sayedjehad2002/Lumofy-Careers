@@ -501,6 +501,106 @@
     background: transparent;
   }
 
+  /* ── Lumofy grid card ──────────────────────────────────────────────────────
+     The brand motif from lumofy.ai: crossed hairlines on a fine grid, masked
+     with a radial gradient so the lines dissolve toward the edges instead of
+     stopping at a hard border. The marketing site uses 130px cells in the hero
+     and 26-38px on cards; 26px is the card scale.
+
+     Colour comes from --foreground rather than a fixed white, so the same
+     utility works on the light dashboard and in dark mode.
+
+     The site animates its hero with a full-bleed <canvas> perspective tunnel.
+     That is a hero effect — a canvas painting every frame inside a small,
+     permanently-visible sidebar card would burn cycles forever to decorate
+     something nobody is looking at. The adaptation here is a slow light sweep
+     across the grid: the same "this surface is alive" read, one compositor-only
+     property, and it stops dead under prefers-reduced-motion. */
+  .lx-grid-card {
+    /* One cell, one weight. An earlier pass laid a heavier grid every fourth
+       line on top of this one; at this card's size the two weights read as
+       noise rather than structure. */
+    --lx-cell: 28px;
+    --lx-hair: 1px;
+    --lx-line: hsl(var(--foreground) / 0.1);
+
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    /* Deliberately no standing glow. A radial anchored off-centre lit one
+       corner harder than the rest, so identical grid lines looked like
+       different grid lines — which is what made an even grid read as chaotic.
+       Uniform lighting is what makes it look structured. */
+  }
+  /* Crisp on high-DPI. A 1px CSS line is 1.5 device pixels at 1.5x and 2 at 2x —
+     the odd fraction is what makes hairlines look soft on a scaled 4K panel.
+     0.5px CSS resolves to exactly one device pixel at 2dppx and above. */
+  @media (min-resolution: 2dppx) {
+    .lx-grid-card { --lx-hair: 0.5px; }
+  }
+  .lx-grid-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    background-image:
+      linear-gradient(var(--lx-line) var(--lx-hair), transparent var(--lx-hair)),
+      linear-gradient(90deg, var(--lx-line) var(--lx-hair), transparent var(--lx-hair));
+    background-size: var(--lx-cell) var(--lx-cell);
+    /* Grid and mask share one centre. The grid used to start at the top-left
+       while the mask was centred, so the two had different origins and the
+       clipped cells fell unevenly down one side. */
+    background-position: center;
+    /* A long, late falloff. The earlier mask started fading at 40% and was gone
+       by 84%, which cut lines off mid-cell and left ragged stubs near the
+       corners — full-strength lines through most of the card, then a quick
+       clean fade at the very edge. */
+    -webkit-mask-image: radial-gradient(92% 92% at 50% 50%, #000 62%, transparent 94%);
+    mask-image: radial-gradient(92% 92% at 50% 50%, #000 62%, transparent 94%);
+    transition: opacity 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .lx-grid-card:hover::before,
+  .lx-grid-card:focus-within::before {
+    /* The grid itself is already at full strength; hover lifts the line colour
+       rather than the layer opacity, so nothing shifts in weight. */
+    --lx-line: hsl(var(--foreground) / 0.16);
+  }
+  /* The sweep: a band of Sirius light crossing the card once per cycle.
+     A band rather than a blob because light passing over a surface is what the
+     hero tunnel reads as, and `linear` because a sweep at constant velocity
+     glides where an eased one visibly slows in the middle. It travels one way
+     and restarts behind full transparency, so there is no ping-pong. */
+  .lx-grid-card::after {
+    content: "";
+    position: absolute;
+    inset: -70% -35%;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(
+      100deg,
+      transparent 34%,
+      hsl(var(--primary) / 0.13) 50%,
+      transparent 66%
+    );
+    animation: lx-grid-sweep 11s linear infinite;
+    will-change: transform, opacity;
+  }
+  @keyframes lx-grid-sweep {
+    0%   { transform: translate3d(-60%, 0, 0); opacity: 0; }
+    14%  { opacity: 1; }
+    86%  { opacity: 1; }
+    100% { transform: translate3d(60%, 0, 0); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .lx-grid-card::after {
+      animation: none;
+      /* Park the band centred and dim rather than removing it — the card keeps
+         its depth, it just stops moving. */
+      transform: none;
+      opacity: 0.5;
+    }
+  }
+
   .glass {
     background: hsl(var(--card) / 0.88);
     backdrop-filter: blur(20px) saturate(1.1);

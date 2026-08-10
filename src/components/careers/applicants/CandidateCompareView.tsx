@@ -47,25 +47,12 @@ const CandidateCompareView = ({ applicants, pinnedIds, onUnpin, onClearAll }: Ca
       ) : "—",
     },
     {
-      label: "Ranking Tier",
-      getValue: (a) => {
-        const tier = a.aiAnalysis?.rankingTier;
-        return tier ? (
-          <Badge variant="secondary" className={`text-[10px] py-0 border-0 ${tier ? tierSoft(tier) : ""}`}>{tier}</Badge>
-        ) : "—";
-      },
-    },
-    {
       label: "Status",
       getValue: (a) => <Badge variant="outline" className="text-[10px] py-0">{a.status}</Badge>,
     },
     {
       label: "Location",
       getValue: (a) => <span className="text-xs">{a.location}</span>,
-    },
-    {
-      label: "Nationality",
-      getValue: (a) => <span className="text-xs">{a.nationality || "—"}</span>,
     },
     {
       label: "Strengths",
@@ -101,15 +88,6 @@ const CandidateCompareView = ({ applicants, pinnedIds, onUnpin, onClearAll }: Ca
       label: "Skills Coverage",
       getValue: (a) => a.aiAnalysis?.skillsCoveragePercent != null ? (
         <span className="text-sm font-semibold">{a.aiAnalysis.skillsCoveragePercent}%</span>
-      ) : "—",
-    },
-    {
-      label: "Overall Rating",
-      getValue: (a) => a.rating ? (
-        <span className="flex items-center gap-1 text-sm">
-          <Star className={`w-3.5 h-3.5 fill-current ${TONE_TEXT.warning}`} aria-hidden="true" />
-          {(Object.values(a.rating).reduce((s, v) => s + v, 0) / 5).toFixed(1)}
-        </span>
       ) : "—",
     },
   ];

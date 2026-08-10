@@ -9,6 +9,7 @@
  *
  * Usage: spread the returned class string into a `className`.
  */
+import type { ApplicantStatus } from "@/types/careers";
 
 /** Soft tinted background + solid foreground for badges/chips. */
 export const TONE_SOFT = {
@@ -132,6 +133,42 @@ export const FUNNEL_FILLS = [
   "hsl(var(--chart-2))",
   "hsl(var(--destructive))",
 ];
+
+/**
+ * Status → color, keyed by name rather than array position. A stacked bar
+ * (e.g. the Overview pipeline strip) needs a color per status that cannot
+ * drift or collide if a status is ever added or reordered — index-based
+ * lookups like FUNNEL_FILLS silently break that guarantee, and a missing key
+ * here is a TypeScript error instead of a runtime color collision.
+ */
+export const STATUS_COLORS: Record<ApplicantStatus, string> = {
+  new: "hsl(var(--chart-1))",
+  reviewing: "hsl(var(--chart-5))",
+  shortlisted: "hsl(var(--intel-success))",
+  interview: "hsl(var(--chart-3))",
+  rejected: "hsl(var(--destructive))",
+  hired: "hsl(var(--chart-2))",
+};
+
+/**
+ * Soft tinted badge classes per status — the same treatment TONE_SOFT gives a
+ * tone, keyed by status instead.
+ *
+ * This is the token-based replacement for `APPLICANT_STATUSES[].color`, which
+ * ships raw Tailwind literals (`bg-blue-500/20 text-blue-400`). Those are not
+ * theme-aware: `text-blue-400` on a light card fails contrast, and `shortlisted`
+ * (emerald) and `hired` (green) are near-identical hues. Keyed rather than
+ * index-based, so a new status is a TypeScript error rather than a silent
+ * colour collision.
+ */
+export const STATUS_SOFT: Record<ApplicantStatus, string> = {
+  new: "bg-[hsl(var(--chart-1)/0.15)] text-[hsl(var(--chart-1))]",
+  reviewing: "bg-[hsl(var(--chart-5)/0.15)] text-[hsl(var(--chart-5))]",
+  shortlisted: "bg-[hsl(var(--intel-success)/0.15)] text-[hsl(var(--intel-success))]",
+  interview: "bg-[hsl(var(--chart-3)/0.15)] text-[hsl(var(--chart-3))]",
+  rejected: "bg-destructive/10 text-destructive",
+  hired: "bg-[hsl(var(--chart-2)/0.15)] text-[hsl(var(--chart-2))]",
+};
 
 /**
  * Ordered, theme-aware color VALUES (not classes) for categorical chart series

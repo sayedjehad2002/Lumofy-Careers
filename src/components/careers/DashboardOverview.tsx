@@ -1,455 +1,342 @@
-import { useMemo, useState, useEffect } from "react";
-import {
-  Brain, Clock, Activity, BarChart3, Star, UserCheck,
-  AlertTriangle, TrendingUp, ChevronRight, CheckCircle2, Loader2, RefreshCw,
-} from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { Activity, AlertTriangle, Briefcase, UserCheck } from "lucide-react";
 import { motion } from "framer-motion";
-import { Badge } from "@/components/ui/badge";
+import type { Job, Applicant } from "@/types/careers";
+import { CHART_SERIES, STATUS_COLORS, TONE_TEXT } from "./statusColors";
+import { Panel, MetricTile, LiveDot } from "./dashboard/primitives";
 import {
-  ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig,
-} from "@/components/ui/chart";
-import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid } from "recharts";
-import type { Job, Applicant, ApplicantStatus } from "@/types/careers";
-import { APPLICANT_STATUSES } from "@/types/careers";
-import { FUNNEL_FILLS, TONE_SOFT, TONE_TEXT, TONE_BG, tierSoft } from "./statusColors";
-import { Panel, MetricTile, Meter, Sparkline, LiveDot } from "./dashboard/primitives";
-import AnimatedCounter from "./AnimatedCounter";
-import { dailyCounts, trendDeltaPct, hasTrend, computeAttention } from "@/lib/dashboardMetrics";
+  statusBreakdown,
+  qualityBands,
+  actionQueue,
+  applicationsPerRole,
+  oldestUnreviewed,
+  topUnreviewed,
+  dailyCounts,
+} from "@/lib/dashboardMetrics";
 import { useCareers } from "@/contexts/CareersContext";
 import { useLiveRefresh } from "@/hooks/use-live-refresh";
-
-// How long since the last successful load, in friendly words (for the LIVE badge).
-function agoLabel(ts: number | null, now: number): string {
-  if (!ts) return "";
-  const s = Math.max(0, Math.round((now - ts) / 1000));
-  if (s < 5) return "just now";
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  return `${Math.floor(m / 60)}h ago`;
-}
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 // Auto-refresh cadence while the Overview is open and the tab is visible.
 const LIVE_INTERVAL_MS = 30_000;
+
+// Applications-per-role volume bands (shared by the tile hint, the bar color,
+// and the caption below — one source so they can't drift out of sync).
+const LOW_VOLUME_MAX = 4;
+const MID_VOLUME_MAX = 9;
 
 interface DashboardOverviewProps {
   jobs: Job[];
   applicants: Applicant[];
   onNavigate: (tab: string) => void;
+  /** A candidate's own page, so the unreviewed list can link straight to them. */
+  applicantHref: (applicantId: string) => string;
+  /** Opens the Sources sub-route. Kept as a link out rather than a ninth block on this screen. */
+  onOpenSources?: () => void;
 }
 
-const STAGE_ORDER: ApplicantStatus[] = ["new", "reviewing", "shortlisted", "interview", "hired"];
-const DAY = 86_400_000;
+/** First letters of up to two name parts, uppercase — for the shortlist avatar. */
+function initialsFor(fullName: string): string {
+  return fullName
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
 
-const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewProps) => {
-  const now = useMemo(() => Date.now(), []);
+const DashboardOverview = ({ jobs, applicants, onNavigate, applicantHref, onOpenSources }: DashboardOverviewProps) => {
+  // Recomputed whenever fresh data lands (not just on mount) — otherwise this
+  // goes stale across the 30s live refresh below and silently defeats it: the
+  // stalled-interview check in actionQueue and the last-7-days count would
+  // keep judging "now" against the moment the tab was opened. applicants/jobs
+  // are deliberately used only as recompute triggers, not referenced in the
+  // factory — exhaustive-deps can't tell that apart from a mistake.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const now = useMemo(() => Date.now(), [applicants, jobs]);
 
   // ── Live auto-refresh ── silent background refetch every 30s while the Overview
   // is mounted + visible (and instantly on tab-return), so the dashboard reflects
   // what's actually happening without a reload. Mounting/unmounting with the tab
   // scopes it to Overview, so it never refetches mid-drag on the Pipeline.
-  const { silentRefresh, lastUpdated, refreshing } = useCareers();
+  const { silentRefresh } = useCareers();
   useLiveRefresh(silentRefresh, LIVE_INTERVAL_MS);
-  // Tick every 10s so the "updated Xs ago" label stays current between refetches.
-  const [nowTick, setNowTick] = useState(() => Date.now());
-  useEffect(() => {
-    const id = window.setInterval(() => setNowTick(Date.now()), 10_000);
-    return () => window.clearInterval(id);
-  }, []);
 
-  const openJobs = useMemo(() => jobs.filter((j) => j.status === "open").length, [jobs]);
+  // ── Single source of truth for every number on this screen ──
+  const statusRows = useMemo(() => statusBreakdown(applicants), [applicants]);
+  const unreviewedCount = statusRows.find((s) => s.status === "new")?.count ?? 0;
+  const unreviewedPct = applicants.length > 0 ? Math.round((unreviewedCount / applicants.length) * 100) : 0;
+  const oldestDate = useMemo(() => oldestUnreviewed(applicants), [applicants]);
+  const oldestFormatted = oldestDate
+    ? new Date(oldestDate).toLocaleDateString("en-GB", { day: "numeric", month: "long" })
+    : null;
 
-  const avgFitScore = useMemo(() => {
-    const withScore = applicants.filter((a) => a.aiAnalysis?.fitScore);
-    if (!withScore.length) return null;
-    const total = withScore.reduce((sum, a) => sum + (a.aiAnalysis?.fitScore || 0), 0);
-    return Math.round(total / withScore.length);
-  }, [applicants]);
+  const quality = useMemo(() => qualityBands(applicants), [applicants]);
+  const actionRows = useMemo(() => actionQueue(applicants, now), [applicants, now]);
+  const roleLoad = useMemo(() => applicationsPerRole(applicants, jobs), [applicants, jobs]);
 
-  // Both rates are shares of the SAME population (everyone who ever applied), so
-  // they can be read against each other. The previous "to hired" used
-  // hired/(interview+hired) — a different denominator from "to interview" — which
-  // made 1 hire read as 14% next to 6 interviews reading as 2%.
-  const conversionRates = useMemo(() => {
-    const total = applicants.length;
-    const reachedInterview = applicants.filter((a) => ["interview", "hired"].includes(a.status)).length;
-    const hiredCount = applicants.filter((a) => a.status === "hired").length;
-    return {
-      reachedInterview,
-      hiredCount,
-      newToInterview: total > 0 ? Math.round((reachedInterview / total) * 100) : 0,
-      newToHired: total > 0 ? Math.round((hiredCount / total) * 100) : 0,
-    };
-  }, [applicants]);
-
-  // Returns the sample size too: an "average" over one hire is not an average, and
-  // presenting it as a trend-worthy KPI invites decisions it can't support.
-  const timeToHire = useMemo(() => {
-    const hired = applicants.filter((a) => a.status === "hired");
-    if (!hired.length) return { days: null as number | null, n: 0 };
-    const days = hired.map((a) => {
-      const start = new Date(a.appliedDate).getTime();
-      const end = new Date(a.stageEnteredAt || a.appliedDate).getTime();
-      return Math.max(0, (end - start) / DAY);
-    });
-    return { days: Math.round(days.reduce((s, d) => s + d, 0) / days.length), n: hired.length };
-  }, [applicants]);
-
-  const scoredCount = useMemo(() => applicants.filter((a) => a.aiAnalysis?.fitScore).length, [applicants]);
-  const analyzedPct = applicants.length > 0 ? Math.round((scoredCount / applicants.length) * 100) : 0;
-
-  // ── live intelligence (honest derivations from real fields) ──
-  const appliedSeries = useMemo(() => dailyCounts(applicants.map((a) => a.appliedDate), 14, now), [applicants, now]);
-  const showAppliedTrend = hasTrend(appliedSeries);
-  const appliedDelta = trendDeltaPct(appliedSeries);
-  const attention = useMemo(() => computeAttention(applicants, jobs, now), [applicants, jobs, now]);
-  const inPipeline = useMemo(() => applicants.filter((a) => !["hired", "rejected"].includes(a.status)).length, [applicants]);
-  const hiredLast30 = useMemo(
-    () => applicants.filter((a) => a.status === "hired" && (now - new Date(a.stageEnteredAt || a.appliedDate).getTime()) / DAY <= 30).length,
+  /**
+   * The role a candidate applied for.
+   *
+   * `jobTitle` is a snapshot copied onto the applicant at submit time, and it was
+   * added to submit-application after most of this pipeline already existed — so
+   * it is null on 292 of 367 applications while `jobId` still points at a live
+   * job. Reading the snapshot alone printed "Unknown role" for 80% of candidates
+   * whose role was known all along. Every other screen already falls back to the
+   * job lookup (ApplicantsListView, CandidateProfile, Dashboard); this one didn't.
+   */
+  const jobTitleById = useMemo(() => new Map(jobs.map((j) => [j.id, j.title])), [jobs]);
+  const roleTitleFor = useCallback(
+    (a: Applicant) => a.jobTitle || jobTitleById.get(a.jobId) || "Unknown role",
+    [jobTitleById]
+  );
+  const lowVolumeRoles = useMemo(() => roleLoad.filter((r) => r.count <= LOW_VOLUME_MAX).length, [roleLoad]);
+  const maxRoleCount = useMemo(() => Math.max(...roleLoad.map((r) => r.count), 1), [roleLoad]);
+  const last7Days = useMemo(
+    () => dailyCounts(applicants.map((a) => a.appliedDate), 7, now).reduce((sum, n) => sum + n, 0),
     [applicants, now]
   );
 
-  const funnelData = useMemo(() => {
-    return STAGE_ORDER.map((status, i) => ({
-      name: APPLICANT_STATUSES.find((s) => s.value === status)?.label || status,
-      value: applicants.filter((a) => a.status === status).length,
-      fill: FUNNEL_FILLS[i],
-    }));
-  }, [applicants]);
-
-  // Replaces the old "candidates by stage" bar chart, which duplicated the
-  // pipeline panel beside it AND was unreadable: with 334 in New and 1 in Hired,
-  // a linear axis renders five of six bars as invisible slivers. Score bands are
-  // new information, use the tier vocabulary HR already sees on each candidate,
-  // and distribute across four comparably-sized buckets.
-  const qualityBands = useMemo(() => {
-    const scored = applicants.map((a) => a.aiAnalysis?.fitScore).filter((s): s is number => typeof s === "number");
-    const band = (min: number, max: number) => scored.filter((s) => s >= min && s <= max).length;
-    return [
-      { band: "Weak", range: "0–49", count: band(0, 49), fill: "hsl(var(--destructive))" },
-      { band: "Moderate", range: "50–69", count: band(50, 69), fill: "hsl(var(--intel-warning))" },
-      { band: "Strong", range: "70–84", count: band(70, 84), fill: "hsl(var(--primary))" },
-      { band: "Top", range: "85–100", count: band(85, 100), fill: "hsl(var(--intel-success))" },
-    ];
-  }, [applicants]);
-  const qualityChartConfig: ChartConfig = { count: { label: "Candidates", color: "hsl(var(--primary))" } };
-
-  const topJobs = useMemo(() => {
-    return jobs
-      .map((j) => ({ title: j.title, count: applicants.filter((a) => a.jobId === j.id).length, status: j.status }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [jobs, applicants]);
-
-  const recommendations = useMemo(() => {
-    const recs: Record<string, number> = { "Fast-Track": 0, Proceed: 0, Hold: 0, "Not Recommended": 0 };
-    applicants.forEach((a) => {
-      const r = a.aiAnalysis?.recommendation;
-      if (!r) return;
-      if (r.includes("Fast-Track")) recs["Fast-Track"]++;
-      else if (r.includes("Proceed")) recs["Proceed"]++;
-      else if (r.includes("Hold")) recs["Hold"]++;
-      else recs["Not Recommended"]++;
-    });
-    return recs;
-  }, [applicants]);
-
-  const recentActivity = useMemo(() => {
-    return [...applicants]
-      .sort((a, b) => new Date(b.appliedDate).getTime() - new Date(a.appliedDate).getTime())
-      .slice(0, 6)
-      .map((a) => ({
-        id: a.id,
-        name: a.fullName,
-        action: a.status === "new" ? "applied" : `moved to ${a.status}`,
-        job: jobs.find((j) => j.id === a.jobId)?.title || "Unknown",
-        date: a.appliedDate,
-      }));
-  }, [applicants, jobs]);
-
-  const greeting = useMemo(() => {
-    const h = new Date().getHours();
-    return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-  }, []);
-  const todayStr = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-
-  // Every tile carries its own denominator or sample size. A bare "67" or "8d"
-  // reads as a fact about the whole pipeline when it is really about 231 scored
-  // candidates and a single hire.
-  const metrics = [
-    { label: "Open positions", value: <AnimatedCounter value={openJobs} duration={1.2} />, sub: `${jobs.length} total`, tab: "jobs", series: undefined as number[] | undefined, delta: undefined as number | null | undefined },
-    { label: "Total applicants", value: <AnimatedCounter value={applicants.length} duration={1.2} />, sub: `${inPipeline} still active`, tab: "applicants", series: showAppliedTrend ? appliedSeries : undefined, delta: showAppliedTrend ? appliedDelta : undefined },
-    { label: "AI coverage", value: <AnimatedCounter value={analyzedPct} suffix="%" duration={1.2} />, sub: `${applicants.length - scoredCount} not yet scored`, tab: "applicants", series: undefined, delta: undefined },
-    { label: "Avg AI score", value: avgFitScore !== null ? <AnimatedCounter value={avgFitScore} duration={1.2} /> : "—", sub: scoredCount ? `across ${scoredCount} scored` : "none scored yet", tab: "applicants", series: undefined, delta: undefined },
-    { label: "Reached interview", value: <AnimatedCounter value={conversionRates.newToInterview} suffix="%" duration={1.2} />, sub: `${conversionRates.reachedInterview} of ${applicants.length}`, tab: "pipeline", series: undefined, delta: undefined },
-    {
-      label: "Time to hire",
-      value: timeToHire.days !== null ? <AnimatedCounter value={timeToHire.days} suffix="d" duration={1.2} /> : "—",
-      sub: timeToHire.n === 0 ? "no hires yet" : timeToHire.n === 1 ? "from 1 hire — not an average" : `avg of ${timeToHire.n} hires`,
-      tab: "pipeline", series: undefined, delta: undefined,
-    },
-  ];
-
-  const attentionRows = [
-    { label: "Unreviewed applicants", count: attention.unreviewed, tone: TONE_SOFT.warning, tab: "applicants" },
-    { label: "Interviews stalled >7d", count: attention.stalledInterviews, tone: TONE_SOFT.danger, tab: "pipeline" },
-    { label: "Jobs closing this week", count: attention.jobsClosingSoon, tone: TONE_SOFT.bronze, tab: "jobs" },
-    // "SLA breaches" removed: the stage SLAs are much shorter than this inbox is
-    // old, so it counted ~86% of everyone and drowned the rows that genuinely need
-    // a decision. Candidates with no AI score is the real blocker in its place.
-    { label: "Awaiting AI analysis", count: attention.awaitingAnalysis, tone: TONE_SOFT.ai, tab: "applicants" },
-  ].filter((r) => r.count > 0);
-
-  const recColorMap: Record<string, string> = { "Fast-Track": TONE_BG.success, Proceed: "bg-primary", Hold: TONE_BG.warning, "Not Recommended": "bg-destructive" };
-  const recTextMap: Record<string, string> = { "Fast-Track": TONE_TEXT.success, Proceed: "text-primary", Hold: TONE_TEXT.warning, "Not Recommended": "text-destructive" };
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  /** Only roles that actually have an unreviewed, scored candidate. */
+  const filterableRoles = useMemo(
+    () => roleLoad.filter((r) => topUnreviewed(applicants, r.jobId, 1).length > 0),
+    [roleLoad, applicants]
+  );
+  // Self-heals if the selected role's last unreviewed candidate gets reviewed
+  // mid-session (e.g. via the 30s live refresh above) and roleFilter no longer
+  // matches any mounted SelectItem — falls back to "all" instead of leaving
+  // the Select trigger showing blank.
+  const roleStillValid = roleFilter === "all" || filterableRoles.some((r) => r.jobId === roleFilter);
+  const effectiveRoleFilter = roleStillValid ? roleFilter : "all";
+  const shortlist = useMemo(
+    () => topUnreviewed(applicants, effectiveRoleFilter === "all" ? undefined : effectiveRoleFilter),
+    [applicants, effectiveRoleFilter]
+  );
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="space-y-5">
-      {/* ── Command header ── */}
+      {/* ── Header ── */}
       <div>
         <div className="flex items-center gap-2.5">
           <h1 className="text-xl font-semibold tracking-tight text-foreground">Overview</h1>
-          <button
-            type="button"
-            onClick={() => silentRefresh()}
-            title="Refresh now"
-            aria-label="Live data — click to refresh now"
-            className="group inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--intel-border))] bg-[hsl(var(--intel-card))] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:bg-[hsl(var(--intel-card-hover))] hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
-          >
-            {refreshing ? <Loader2 className="h-2.5 w-2.5 animate-spin text-primary" aria-hidden="true" /> : <LiveDot />}
-            <span>Live</span>
-            {lastUpdated && (
-              <span className="font-sans normal-case tracking-normal text-muted-foreground/70">
-                · {refreshing ? "updating…" : `updated ${agoLabel(lastUpdated, nowTick)}`}
-              </span>
-            )}
-            <RefreshCw className="h-2.5 w-2.5 opacity-0 transition-opacity group-hover:opacity-60" aria-hidden="true" />
-          </button>
+          <LiveDot />
+          {onOpenSources && (
+            <button
+              type="button"
+              onClick={onOpenSources}
+              className="ml-auto text-xs text-muted-foreground transition-colors hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Where candidates come from &rarr;
+            </button>
+          )}
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">{greeting} · {todayStr}</p>
-        <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
-          {/* Three DISTINCT, individually actionable facts. The old headline added
-              overlapping buckets into "652 need attention" — more than the entire
-              applicant population — and even deduplicated it would read ~340 of
-              343, which is true but tells an HR manager nothing they can act on. */}
-          <span className="tabular-nums text-foreground">{inPipeline}</span> in pipeline
-          {" · "}
-          <span className="tabular-nums text-foreground">{attention.unreviewed}</span> unreviewed
-          {attention.awaitingAnalysis > 0 && (
+        <p className="mt-1 text-sm">
+          {unreviewedCount > 0 ? (
             <>
-              {" · "}
-              <span className="tabular-nums text-foreground">{attention.awaitingAnalysis}</span> awaiting AI
+              <span className={TONE_TEXT.warning}>
+                {unreviewedCount === 1
+                  ? "1 application has never been opened."
+                  : `${unreviewedCount} applications have never been opened.`}
+              </span>
+              {oldestFormatted && (
+                <span className="text-muted-foreground"> The oldest has been waiting since {oldestFormatted}.</span>
+              )}
             </>
+          ) : (
+            <span className="text-muted-foreground">Everything received has been reviewed.</span>
           )}
         </p>
       </div>
 
-      {/* ── Hero metric row ── */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-        {metrics.map((m) => (
-          <MetricTile key={m.label} label={m.label} value={m.value} hint={m.sub} delta={m.delta} series={m.series} onClick={() => onNavigate(m.tab)} />
-        ))}
+      {/* ── Four metric tiles ── */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <MetricTile
+          label="Open roles"
+          value={roleLoad.length}
+          hint={lowVolumeRoles > 0 ? `${lowVolumeRoles} with almost no applicants` : undefined}
+          onClick={() => onNavigate("jobs")}
+        />
+        <MetricTile
+          label="Applications"
+          value={applicants.length}
+          hint={`${last7Days} in the last 7 days`}
+          onClick={() => onNavigate("applicants")}
+        />
+        <MetricTile
+          label="Never opened"
+          value={unreviewedCount}
+          hint={`${unreviewedPct}% of everything received`}
+          tone={unreviewedCount > 0 ? "warning" : "default"}
+          onClick={() => onNavigate("applicants")}
+        />
+        <MetricTile
+          label="Scored by AI"
+          value={quality.scored}
+          hint={`${applicants.length - quality.scored} still waiting`}
+          onClick={() => onNavigate("applicants")}
+        />
       </div>
 
-      {/* ── Pipeline strip ── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Panel title="Recruitment pipeline" icon={Activity}>
-          {/* Share of ALL applicants, not stage-to-stage conversion. Candidates can
-              skip stages here (someone can go straight from New to Interview), so
-              dividing a stage by the one before it is not a conversion rate — it
-              produced "600%" on screen. Share-of-total is always well-defined. */}
-          <div className="space-y-3">
-            {funnelData.map((stage, i) => {
-              const totalAll = Math.max(applicants.length, 1);
-              const share = Math.round((stage.value / totalAll) * 100);
-              const maxVal = Math.max(...funnelData.map((s) => s.value), 1);
-              const pct = (stage.value / maxVal) * 100;
-              return (
-                <div key={stage.name} className="group">
-                  <div className="mb-1 flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground transition-colors group-hover:text-foreground">{stage.name}</span>
-                    <span className="font-mono tabular-nums text-muted-foreground">
-                      <span className="mr-2 text-muted-foreground/60">{share}%</span>
-                      <span className="font-semibold text-foreground">{stage.value}</span>
-                    </span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-[hsl(var(--intel-gauge-track))]">
-                    <motion.div
-                      className="h-full rounded-full"
-                      style={{ backgroundColor: stage.fill, transformOrigin: "left", width: "100%" }}
-                      initial={{ scaleX: 0 }}
-                      whileInView={{ scaleX: pct / 100 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.7, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-            <p className="pt-1 text-[11px] text-muted-foreground">
-              Share of all {applicants.length} applicants. Candidates can skip stages, so these don't chain.
-            </p>
-          </div>
-        </Panel>
-
-        <Panel title="Candidate quality" icon={BarChart3}>
-          {scoredCount === 0 ? (
-            <div className="flex h-[220px] flex-col items-center justify-center text-center">
-              <Brain className="h-8 w-8 text-muted-foreground/40" aria-hidden="true" />
-              <p className="mt-2 text-sm font-medium">No CVs scored yet</p>
-              <p className="text-xs text-muted-foreground">Scores appear here as candidates are analyzed.</p>
+      {/* ── Where everyone stands ── */}
+      <Panel title="Where everyone stands" icon={Activity}>
+        {applicants.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">No applications yet.</p>
+        ) : (
+          <div className="space-y-4">
+            <Strip
+              rows={statusRows.map((s) => ({ label: s.label, count: s.count, color: STATUS_COLORS[s.status] }))}
+              total={applicants.length}
+            />
+            <div className="flex items-center justify-between border-t border-[hsl(var(--intel-border))] pt-3">
+              <h3 className="text-sm font-medium text-foreground">Candidate quality</h3>
+              <span className="text-[11px] text-muted-foreground">of the {quality.scored} scored</span>
             </div>
-          ) : (
-            <ChartContainer config={qualityChartConfig} className="h-[220px] w-full">
-              <BarChart data={qualityBands} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" vertical={false} />
-                <XAxis dataKey="band" tick={{ fontSize: 11 }} className="fill-muted-foreground" tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" allowDecimals={false} tickLine={false} axisLine={false} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                  {qualityBands.map((b) => <Cell key={b.band} fill={b.fill} />)}
-                </Bar>
-              </BarChart>
-            </ChartContainer>
-          )}
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            {scoredCount} of {applicants.length} scored
-            {attention.awaitingAnalysis > 0 && ` · ${attention.awaitingAnalysis} still awaiting analysis`}
-          </p>
-        </Panel>
-      </div>
-
-      {/* ── Signals row ── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Panel title="Needs attention" icon={AlertTriangle}>
-          {attentionRows.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <CheckCircle2 className="h-8 w-8 text-[hsl(var(--intel-success))] opacity-80" aria-hidden="true" />
-              <p className="mt-2 text-sm font-medium text-foreground">All clear</p>
-              <p className="text-xs text-muted-foreground">Nothing needs your attention right now.</p>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {attentionRows.map((r) => (
-                <button
-                  key={r.label}
-                  type="button"
-                  onClick={() => onNavigate(r.tab)}
-                  className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-[hsl(var(--intel-card-hover))]"
-                >
-                  <span className={`flex h-7 min-w-7 items-center justify-center rounded-md px-1.5 text-xs font-semibold tabular-nums ${r.tone}`}>{r.count}</span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">{r.label}</span>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                </button>
-              ))}
-            </div>
-          )}
-        </Panel>
-
-        <Panel title="Momentum" icon={TrendingUp}>
-          <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Applications · 14d</p>
-          <div className="mt-2 h-12">
-            {showAppliedTrend ? (
-              <Sparkline data={appliedSeries} className="h-12 w-full text-primary" />
+            {quality.scored === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">No application has been scored yet.</p>
             ) : (
-              <div className="flex h-full items-center text-xs text-muted-foreground">Not enough data yet</div>
+              <Strip
+                rows={quality.bands.map((b, i) => ({
+                  label: b.band,
+                  count: b.count,
+                  color: CHART_SERIES[i % CHART_SERIES.length],
+                }))}
+                total={quality.scored}
+              />
             )}
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-3 border-t border-[hsl(var(--intel-border))] pt-3">
-            <div>
-              <div className="text-xl font-semibold tabular-nums text-foreground">{applicants.length}</div>
-              <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">total applicants</p>
-            </div>
-            <div>
-              <div className="text-xl font-semibold tabular-nums text-foreground">{hiredLast30}</div>
-              <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">hired · 30d</p>
-            </div>
-          </div>
-        </Panel>
+        )}
+      </Panel>
 
-        <Panel title="AI recommendations" icon={Brain}>
-          <div className="space-y-3.5">
-            {Object.entries(recommendations).map(([label, count]) => {
-              const total = Object.values(recommendations).reduce((a, b) => a + b, 0);
-              const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-              return (
-                <Meter key={label} label={label} value={`${count} · ${pct}%`} pct={pct} barColor={recColorMap[label] || "bg-muted"} labelColor={recTextMap[label] || "text-muted-foreground"} />
-              );
-            })}
-            {Object.values(recommendations).every((v) => v === 0) && (
-              <p className="py-6 text-center text-sm text-muted-foreground">No AI analyses yet</p>
-            )}
-          </div>
-        </Panel>
-      </div>
+      {/* ── Act on these ── */}
+      <Panel title="Act on these" icon={AlertTriangle} bodyClassName="p-2">
+        {actionRows.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Nothing needs attention right now.</p>
+        ) : (
+          <ul className="space-y-1">
+            {actionRows.map((r) => (
+              <li key={r.id}>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("applicants")}
+                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-[hsl(var(--intel-card-hover))] ${
+                    r.primary ? "bg-primary/[0.06]" : ""
+                  }`}
+                >
+                  <span
+                    className={`w-6 shrink-0 font-mono text-sm font-semibold tabular-nums ${
+                      r.primary ? "text-primary" : "text-foreground"
+                    }`}
+                  >
+                    {r.count}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">{r.label}</span>
+                  <span className="shrink-0 text-xs font-medium text-muted-foreground">{r.verb} →</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
 
-      {/* ── Detail row ── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Panel title="Top AI matches" icon={UserCheck}>
-          {(() => {
-            const topMatches = applicants
-              .filter((a) => a.aiAnalysis?.fitScore != null)
-              .sort((a, b) => (b.aiAnalysis?.fitScore ?? 0) - (a.aiAnalysis?.fitScore ?? 0))
-              .slice(0, 5);
-            if (topMatches.length === 0) return <p className="py-6 text-center text-sm text-muted-foreground">No AI analyses yet</p>;
-            return (
-              <div className="space-y-1">
-                {topMatches.map((a, i) => {
-                  const job = jobs.find((j) => j.id === a.jobId);
-                  const score = a.aiAnalysis!.fitScore;
-                  const tier = score >= 85 ? "Top" : score >= 70 ? "Strong" : score >= 50 ? "Moderate" : "Weak";
+      {/* ── Applications per open role + Best unreviewed candidates ── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Panel title="Applications per open role" icon={Briefcase}>
+          {roleLoad.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">No open roles.</p>
+          ) : (
+            <>
+              <p className="mb-3 text-[11px] text-muted-foreground">
+                All {roleLoad.length} open roles. The short bars are the point.
+              </p>
+              <ul className="space-y-2">
+                {roleLoad.map((r) => {
+                  const widthPct = Math.max((r.count / maxRoleCount) * 100, 1.5);
+                  const color =
+                    r.count <= LOW_VOLUME_MAX
+                      ? "hsl(var(--chart-4))"
+                      : r.count <= MID_VOLUME_MAX
+                      ? "hsl(var(--chart-5))"
+                      : "hsl(var(--chart-1))";
                   return (
-                    <div key={a.id} className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[hsl(var(--intel-card-hover))]">
-                      <span className="w-5 text-center font-mono text-xs font-semibold tabular-nums text-muted-foreground/50">{i + 1}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-foreground">{a.fullName}</p>
-                        <p className="truncate text-[11px] text-muted-foreground">{job?.title || "Unknown"}</p>
+                    <li key={r.jobId} className="flex items-center gap-3">
+                      <span className="w-[42%] truncate text-sm text-foreground" title={r.title}>
+                        {r.title}
+                      </span>
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary/40">
+                        <div className="h-full rounded-full" style={{ width: `${widthPct}%`, background: color }} />
                       </div>
-                      <Badge variant="secondary" className={`shrink-0 border-0 text-[10px] ${tierSoft(tier)}`}>{tier}</Badge>
-                      <span className="w-8 text-right font-mono text-sm font-semibold tabular-nums text-primary">{score}</span>
-                    </div>
+                      <span className="w-7 shrink-0 text-right text-sm font-medium tabular-nums text-foreground">
+                        {r.count}
+                      </span>
+                    </li>
                   );
                 })}
-              </div>
-            );
-          })()}
+              </ul>
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                Pink under {LOW_VOLUME_MAX + 1} applicants, amber under {MID_VOLUME_MAX + 1}.
+              </p>
+            </>
+          )}
         </Panel>
 
-        <Panel title="Top jobs by applicants" icon={Star}>
-          <div className="space-y-1">
-            {topJobs.map((j, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[hsl(var(--intel-card-hover))]">
-                <span className="w-5 text-center font-mono text-xs font-semibold tabular-nums text-muted-foreground/50">{i + 1}</span>
-                <p className="min-w-0 flex-1 truncate text-sm text-foreground">{j.title}</p>
-                <Badge variant="secondary" className={`shrink-0 border-0 text-[10px] ${j.status === "open" ? TONE_SOFT.success : "bg-muted text-muted-foreground"}`}>{j.status}</Badge>
-                <span className="w-7 text-right font-mono text-sm font-semibold tabular-nums text-foreground">{j.count}</span>
-              </div>
-            ))}
-            {topJobs.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">No jobs yet</p>}
-          </div>
-        </Panel>
-
-        <Panel title="Recent activity" icon={Clock}>
-          {recentActivity.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No activity yet</p>
+        <Panel
+          title="Best candidates you haven't reviewed"
+          icon={UserCheck}
+          action={
+            <Select value={effectiveRoleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="h-7 w-[170px] text-xs" aria-label="Filter by role">
+                <SelectValue placeholder="All roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All roles</SelectItem>
+                {filterableRoles.map((r) => (
+                  <SelectItem key={r.jobId} value={r.jobId}>
+                    {r.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
+        >
+          {shortlist.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              {quality.scored === 0
+                ? "No scored candidates yet."
+                : effectiveRoleFilter === "all"
+                ? "Every scored candidate has been reviewed."
+                : "No unreviewed candidates for this role."}
+            </p>
           ) : (
-            <div className="space-y-3">
-              {recentActivity.map((item) => (
-                <div key={item.id} className="flex items-start gap-2.5">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm">
-                      <span className="font-medium text-foreground">{item.name}</span>
-                      <span className="text-muted-foreground"> {item.action}</span>
-                    </p>
-                    <p className="truncate text-[11px] text-muted-foreground">{item.job}</p>
-                  </div>
-                  <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground">
-                    {new Date(item.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                  </span>
-                </div>
+            <ul className="space-y-1">
+              {shortlist.map((a) => (
+                <li key={a.id}>
+                  {/* This row used to dump you on the undifferentiated Applicants
+                      list — it had no way to name a person, because onNavigate only
+                      takes a tab. Now that every candidate has a URL it goes
+                      straight to them, and being an anchor means right-click "open
+                      in new tab" works for triaging several at once. */}
+                  <Link
+                    to={applicantHref(a.id)}
+                    className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-[hsl(var(--intel-card-hover))]"
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                      {initialsFor(a.fullName)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm text-foreground">{a.fullName}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">{roleTitleFor(a)}</p>
+                    </div>
+                    <span className="shrink-0 text-sm font-bold tabular-nums text-primary">
+                      {a.aiAnalysis?.fitScore}
+                    </span>
+                  </Link>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </Panel>
       </div>
@@ -458,3 +345,32 @@ const DashboardOverview = ({ jobs, applicants, onNavigate }: DashboardOverviewPr
 };
 
 export default DashboardOverview;
+
+/** One horizontal bar split into proportional segments, with a legend beneath.
+ *  Segments below ~1% still render at a floor width so a single candidate stays visible.
+ *  Color travels per-row (not a shared palette indexed by position) so it can never
+ *  collide or drift if a row set grows, shrinks, or reorders. */
+function Strip({ rows, total }: {
+  rows: { label: string; count: number; color: string }[]; total: number;
+}) {
+  if (total === 0) return null;
+  return (
+    <>
+      <div className="flex h-3.5 overflow-hidden rounded-full bg-secondary/40" role="img"
+        aria-label={rows.map(r => `${r.label} ${r.count}`).join(", ")}>
+        {rows.map((r) => r.count > 0 && (
+          <div key={r.label} title={`${r.label}: ${r.count}`}
+            style={{ width: `${Math.max((r.count / total) * 100, 0.6)}%`, background: r.color }} />
+        ))}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+        {rows.map((r) => (
+          <span key={r.label} className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-sm" style={{ background: r.color }} aria-hidden="true" />
+            {r.label} <span className="font-medium text-foreground tabular-nums">{r.count}</span>
+          </span>
+        ))}
+      </div>
+    </>
+  );
+}

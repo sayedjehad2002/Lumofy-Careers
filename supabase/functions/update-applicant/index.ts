@@ -15,6 +15,27 @@ import { validateSession, writeDenied } from "../_shared/validate-session.ts";
 // never edit or erase what a colleague wrote.
 const VIEWER_UPDATE_FIELDS = new Set(["appendNote", "rating", "ai_analysis"]);
 
+/**
+ * Append to the candidate's history.
+ *
+ * The actor is taken from the validated session, never from the request body —
+ * a client that could name its own author would make the trail worthless.
+ *
+ * Deliberately fire-and-forget: a candidate's stage change has already been
+ * written and acknowledged by the time this runs, so a logging failure must not
+ * fail the operation the user actually asked for. It is logged server-side
+ * instead, which is the right trade for an audit trail that is a record of
+ * business actions rather than a compliance control.
+ */
+async function recordEvents(
+  supabase: { from: (t: string) => { insert: (rows: unknown[]) => Promise<{ error: unknown }> } },
+  rows: Record<string, unknown>[],
+) {
+  if (rows.length === 0) return;
+  const { error } = await supabase.from("applicant_events").insert(rows);
+  if (error) console.error("applicant_events insert failed:", error);
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -25,7 +46,7 @@ Deno.serve(async (req) => {
     const rl = isRateLimited(`update-applicant:${ip}`, { maxRequests: 60, windowMs: 60_000 });
     if (rl.limited) return rateLimitResponse(corsHeaders, rl.retryAfterMs);
 
-    const { sessionToken, applicantId, updates, action, applicant } = await req.json();
+    const { sessionToken, applicantId, applicantIds, updates, action, applicant } = await req.json();
 
     const auth = await validateSession(sessionToken, corsHeaders);
     if (!auth.valid) return auth.response;
@@ -76,6 +97,65 @@ Deno.serve(async (req) => {
       });
     }
 
+    // BULK STAGE MOVE: one statement for a whole selection.
+    //
+    // The Pipeline board lets HR select many candidates and move them together —
+    // with 300+ sitting in New that is the only way triage is finishable. Doing it
+    // client-side would mean one request (and one optimistic re-render of every
+    // context consumer) per candidate, plus a partial-failure state to reconcile.
+    // A single `.in()` update is one round trip and one failure mode.
+    //
+    // Deliberately narrower than the single-applicant path: status only. Bulk-editing
+    // names or emails is not a thing anyone should be able to do by accident.
+    if (Array.isArray(applicantIds)) {
+      const ids = applicantIds.filter((v: unknown): v is string => typeof v === "string" && v.length > 0);
+      // Bounded so a malformed client cannot rewrite the whole table in one call.
+      if (ids.length === 0 || ids.length > 500) {
+        return new Response(JSON.stringify({ error: "applicantIds must hold between 1 and 500 ids" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const status = updates?.status;
+      if (typeof status !== "string" || !status) {
+        return new Response(JSON.stringify({ error: "Bulk updates support status only" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Read the stages we are moving people OUT of, so the history records a
+      // real transition ("Reviewing -> Hired") rather than just a destination.
+      const { data: before } = await auth.supabase
+        .from("applicants").select("id, status").in("id", ids);
+      const previous = new Map<string, string>((before ?? []).map((r) => [r.id as string, r.status as string]));
+
+      const { data: moved, error: bulkErr } = await auth.supabase
+        .from("applicants")
+        .update({ status, stage_entered_at: new Date().toISOString() })
+        .in("id", ids)
+        .select("id");
+      if (bulkErr) {
+        console.error("Bulk update applicant error:", bulkErr);
+        return new Response(JSON.stringify({ error: "Failed to move candidates" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // One history row per candidate that actually moved, so a bulk action is
+      // as auditable as a single one.
+      await recordEvents(auth.supabase, (moved ?? []).map((r) => ({
+        applicant_id: r.id,
+        kind: "stage_change",
+        actor_email: auth.email,
+        actor_user_id: auth.userId,
+        from_status: previous.get(r.id as string) ?? null,
+        to_status: status,
+      })));
+
+      // Return what actually changed, not what was asked for — the client trims
+      // its optimistic update to match rather than assuming every id landed.
+      return new Response(JSON.stringify({ success: true, updated: (moved ?? []).map((r) => r.id) }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!applicantId || !updates) {
       return new Response(JSON.stringify({ error: "applicantId and updates are required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -103,6 +183,17 @@ Deno.serve(async (req) => {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      // The note text still lands in applicants.notes (that array is what the
+      // profile renders today), and the history row is what carries the author
+      // and the time — neither of which the array can hold.
+      await recordEvents(auth.supabase, [{
+        applicant_id: applicantId,
+        kind: "note",
+        actor_email: auth.email,
+        actor_user_id: auth.userId,
+        note,
+      }]);
+
       return new Response(JSON.stringify({ success: true, notes }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -129,6 +220,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Only when the stage is actually part of this write, and only to learn what
+    // we are moving away from — an extra read on every field edit would be waste.
+    let priorStatus: string | null = null;
+    if (typeof sanitizedUpdates.status === "string") {
+      const { data: prior } = await auth.supabase
+        .from("applicants").select("status").eq("id", applicantId).single();
+      priorStatus = (prior?.status as string) ?? null;
+    }
+
     const { error } = await auth.supabase
       .from("applicants")
       .update(sanitizedUpdates)
@@ -139,6 +239,19 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Failed to update applicant" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // A no-op re-save of the same stage is not a move and does not belong in the
+    // history — it would pad the trail with rows that record nothing happening.
+    if (typeof sanitizedUpdates.status === "string" && sanitizedUpdates.status !== priorStatus) {
+      await recordEvents(auth.supabase, [{
+        applicant_id: applicantId,
+        kind: "stage_change",
+        actor_email: auth.email,
+        actor_user_id: auth.userId,
+        from_status: priorStatus,
+        to_status: sanitizedUpdates.status,
+      }]);
     }
 
     return new Response(JSON.stringify({ success: true }), {

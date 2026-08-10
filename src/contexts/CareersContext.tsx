@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { adminQuery } from "@/lib/adminQuery";
+import { getAttribution } from "@/lib/attribution";
 import { toTitleCase, applicantDisplayName } from "@/lib/utils";
 import type { Job, Applicant, ApplicantStatus, AIAnalysis, ScreeningQuestion, CandidateRating, AIScoringWeights, DEFAULT_AI_WEIGHTS } from "@/types/careers";
 
@@ -23,6 +24,8 @@ interface CareersContextType {
   addApplicant: (applicant: Applicant) => Promise<string>;
   deleteApplicant: (applicantId: string) => Promise<void>;
   updateApplicantStatus: (applicantId: string, status: ApplicantStatus) => Promise<void>;
+  /** Move a selection to one stage in a single request. Resolves with the ids the server actually updated. */
+  updateApplicantStatusBulk: (applicantIds: string[], status: ApplicantStatus) => Promise<{ updated: string[] }>;
   addApplicantNote: (applicantId: string, note: string) => Promise<void>;
   updateApplicantAI: (applicantId: string, analysis: AIAnalysis) => Promise<void>;
   /** Inline-edit a candidate's identity/contact fields (HR "edit like a Notion page"). */
@@ -129,6 +132,11 @@ export function dbRowToApplicant(row: any): Applicant {
     appliedDate: row.applied_date,
     notes: row.notes as string[],
     rating: row.rating as CandidateRating | undefined,
+    source: row.source || undefined,
+    referrer: row.referrer || undefined,
+    utmSource: row.utm_source || undefined,
+    utmMedium: row.utm_medium || undefined,
+    utmCampaign: row.utm_campaign || undefined,
     aiAnalysis: row.ai_analysis as AIAnalysis | undefined,
     stageEnteredAt: row.stage_entered_at || undefined,
   };
@@ -328,6 +336,9 @@ export function CareersProvider({ children }: { children: ReactNode }) {
         cv_file_type: applicant.cvFileType,
         cv_file_size: applicant.cvFileSize,
         screening_answers: applicant.screeningAnswers,
+        // Where this visit came from, captured on arrival. The server decides the
+        // channel label from it — the client never names its own source.
+        attribution: getAttribution(),
       },
     });
     if (error) {
@@ -371,6 +382,60 @@ export function CareersProvider({ children }: { children: ReactNode }) {
       if (oldStatus) setApplicants(prev => prev.map(a => a.id === applicantId ? { ...a, status: oldStatus!, stageEnteredAt: oldStageEnteredAt } : a));
       throw new Error(error?.message || data?.error || "Update failed");
     }
+  }, [sessionToken]);
+
+  /**
+   * Move a whole selection to one stage in a single request.
+   *
+   * One `.in()` update server-side rather than N calls: the Pipeline board's
+   * bulk triage regularly moves dozens at once, and looping client-side would
+   * fire one optimistic setApplicants (and so one re-render of every consumer of
+   * this context) per candidate, with a partial-failure state to reconcile
+   * afterwards.
+   *
+   * Optimistic with rollback, same as the single-applicant path. The server
+   * returns the ids it actually updated, and anything missing from that list is
+   * rolled back — so a partial write shows the truth rather than the optimistic
+   * guess.
+   */
+  const updateApplicantStatusBulk = useCallback(async (applicantIds: string[], status: ApplicantStatus) => {
+    if (!sessionToken) throw new Error("Not authenticated");
+    const ids = new Set(applicantIds);
+    if (ids.size === 0) return { updated: [] as string[] };
+
+    const previous = new Map<string, { status: ApplicantStatus; stageEnteredAt?: string }>();
+    const now = new Date().toISOString();
+    setApplicants(prev => prev.map(a => {
+      if (!ids.has(a.id)) return a;
+      previous.set(a.id, { status: a.status, stageEnteredAt: a.stageEnteredAt });
+      return { ...a, status, stageEnteredAt: now };
+    }));
+
+    const rollback = (targets: Iterable<string>) => {
+      const set = new Set(targets);
+      if (set.size === 0) return;
+      setApplicants(prev => prev.map(a => {
+        const before = set.has(a.id) ? previous.get(a.id) : undefined;
+        return before ? { ...a, status: before.status, stageEnteredAt: before.stageEnteredAt } : a;
+      }));
+    };
+
+    const { data, error } = await supabase.functions.invoke("update-applicant", {
+      body: { sessionToken, applicantIds: [...ids], updates: { status } },
+    });
+    if (error || data?.error) {
+      // `if` rather than the `DEV && ...` shorthand used elsewhere in this file:
+      // same behaviour, but it doesn't add another no-unused-expressions error to
+      // the lint debt CI is waiting to make blocking.
+      if (import.meta.env.DEV) console.error("updateApplicantStatusBulk error:", error || data?.error);
+      rollback(ids);
+      throw new Error(error?.message || data?.error || "Bulk update failed");
+    }
+
+    const updated: string[] = Array.isArray(data?.updated) ? data.updated : [...ids];
+    const missed = [...ids].filter(id => !updated.includes(id));
+    rollback(missed);
+    return { updated };
   }, [sessionToken]);
 
   const addApplicantNote = useCallback(async (applicantId: string, note: string) => {
@@ -449,7 +514,7 @@ export function CareersProvider({ children }: { children: ReactNode }) {
   const getJobById = useCallback((id: string) => jobs.find(j => j.id === id), [jobs]);
 
   return (
-    <CareersContext.Provider value={{ jobs, applicants, loading, sessionToken, setSessionToken, authReady, isHrUser, hrRole, hrEmail, hrChecked, addJob, updateJob, deleteJob, archiveJob, restoreJob, addApplicant, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, updateApplicantFields, getJobById, refreshData: fetchData, silentRefresh, lastUpdated, refreshing }}>
+    <CareersContext.Provider value={{ jobs, applicants, loading, sessionToken, setSessionToken, authReady, isHrUser, hrRole, hrEmail, hrChecked, addJob, updateJob, deleteJob, archiveJob, restoreJob, addApplicant, deleteApplicant, updateApplicantStatus, updateApplicantStatusBulk, addApplicantNote, updateApplicantAI, updateApplicantFields, getJobById, refreshData: fetchData, silentRefresh, lastUpdated, refreshing }}>
       {children}
     </CareersContext.Provider>
   );

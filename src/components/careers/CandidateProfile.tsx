@@ -26,6 +26,8 @@ import EmailTemplates from "@/components/careers/applicants/EmailTemplates";
 import ScheduleMeeting from "@/components/careers/applicants/ScheduleMeeting";
 import EditableText from "@/components/careers/applicants/EditableText";
 import CandidateTimeline from "@/components/careers/applicants/CandidateTimeline";
+import InternalNotes from "@/components/careers/applicants/InternalNotes";
+import { useApplicantEvents } from "@/hooks/use-applicant-events";
 import { useCareers } from "@/contexts/CareersContext";
 import { toTitleCase } from "@/lib/utils";
 import { APPLICANT_STATUSES, type ApplicantStatus, type Applicant, type Job, type AIAnalysis } from "@/types/careers";
@@ -40,7 +42,6 @@ interface CandidateProfileProps {
   onStatusUpdate: (applicantId: string, status: ApplicantStatus) => Promise<void>;
   onAddNote: (applicantId: string, note: string) => Promise<void>;
   onAIComplete: (applicantId: string, analysis: AIAnalysis) => void;
-  onApplicantChange: (applicant: Applicant) => void;
   onDelete?: (applicantId: string) => Promise<void>;
 }
 
@@ -56,15 +57,18 @@ const TERMINAL_STAGES: ApplicantStatus[] = ["rejected", "hired"];
 // rating, timeline). Replaces the old five-cards-before-the-analysis stack.
 const CandidateProfile = ({
   applicant, job, sessionToken, onBack,
-  onStatusUpdate, onAddNote, onAIComplete, onApplicantChange, onDelete
+  onStatusUpdate, onAddNote, onAIComplete, onDelete
 }: CandidateProfileProps) => {
-  const [noteInput, setNoteInput] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
   const [cvLoading, setCvLoading] = useState(false);
   const [outreachTool, setOutreachTool] = useState<"none" | "email" | "meeting">("none");
   const [recovering, setRecovering] = useState(false);
 
   const { updateApplicantFields, jobs, refreshData } = useCareers();
+
+  // Who moved this candidate between stages, and who wrote each note.
+  const { events, reload: reloadHistory } =
+    useApplicantEvents(applicant.id, sessionToken);
 
   // Ask the AI to transcribe the contact block off the CV. Only ever fills fields
   // that are empty (server-enforced), so it can't overwrite anything HR typed.
@@ -130,7 +134,6 @@ const CandidateProfile = ({
         }).catch(() => { /* non-blocking */ });
       }
 
-      onApplicantChange({ ...applicant, jobId: target.id, jobTitle: target.title, notes: [...applicant.notes, moveNote] });
       refreshData();
       toast.success(`${applicant.fullName || "Candidate"} moved to ${target.title} — re-running AI analysis for the new role`);
       setMoveJobOpen(false);
@@ -146,7 +149,6 @@ const CandidateProfile = ({
   const saveField = async (field: EditableField, value: string) => {
     try {
       await updateApplicantFields(applicant.id, { [field]: value } as Partial<Pick<Applicant, EditableField>>);
-      onApplicantChange({ ...applicant, [field]: field === "fullName" ? toTitleCase(value) : value });
       toast.success("Saved");
     } catch (e) {
       toast.error("Couldn't save changes");
@@ -184,16 +186,6 @@ const CandidateProfile = ({
   null;
 
   // Collapse exact duplicate notes into one entry with a count (graceful dupes).
-  const dedupedNotes = useMemo(() => {
-    const seen = new Map<string, { note: string; count: number; firstIndex: number }>();
-    applicant.notes.forEach((note, i) => {
-      const existing = seen.get(note);
-      if (existing) existing.count += 1;
-      else seen.set(note, { note, count: 1, firstIndex: i });
-    });
-    return Array.from(seen.values());
-  }, [applicant.notes]);
-
   const openCv = useCallback(async (inline: boolean) => {
     if (!applicant.cvStoragePath) {
       toast.error("No CV file available");
@@ -229,14 +221,15 @@ const CandidateProfile = ({
     }
   }, [applicant.cvStoragePath, applicant.id, sessionToken]);
 
-  const handleAddNote = async () => {
-    if (!noteInput.trim() || noteSaving) return; // guard re-entry (double click / Enter+click)
-    const text = noteInput.trim();
+  const handleAddNote = async (raw: string) => {
+    const text = raw.trim();
+    if (!text || noteSaving) return; // guard re-entry (double click / Enter+click)
     setNoteSaving(true);
     try {
       await onAddNote(applicant.id, text);
-      onApplicantChange({ ...applicant, notes: [...applicant.notes, text] });
-      setNoteInput("");
+      // Pull the history back so the new note appears with your name on it
+      // immediately, rather than only after a reload.
+      void reloadHistory();
       toast.success("Note added");
     } catch {
       toast.error("Couldn't save the note. Please try again.");
@@ -248,7 +241,7 @@ const CandidateProfile = ({
   const handleStatusChange = async (status: ApplicantStatus) => {
     try {
       await onStatusUpdate(applicant.id, status);
-      onApplicantChange({ ...applicant, status, stageEnteredAt: new Date().toISOString() });
+      void reloadHistory();
     } catch {
       // onStatusUpdate already toasted; keep the profile showing the REAL status.
     }
@@ -529,7 +522,6 @@ const CandidateProfile = ({
               sessionToken={sessionToken}
               onAnalysisComplete={(applicantId, analysis) => {
                 onAIComplete(applicantId, analysis);
-                onApplicantChange({ ...applicant, aiAnalysis: analysis });
                 // analyze-cv also backfills an EMPTY name / email / phone straight
                 // from the CV it just read, so pull the row again — otherwise the
                 // recovered contact details wouldn't appear until a manual reload
@@ -591,41 +583,12 @@ const CandidateProfile = ({
         {/* ===== Right column — action ===== */}
         <div className="space-y-6">
           {/* Internal notes */}
-          <motion.div
-            className="rounded-2xl border border-border bg-card p-5 light-glow"
-            initial={{ opacity: 0, x: 15 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}>
-            <h3 className="mb-3 flex items-center gap-2 font-semibold">
-              <MessageSquare className="w-4 h-4 text-primary" aria-hidden="true" />
-              Internal Notes
-            </h3>
-            <div className="mb-3 max-h-64 space-y-2 overflow-y-auto">
-              {dedupedNotes.map((n) =>
-              <div key={n.firstIndex} className="rounded-lg bg-secondary p-2.5 text-sm text-muted-foreground">
-                  <p>{n.note}</p>
-                  <p className="mt-1 text-[10px] text-muted-foreground/60">
-                    Note #{n.firstIndex + 1}{n.count > 1 ? ` · added ${n.count}×` : ""}
-                  </p>
-                </div>
-              )}
-              {applicant.notes.length === 0 &&
-              <p className="text-sm text-muted-foreground">No notes yet.</p>
-              }
-            </div>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add a note..."
-                aria-label="Add a note"
-                value={noteInput}
-                onChange={(e) => setNoteInput(e.target.value)}
-                className="border-border bg-secondary text-sm"
-                onKeyDown={(e) => e.key === "Enter" && handleAddNote()} />
-              <Button size="sm" onClick={handleAddNote} disabled={noteSaving}>
-                {noteSaving ? "Saving…" : "Add"}
-              </Button>
-            </div>
-          </motion.div>
+          <InternalNotes
+            notes={applicant.notes}
+            events={events}
+            saving={noteSaving}
+            onAdd={handleAddNote}
+          />
 
           {/* Outreach — opened on demand. Both tools are full-height forms; left
               permanently expanded they pushed the CV, candidate details and
@@ -803,7 +766,7 @@ const CandidateProfile = ({
             initial={{ opacity: 0, x: 15 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3, delay: 0.25 }}>
-            <CandidateTimeline applicant={applicant} />
+            <CandidateTimeline applicant={applicant} events={events} />
           </motion.div>
         </div>
       </div>

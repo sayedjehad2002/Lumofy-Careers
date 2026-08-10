@@ -59,7 +59,7 @@ if (-not $env:SUPABASE_ACCESS_TOKEN) {
 }
 
 $allFunctions = @(
-  "admin-data", "ai-job-assist", "analyze-cv", "auto-analyze-applicant",
+  "admin-data", "ai-job-assist", "analyze-cv", "applicant-events", "auto-analyze-applicant",
   "cv-library-analyze", "cv-library-classify", "cv-library-manage", "cv-library-parse",
   "cv-library-upload", "delete-applicant", "get-applicants", "get-cv-url", "get-jd-url",
   "hr-invite-accept", "hr-me", "hr-team", "logout", "submit-application",

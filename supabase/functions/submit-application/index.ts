@@ -65,8 +65,46 @@ Deno.serve(async (req) => {
       full_name, email, phone, location, nationality,
       linkedin, portfolio, cover_letter,
       cv_file_name, cv_storage_path, cv_file_type, cv_file_size,
-      screening_answers,
+      screening_answers, attribution,
     } = body as Record<string, unknown>;
+
+    // Normalise the channel HERE rather than trusting a label from the browser:
+    // the client sends only raw signals (referrer host, utm tags) and the server
+    // decides what they mean, so the reporting vocabulary stays consistent and
+    // cannot be spoofed into a made-up channel.
+    const attr = (attribution && typeof attribution === "object" ? attribution : {}) as Record<string, unknown>;
+    const attrStr = (v: unknown, max: number) => {
+      const s = typeof v === "string" ? v.trim() : "";
+      return s ? s.slice(0, max) : null;
+    };
+    const utmSource = attrStr(attr.utm_source, 80);
+    const utmMedium = attrStr(attr.utm_medium, 80);
+    const utmCampaign = attrStr(attr.utm_campaign, 120);
+    const referrer = attrStr(attr.referrer, 300);
+
+    const channelFrom = (host: string): string | null => {
+      const h = host.toLowerCase().replace(/^www\./, "");
+      if (h.includes("linkedin")) return "LinkedIn";
+      if (h.includes("google")) return "Google";
+      if (h.includes("bing") || h.includes("duckduckgo") || h.includes("yahoo")) return "Search";
+      if (h.includes("facebook") || h.includes("instagram") || h.includes("fb.")) return "Facebook/Instagram";
+      if (h.includes("twitter") || h === "t.co" || h.includes("x.com")) return "X/Twitter";
+      if (h.includes("whatsapp")) return "WhatsApp";
+      if (h.includes("t.me") || h.includes("telegram")) return "Telegram";
+      if (h.includes("indeed") || h.includes("bayt") || h.includes("glassdoor") || h.includes("naukri")) return "Job board";
+      if (h.includes("mail.google") || h.includes("outlook") || h.includes("mail.")) return "Email";
+      return h ? `Referral: ${h}` : null;
+    };
+
+    let source = "Direct";
+    if (utmSource) {
+      // A campaign tag is the most deliberate signal available, so it wins.
+      source = channelFrom(utmSource) ?? utmSource.replace(/\b\w/g, (c) => c.toUpperCase()).slice(0, 60);
+    } else if (referrer) {
+      let host = "";
+      try { host = new URL(referrer).host; } catch { host = ""; }
+      source = channelFrom(host) ?? "Direct";
+    }
 
     // --- jobId ---
     if (typeof jobId !== "string" || !SAFE_ID_RE.test(jobId)) {
@@ -259,6 +297,13 @@ Deno.serve(async (req) => {
       cv_file_type: cvFileType,
       cv_file_size: cvFileSize,
       screening_answers: screeningAnswers,
+      // Always written from here on, so a NULL source means exactly one thing:
+      // the application predates tracking. Historic rows stay honestly untracked.
+      source,
+      referrer,
+      utm_source: utmSource,
+      utm_medium: utmMedium,
+      utm_campaign: utmCampaign,
     };
 
     const { error: insertErr } = await supabase.from("applicants").insert(row as any);

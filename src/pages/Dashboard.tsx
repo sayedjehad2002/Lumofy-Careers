@@ -1,19 +1,12 @@
 import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from "react";
-import { createPortal } from "react-dom";
 import lumofyLogo from "@/assets/lumofy-mark.png";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
-  Briefcase, Users, BarChart3, ChevronDown,
-  Eye, EyeOff, MapPin, Clock, FileText, Star, MessageSquare,
-  ArrowLeft, ExternalLink, LogOut, Plus, Pencil, Trash2, Copy, Brain,
-  Download, Loader2, AlertCircle, GripVertical, LayoutDashboard, AlertTriangle, Sparkles, Library, TrendingUp, Search, ClipboardList, BookOpen, Zap, UsersRound, Archive, ArchiveRestore, Timer, Minimize2, Maximize2
+  Briefcase, Users, BarChart3, ExternalLink, LogOut,
+  Loader2, LayoutDashboard, Library, Search, UsersRound, UserX
 } from "lucide-react";
 import CommandPalette from "@/components/careers/CommandPalette";
-import PipelineCandidateCard from "@/components/careers/PipelineCandidateCard";
-import { DragDropContext, Droppable, Draggable, type DropResult, type DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -25,7 +18,7 @@ import {
 import { useCareers } from "@/contexts/CareersContext";
 import { supabase } from "@/integrations/supabase/client";
 import { emailInitials } from "@/lib/utils";
-import { APPLICANT_STATUSES, STAGE_SLA_DAYS, type ApplicantStatus, type Applicant, type Job, type AIAnalysis } from "@/types/careers";
+import { APPLICANT_STATUSES, type ApplicantStatus, type Applicant, type Job } from "@/types/careers";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 
 const tabContentVariants = {
@@ -46,14 +39,22 @@ import { toast } from "sonner";
 import ThemeToggle from "@/components/ThemeToggle";
 import DashboardAuth from "@/components/careers/DashboardAuth";
 import JobFormModal from "@/components/careers/JobFormModal";
-const DashboardOverview = lazy(() => import("@/components/careers/DashboardOverview")); // lazy: defers the recharts (~108KB) chunk off the dashboard's initial paint
+const DashboardOverview = lazy(() => import("@/components/careers/DashboardOverview")); // lazy: keeps the Overview screen's own code out of the dashboard's initial bundle, so first paint isn't gated on whichever tab loads it
 import CandidateProfile from "@/components/careers/CandidateProfile";
 import CVLibrary from "@/components/careers/CVLibrary";
 import HrTeam from "@/components/careers/HrTeam";
-import ShareJobLink, { jobApplyUrl } from "@/components/careers/ShareJobLink";
-import ApplicantsListView from "@/components/careers/ApplicantsListView";
-import ContactRecoveryBanner from "@/components/careers/applicants/ContactRecoveryBanner";
-import PipelineHealthScorecard from "@/components/careers/pipeline/PipelineHealthScorecard";
+import { jobApplyUrl, copyJobLink } from "@/components/careers/ShareJobLink";
+import JobsView from "@/components/careers/jobs/JobsView";
+import ApplicantsRoster from "@/components/careers/applicants/ApplicantsRoster";
+// lazy: the board pulls in @hello-pangea/dnd, which no other tab needs — keeping
+// it behind a dynamic import takes the whole drag-and-drop chunk off the
+// dashboard's critical path, same as DashboardOverview above.
+const PipelineBoard = lazy(() => import("@/components/careers/pipeline/PipelineBoard"));
+// lazy: shares the recharts chunk — only loaded when the Sources sub-route opens.
+const SourceAnalytics = lazy(() => import("@/components/careers/applicants/SourceAnalytics"));
+// From its own module, deliberately: importing these from PipelineBoard.tsx would
+// pull the board back into this chunk and undo the lazy split above.
+import { INITIAL_PIPELINE_VIEW, type PipelineViewState } from "@/components/careers/pipeline/pipelineView";
 
 type Tab = "overview" | "jobs" | "applicants" | "pipeline" | "cv-library" | "hr-team";
 
@@ -72,37 +73,99 @@ const MotionLink = motion(Link);
 // stage, or be moved back one step (to correct mistakes). "hired"/"rejected"
 // are terminal except for reverting out of them.
 const Dashboard = () => {
-  const { jobs, applicants, loading, sessionToken, authReady, isHrUser, hrEmail, hrRole, hrChecked, addJob, updateJob, archiveJob, restoreJob, deleteApplicant, updateApplicantStatus, addApplicantNote, updateApplicantAI, refreshData } = useCareers();
+  const { jobs, applicants, loading, sessionToken, authReady, isHrUser, hrEmail, hrRole, hrChecked, addJob, updateJob, archiveJob, restoreJob, deleteApplicant, updateApplicantStatus, updateApplicantStatusBulk, addApplicantNote, updateApplicantAI, refreshData } = useCareers();
   // The section lives in the URL rather than component state: every tab is then
   // bookmarkable, shareable, survives a refresh, and the browser's back button
   // and "open in new tab" behave the way people expect.
   const { tab: tabParam, sub: subParam } = useParams<{ tab?: string; sub?: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const activeTab: Tab = isTab(tabParam) ? tabParam : "overview";
   const setActiveTab = useCallback(
     (t: Tab, sub?: string) => navigate(dashboardPath(t, sub)),
     [navigate]
   );
   const [selectedJobId, setSelectedJobId] = useState<string>("all");
-  const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
+
+  /**
+   * The open candidate is the URL, not component state.
+   *
+   * `/dashboard/applicants/<id>` reuses the existing `:tab/:sub` route, so a
+   * candidate can be bookmarked, shared with a hiring manager, opened in a new
+   * tab, and survives a refresh.
+   *
+   * Deriving it from the live `applicants` array also removes a whole class of
+   * bug: this used to be a snapshot COPY held in state, which meant every
+   * mutation had to be hand-mirrored back into it (a status write and an
+   * onApplicantChange callback both did) or the open profile silently showed
+   * stale data. There is nothing to keep in sync now.
+   */
+  const openApplicantId = activeTab === "applicants" ? subParam : undefined;
+  const selectedApplicant = useMemo(
+    () => (openApplicantId ? applicants.find((a) => a.id === openApplicantId) ?? null : null),
+    [applicants, openApplicantId]
+  );
+  /** Set when the id in the URL matches nobody — a deleted or mistyped link, once the data is in. */
+  const applicantNotFound = !!openApplicantId && !selectedApplicant && !loading;
+
+  /**
+   * Which screen sent you here, so Close can put you back. Without this, closing a
+   * candidate you opened from the board dropped you on the Applicants list and you
+   * lost your place mid-triage. A shared link carries no origin and falls back to
+   * the list.
+   */
+  const profileOrigin: Tab = isTab(searchParams.get("from") ?? undefined)
+    ? (searchParams.get("from") as Tab)
+    : "applicants";
+
+  /** Open a candidate's page, remembering where the click came from. */
+  const openApplicant = useCallback(
+    (applicantId: string, from: Tab) =>
+      navigate(`${dashboardPath("applicants", applicantId)}?from=${from}`),
+    [navigate]
+  );
+
+  /** Href for a candidate, so names can be real anchors that middle-click and ⌘-click. */
+  const applicantHref = useCallback(
+    (applicantId: string, from: Tab) => `${dashboardPath("applicants", applicantId)}?from=${from}`,
+    []
+  );
+
+  const closeApplicant = useCallback(
+    () => navigate(dashboardPath(profileOrigin)),
+    [navigate, profileOrigin]
+  );
+
+  /** Pre-bound per screen, and stable so memoized children stay memoized. */
+  const pipelineApplicantHref = useCallback(
+    (applicantId: string) => applicantHref(applicantId, "pipeline"),
+    [applicantHref]
+  );
+  const listApplicantHref = useCallback(
+    (applicantId: string) => applicantHref(applicantId, "applicants"),
+    [applicantHref]
+  );
+  const overviewApplicantHref = useCallback(
+    (applicantId: string) => applicantHref(applicantId, "overview"),
+    [applicantHref]
+  );
   const [jobFormOpen, setJobFormOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [deleteJobTarget, setDeleteJobTarget] = useState<Job | null>(null);
   const [deletingJob, setDeletingJob] = useState(false);
 
-  // Confirmation dialog state for drag-and-drop
-  const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean;
-    applicantId: string;
-    applicantName: string;
-    targetStatus: ApplicantStatus;
-    sourceStatus: ApplicantStatus;
-  }>({ open: false, applicantId: "", applicantName: "", targetStatus: "new", sourceStatus: "new" });
+  // The board's search / sort / collapse choices live here rather than inside it:
+  // the tab content unmounts on every tab switch, and losing a search halfway
+  // through triage because you looked something up on Applicants is maddening.
+  const [pipelineView, setPipelineView] = useState<PipelineViewState>(INITIAL_PIPELINE_VIEW);
 
-  // Pipeline column collapse: manual choices win; otherwise EMPTY columns start
-  // collapsed as slim rails so the busy columns get the width. A rail is still a
-  // valid drop target, and it auto-expands the moment it receives a candidate.
-  const [collapsedCols, setCollapsedCols] = useState<Partial<Record<ApplicantStatus, boolean>>>({});
+  /**
+   * The Pipeline board manages its own height; every other screen scrolls the
+   * page. Opening a candidate now navigates to `/dashboard/applicants/<id>`, so
+   * the profile is never rendered under the pipeline tab and this is simply
+   * "is the board on screen".
+   */
+  const boardLayout = activeTab === "pipeline";
 
   const mainTabs: { id: Tab; label: string; icon: React.ReactNode; group: string }[] = [
     { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-4 h-4" />, group: "Hiring" },
@@ -119,62 +182,12 @@ const Dashboard = () => {
     return applicants.filter((a) => a.jobId === selectedJobId);
   }, [applicants, selectedJobId]);
 
-  // How many DISTINCT jobs each person (by email) has applied to. Built from ALL
-  // applicants so a card shows the person's true total even when the board is
-  // filtered to one job. Keyed by lowercased email; same person = same email.
-  const jobsAppliedByEmail = useMemo(() => {
-    const map = new Map<string, Set<string>>();
-    for (const a of applicants) {
-      const email = a.email?.trim().toLowerCase();
-      if (!email) continue;
-      const jobKey = a.jobId || a.jobTitle || "";
-      if (!map.has(email)) map.set(email, new Set());
-      map.get(email)!.add(jobKey);
-    }
-    return map;
-  }, [applicants]);
-
-  // One renderer for a pipeline card, reused by the live Draggable AND the drag
-  // clone (renderClone) so the dragged card looks identical and stays unclipped
-  // while moving across scrolling columns.
-  const renderPipelineCard = (
-    applicant: Applicant,
-    dragHandleProps: DraggableProvidedDragHandleProps | null,
-    isDragging: boolean,
-  ) => (
-    <PipelineCandidateCard
-      applicant={applicant}
-      jobTitle={applicant.jobTitle || getJobTitle(applicant.jobId)}
-      avgRating={avgRating(applicant)}
-      appliedJobsCount={applicant.email ? (jobsAppliedByEmail.get(applicant.email.trim().toLowerCase())?.size ?? 1) : 1}
-      isDragging={isDragging}
-      dragHandleProps={dragHandleProps}
-      onClick={() => { setSelectedApplicant(applicant); setActiveTab("applicants"); }}
-      onMoveToStage={(target) => {
-        // Same rules as drag-and-drop: free movement between stages, with a
-        // confirmation dialog guarding the terminal ones.
-        if (target === applicant.status) return;
-        if (target === "rejected" || target === "hired") {
-          setConfirmDialog({
-            open: true,
-            applicantId: applicant.id,
-            applicantName: applicant.fullName,
-            targetStatus: target,
-            sourceStatus: applicant.status,
-          });
-          return;
-        }
-        handleStatusUpdate(applicant.id, target);
-      }}
-    />
-  );
-
   const handleStatusUpdate = async (applicantId: string, status: ApplicantStatus) => {
     try {
+      // No profile-mirroring step here any more: the open candidate is derived
+      // from the URL against the live applicants array, so the optimistic update
+      // inside updateApplicantStatus is already what the profile renders.
       await updateApplicantStatus(applicantId, status);
-      if (selectedApplicant?.id === applicantId) {
-        setSelectedApplicant(prev => prev ? { ...prev, status, stageEnteredAt: new Date().toISOString() } : null);
-      }
       toast.success(`Status updated to ${APPLICANT_STATUSES.find(s => s.value === status)?.label || status}`);
     } catch (e) {
       toast.error("Update failed. Please retry.");
@@ -240,39 +253,32 @@ const Dashboard = () => {
     }
   };
 
-  // --- Drag and Drop ---
-  const handleDragEnd = useCallback((result: DropResult) => {
-    const { draggableId, destination, source } = result;
-    if (!destination || destination.droppableId === source.droppableId) return;
-
-    const targetStatus = destination.droppableId as ApplicantStatus;
-    const sourceStatus = source.droppableId as ApplicantStatus;
-    const applicant = applicants.find(a => a.id === draggableId);
-    if (!applicant) return;
-
-    // HR can move candidates FREELY between any stages (a strong candidate may jump
-    // straight from New to Interview) — the strict adjacent-stage laddering was
-    // blocking real workflows. Terminal moves (hired/rejected) still require the
-    // confirmation dialog below.
-    if (targetStatus === "rejected" || targetStatus === "hired") {
-      setConfirmDialog({
-        open: true,
-        applicantId: draggableId,
-        applicantName: applicant.fullName,
-        targetStatus,
-        sourceStatus,
-      });
-      return;
+  const handleToggleJobStatus = async (job: Job) => {
+    try {
+      await updateJob({ ...job, status: job.status === "open" ? "closed" : "open" });
+      toast.success(job.status === "open" ? "Job closed to new applicants" : "Job reopened");
+    } catch {
+      toast.error("Could not change the job status.");
     }
-
-    handleStatusUpdate(draggableId, targetStatus);
-  }, [applicants, handleStatusUpdate]);
-
-  const handleConfirmMove = async () => {
-    const { applicantId, targetStatus } = confirmDialog;
-    setConfirmDialog(prev => ({ ...prev, open: false }));
-    await handleStatusUpdate(applicantId, targetStatus);
   };
+
+  const handleRestoreJob = async (job: Job) => {
+    try {
+      await restoreJob(job.id);
+      toast.success("Job restored");
+    } catch {
+      toast.error("Could not restore the job.");
+    }
+  };
+
+  /** Share actions live here so the row only has to call a named callback. */
+  const shareJobToLinkedIn = (jobId: string) =>
+    window.open(
+      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(jobApplyUrl(jobId))}`,
+      "_blank", "noopener,noreferrer",
+    );
+  const openJobPublicPage = (jobId: string) =>
+    window.open(jobApplyUrl(jobId), "_blank", "noopener,noreferrer");
 
   const handleSessionExpired = useCallback(async () => {
     await supabase.auth.signOut();
@@ -325,7 +331,6 @@ const Dashboard = () => {
 
   const handleTabNavigate = (tab: string) => {
     setActiveTab(tab as Tab);
-    setSelectedApplicant(null);
   };
 
   return (
@@ -371,7 +376,6 @@ const Dashboard = () => {
                     variants={sidebarItemVariants}
                     initial="initial"
                     animate="animate"
-                    onClick={() => setSelectedApplicant(null)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] tracking-wide transition-colors duration-200 relative overflow-hidden group ${
                       activeTab === tab.id
                         ? "text-primary font-semibold"
@@ -400,37 +404,75 @@ const Dashboard = () => {
             ))}
           </LayoutGroup>
         </nav>
-        <div className="p-3 border-t border-border relative z-10 space-y-1">
-          {hrEmail && (
-            <div className="flex items-center gap-2.5 px-3 py-2 mb-1" title={hrEmail}>
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
-                {emailInitials(hrEmail)}
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70 leading-none">Logged in as</p>
-                <p className="truncate text-xs font-medium text-foreground leading-tight mt-0.5">{hrEmail}</p>
-                {/* Role is shown here because it decides what the server will
-                    accept — a viewer's edits are refused, so say so up front. */}
-                {hrRole && (
-                  <p className="mt-0.5 text-[10px] capitalize leading-none text-muted-foreground/70">
-                    {hrRole}{hrRole === "viewer" ? " · read-only" : ""}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-          <Link to="/" className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ExternalLink className="w-4 h-4" />
-            View Careers Page
+        {/* Utilities first, identity last: the account block anchors the foot of
+            the rail, which is where people reach for it, and it keeps Sign out
+            grouped with the account it signs out of rather than floating among
+            unrelated links. */}
+        <div className="relative z-10 space-y-0.5 border-t border-border p-3">
+          <Link
+            to="/"
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+          >
+            <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
+            View careers page
           </Link>
-          <div className="flex items-center justify-between px-3 py-1">
+          <div className="flex items-center justify-between rounded-lg px-3 py-1.5">
             <span className="text-sm text-muted-foreground">Theme</span>
             <ThemeToggle />
           </div>
-          <button onClick={handleSignOut} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-destructive transition-colors">
-            <LogOut className="w-4 h-4" />
-            Sign out
-          </button>
+
+          {/* The one branded surface in the chrome: Lumofy's grid motif, so the
+              account block reads as part of the product rather than a form field. */}
+          {hrEmail && (
+            <div className="lx-grid-card group/account mt-2 rounded-xl border border-border/70 bg-secondary/30 p-2.5 transition-colors duration-200 hover:border-primary/30">
+              <div className="flex items-center gap-2.5">
+                <span
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-bold text-primary ring-0 ring-primary/20 transition-all duration-200 group-hover/account:bg-primary/25 group-hover/account:ring-4"
+                  aria-hidden="true"
+                >
+                  {emailInitials(hrEmail)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold leading-tight text-foreground" title={hrEmail}>
+                    {hrEmail}
+                  </p>
+                  {/* Role is surfaced because it decides what the server will
+                      accept: a viewer's edits come back refused, so it is fairer
+                      to say so before they try than after. */}
+                  {hrRole && (
+                    <span
+                      className={`mt-1 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium capitalize leading-none ${
+                        hrRole === "owner"
+                          ? "bg-primary/15 text-primary"
+                          : hrRole === "viewer"
+                            ? "bg-secondary text-muted-foreground"
+                            : "bg-secondary text-muted-foreground"
+                      }`}
+                    >
+                      {hrRole === "viewer" ? "Viewer · read-only" : hrRole}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {/* No divider rule here. The grid's vertical lines crossed it and
+                  turned it into a row of tick marks that read as a second,
+                  misaligned grid. Spacing separates the two blocks well enough. */}
+              <div className="mt-2 pt-0.5">
+                <button
+                  onClick={handleSignOut}
+                  className="group/signout flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-muted-foreground transition-colors duration-200 hover:bg-destructive/10 hover:text-destructive focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/50"
+                >
+                  {/* Leaving-the-building nudge: the icon slides out as you hover,
+                      so the direction of the action is legible before you click. */}
+                  <LogOut
+                    className="h-3.5 w-3.5 shrink-0 transition-transform duration-200 group-hover/signout:translate-x-0.5"
+                    aria-hidden="true"
+                  />
+                  Sign out
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -455,7 +497,6 @@ const Dashboard = () => {
             <Link
               key={tab.id}
               to={dashboardPath(tab.id)}
-              onClick={() => setSelectedApplicant(null)}
               aria-current={activeTab === tab.id ? "page" : undefined}
               className={`flex items-center gap-1.5 shrink-0 min-h-[44px] px-3.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors ${
                 activeTab === tab.id
@@ -470,9 +511,19 @@ const Dashboard = () => {
         </nav>
       </div>
 
-      {/* Main content */}
-      <main id="main" className="flex-1 overflow-y-auto">
-        <div className="p-6 lg:p-8 pt-28 lg:pt-8">
+      {/* Main content.
+
+          The Pipeline board is the one tab that fills the viewport instead of
+          scrolling the page: a kanban whose columns scroll independently needs a
+          known height. That takes an unbroken `min-h-0` chain from here down to
+          the card lists — flex items default to `min-height: auto` and refuse to
+          shrink below their content, which is why the board previously had to
+          guess its own height with `max-h-[calc(100vh-20rem)]`.
+
+          Every class below is conditional so the other five tabs keep scrolling
+          the page exactly as before. */}
+      <main id="main" className={`flex-1 min-h-0 ${boardLayout ? "flex flex-col overflow-hidden" : "overflow-y-auto"}`}>
+        <div className={`p-6 lg:p-8 pt-28 lg:pt-8 ${boardLayout ? "flex min-h-0 flex-1 flex-col overflow-hidden" : ""}`}>
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab + (selectedApplicant ? '-profile' : '')}
@@ -480,193 +531,104 @@ const Dashboard = () => {
               initial="initial"
               animate="animate"
               exit="exit"
+              className={boardLayout ? "flex min-h-0 flex-1 flex-col" : undefined}
             >
           {/* OVERVIEW TAB */}
-          {activeTab === "overview" && (
+          {/* Sources is analytics, so it lives with the Overview rather than on the
+              roster. A sub-route, not a ninth block: the Overview was deliberately
+              cut from 14 blocks to 8, and bolting this on would undo that. */}
+          {activeTab === "overview" && subParam === "sources" && (
+            <Suspense fallback={<div className="flex items-center justify-center py-32"><Loader2 className="w-6 h-6 animate-spin text-primary" aria-label="Loading" /></div>}>
+              <div className="mb-3">
+                <Link
+                  to={dashboardPath("overview")}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  &larr; Back to Overview
+                </Link>
+              </div>
+              <SourceAnalytics applicants={applicants} getJobTitle={getJobTitle} />
+            </Suspense>
+          )}
+
+          {activeTab === "overview" && subParam !== "sources" && (
             <Suspense fallback={<div className="flex items-center justify-center py-32"><Loader2 className="w-6 h-6 animate-spin text-primary" aria-label="Loading" /></div>}>
               <DashboardOverview
                 jobs={jobs}
                 applicants={applicants}
                 onNavigate={(tab) => setActiveTab(tab as Tab)}
+                applicantHref={overviewApplicantHref}
+                onOpenSources={() => setActiveTab("overview", "sources")}
               />
             </Suspense>
           )}
 
           {/* JOBS TAB */}
           {activeTab === "jobs" && (
-            <div>
-              {/* Header */}
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Briefcase className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Manage Jobs</h1>
-                    <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{activeJobs.length} vacancies · {activeJobs.filter(j => j.status === "open").length} open</p>
-                  </div>
-                </div>
-                <Button onClick={() => { setEditingJob(null); setJobFormOpen(true); }} className="rounded-xl shadow-lg shadow-primary/20">
-                  <Plus className="w-4 h-4 mr-2" />
-                  New job
-                </Button>
-              </div>
-
-              {/* Job stat chips */}
-              <div className="flex flex-wrap gap-2 mb-5">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[hsl(var(--intel-success)/0.1)] border border-[hsl(var(--intel-success)/0.2)] text-xs font-medium text-[hsl(var(--intel-success))]">
-                  <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--intel-success))] opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-[hsl(var(--intel-success))]" /></span>
-                  {activeJobs.filter(j => j.status === "open").length} open
-                </div>
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border text-xs font-medium text-muted-foreground">
-                  {activeJobs.filter(j => j.status === "closed").length} closed
-                </div>
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border text-xs font-medium text-muted-foreground">
-                  <Users className="w-3.5 h-3.5" />
-                  {applicants.length} total applicants
-                </div>
-              </div>
-
-              {/* Job cards */}
-              <div className="space-y-3">
-                {activeJobs.map((job, idx) => {
-                  const appCount = getApplicantCount(job.id);
-                  // Lifespan: days a job has been open, or how long it took to close.
-                  const daysOpen = Math.max(0, Math.floor((Date.now() - new Date(job.postedDate).getTime()) / 86_400_000));
-                  const daysToClose = job.closedAt
-                    ? Math.max(0, Math.round((new Date(job.closedAt).getTime() - new Date(job.postedDate).getTime()) / 86_400_000))
-                    : null;
-                  return (
-                    <motion.div
-                      key={job.id}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: Math.min(idx * 0.04, 0.3), ease: [0.22, 1, 0.36, 1] }}
-                      className={`group rounded-2xl bg-card border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-200 hover:shadow-lg ${
-                        job.status === "open" ? "border-border hover:border-primary/20" : "border-border/50 opacity-75 hover:opacity-100"
-                      }`}
-                    >
-                      <div className="flex items-start gap-4 flex-1 min-w-0">
-                        {/* Left accent */}
-                        <div className={`w-1 self-stretch rounded-full flex-shrink-0 ${
-                          job.status === "open" ? "bg-[hsl(var(--intel-success))]" : "bg-muted"
-                        }`} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <h3 className="font-semibold truncate text-base group-hover:text-primary transition-colors">{job.title}</h3>
-                            <Badge
-                              variant="secondary"
-                              className={`text-[10px] border-0 flex-shrink-0 ${
-                                job.status === "open" ? "bg-[hsl(var(--intel-success)/0.15)] text-[hsl(var(--intel-success))]" : "bg-muted text-muted-foreground"
-                              }`}
-                            >
-                              {job.status === "open" ? "Open" : "Closed"}
-                            </Badge>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-3 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-                            <span className="flex items-center gap-1.5"><MapPin className="w-3 h-3" /> {job.location}</span>
-                            <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {job.type}</span>
-                            <span className="flex items-center gap-1.5"><Users className="w-3 h-3" /> {appCount} applicant{appCount !== 1 ? "s" : ""}</span>
-                            {(job.status === "open" || daysToClose !== null) && (
-                              <span className="flex items-center gap-1.5" title={job.status === "open" ? "Days since this job was posted" : "Days from posting to close"}>
-                                <Timer className="w-3 h-3" aria-hidden="true" />
-                                {job.status === "open"
-                                  ? `Open ${daysOpen} day${daysOpen !== 1 ? "s" : ""}`
-                                  : `Closed in ${daysToClose} day${daysToClose !== 1 ? "s" : ""}`}
-                              </span>
-                            )}
-                            <Badge variant="secondary" className="text-[10px] border-0 bg-secondary normal-case">{job.department}</Badge>
-                          </div>
-                          {job.deadline && (
-                            <div className="mt-2">
-                              {(() => {
-                                const daysLeft = Math.ceil((new Date(job.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                                if (daysLeft < 0) return <span className="text-[11px] text-muted-foreground">Deadline passed</span>;
-                                if (daysLeft <= 7) return <span className="text-[11px] text-destructive font-medium">⏰ Closes in {daysLeft} day{daysLeft !== 1 ? "s" : ""}</span>;
-                                return <span className="text-[11px] text-muted-foreground">{daysLeft} days remaining</span>;
-                              })()}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <Button size="sm" variant="outline" className="rounded-xl h-8 text-xs" onClick={() => { setSelectedJobId(job.id); setActiveTab("applicants"); }}>
-                          <Users className="w-3.5 h-3.5 mr-1" aria-hidden="true" />View
-                        </Button>
-                        <ShareJobLink jobId={job.id} jobTitle={job.title} />
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => { setEditingJob(job); setJobFormOpen(true); }} aria-label={`Edit ${job.title}`}>
-                          <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => handleDuplicateJob(job)} aria-label={`Duplicate ${job.title}`}>
-                          <Copy className="w-3.5 h-3.5" aria-hidden="true" />
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => setDeleteJobTarget(job)} aria-label={`Archive ${job.title}`}>
-                          <Archive className="w-3.5 h-3.5" aria-hidden="true" />
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={async () => { await updateJob({ ...job, status: job.status === "open" ? "closed" : "open" }); toast.success("Status updated"); }} aria-label={job.status === "open" ? `Close ${job.title}` : `Reopen ${job.title}`}>
-                          {job.status === "open" ? <EyeOff className="w-3.5 h-3.5" aria-hidden="true" /> : <Eye className="w-3.5 h-3.5" aria-hidden="true" />}
-                        </Button>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-                {activeJobs.length === 0 && (
-                  <div className="text-center py-20 text-muted-foreground">
-                    <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-4">
-                      <Briefcase className="w-8 h-8 opacity-30" />
-                    </div>
-                    <p className="font-medium">No jobs created yet</p>
-                    <p className="text-xs mt-1">Click "New Job" to create your first vacancy</p>
-                  </div>
-                )}
-              </div>
-
-              {archivedJobs.length > 0 && (
-                <div className="mt-8">
-                  <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Archived ({archivedJobs.length})</h2>
-                  <div className="space-y-2">
-                    {archivedJobs.map((job) => {
-                      const cnt = getApplicantCount(job.id);
-                      return (
-                        <div key={job.id} className="flex items-center justify-between gap-4 rounded-xl border border-border/60 bg-card/60 px-4 py-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-foreground/80">{job.title}</p>
-                            <p className="text-xs text-muted-foreground">{job.department} · {cnt} applicant{cnt !== 1 ? "s" : ""} kept</p>
-                          </div>
-                          <Button size="sm" variant="outline" className="h-8 rounded-lg text-xs" onClick={async () => { try { await restoreJob(job.id); toast.success("Job restored"); } catch { toast.error("Could not restore the job."); } }}>
-                            <ArchiveRestore className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />Restore
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
+            <JobsView
+              jobs={activeJobs}
+              applicants={applicants}
+              archivedJobs={archivedJobs}
+              onCreate={() => { setEditingJob(null); setJobFormOpen(true); }}
+              onOpen={(jobId) => { setSelectedJobId(jobId); setActiveTab("applicants"); }}
+              onEdit={(job) => { setEditingJob(job); setJobFormOpen(true); }}
+              onDuplicate={handleDuplicateJob}
+              onArchive={setDeleteJobTarget}
+              onToggleStatus={handleToggleJobStatus}
+              onRestore={handleRestoreJob}
+              onCopyLink={copyJobLink}
+              onShareLinkedIn={shareJobToLinkedIn}
+              onOpenPublicPage={openJobPublicPage}
+              applicantCount={getApplicantCount}
+            />
           )}
 
-          {/* APPLICANTS TAB */}
-          {activeTab === "applicants" && !selectedApplicant && (
-            <>
-            {/* Offers a one-pass fix for applicants whose email was never captured
-                at upload time, so they stop being un-contactable. */}
-            <ContactRecoveryBanner
-              applicants={applicants}
-              sessionToken={sessionToken}
-              onDone={refreshData}
-            />
-            <ApplicantsListView
+          {/* APPLICANTS TAB — the list, unless the URL names a candidate.
+              Keyed off the id in the URL rather than off a resolved applicant, so a
+              cold deep link doesn't flash the whole list for a frame before the
+              profile appears. */}
+          {activeTab === "applicants" && !openApplicantId && (
+            <ApplicantsRoster
               applicants={filteredApplicants}
               jobs={jobs}
               selectedJobId={selectedJobId}
-              setSelectedJobId={setSelectedJobId}
-              onSelectApplicant={setSelectedApplicant}
-              onStatusUpdate={handleStatusUpdate}
+              onJobChange={setSelectedJobId}
+              applicantHref={listApplicantHref}
+              onBulkStatusUpdate={updateApplicantStatusBulk}
               onDeleteApplicant={deleteApplicant}
+              onAnalysisComplete={(applicantId, analysis) => {
+                updateApplicantAI(applicantId, analysis).catch(() => {
+                  toast.error("Analysis finished but could not be saved — please re-run it.");
+                });
+              }}
               getJobTitle={getJobTitle}
-              avgRating={avgRating}
+              sessionToken={sessionToken}
             />
-            </>
+          )}
+
+          {/* A shared link opened cold: the applicants array arrives over the
+              network, so hold the frame rather than claiming the person is gone. */}
+          {activeTab === "applicants" && openApplicantId && !selectedApplicant && !applicantNotFound && (
+            <div className="flex items-center justify-center py-32">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" aria-label="Loading candidate" />
+            </div>
+          )}
+
+          {/* The id matched nobody — a deleted candidate or a mistyped link. Say so
+              instead of silently showing the list under a URL that names a person. */}
+          {activeTab === "applicants" && applicantNotFound && (
+            <div className="flex flex-col items-center justify-center gap-3 py-32 text-center">
+              <UserX className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
+              <div>
+                <p className="font-semibold">Candidate not found</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  This candidate may have been deleted, or the link is wrong.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={closeApplicant}>
+                Back to {profileOrigin === "pipeline" ? "Pipeline" : "Applicants"}
+              </Button>
+            </div>
           )}
 
           {/* CANDIDATE PROFILE (replaces old applicant detail) */}
@@ -675,7 +637,7 @@ const Dashboard = () => {
               applicant={selectedApplicant}
               job={jobs.find(j => j.id === selectedApplicant.jobId)}
               sessionToken={sessionToken}
-              onBack={() => setSelectedApplicant(null)}
+              onBack={closeApplicant}
               onStatusUpdate={handleStatusUpdate}
               onAddNote={addApplicantNote}
               onAIComplete={(applicantId, analysis) => {
@@ -683,180 +645,29 @@ const Dashboard = () => {
                   toast.error("Analysis finished but could not be saved — please re-run it.");
                 });
               }}
-              onApplicantChange={(a) =>
-                // Async completions (AI run, note save) may resolve after the user
-                // navigated away — only refresh the profile if it's still the one open.
-                setSelectedApplicant(prev => (prev && prev.id === a.id ? a : prev))
-              }
               onDelete={async (id) => {
                 await deleteApplicant(id);
-                setSelectedApplicant(null);
+                closeApplicant();
               }}
             />
           )}
 
           {/* PIPELINE TAB */}
           {activeTab === "pipeline" && (
-            <div>
-              {/* Slim header: title + total + inline stage breakdown, then the board */}
-              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <BarChart3 className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <div className="flex items-baseline gap-2">
-                      <h1 className="text-2xl font-bold tracking-tight">Pipeline</h1>
-                      <span className="text-sm text-muted-foreground">{filteredApplicants.length} candidate{filteredApplicants.length === 1 ? "" : "s"}</span>
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-                      {APPLICANT_STATUSES.map((status) => {
-                        const count = filteredApplicants.filter(a => a.status === status.value).length;
-                        return (
-                          <span key={status.value} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <span className={`w-1.5 h-1.5 rounded-full ${status.color.split(" ")[0]}`} />
-                            {status.label}
-                            <span className="font-mono tabular-nums text-foreground/70">{count}</span>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-                <Select value={selectedJobId} onValueChange={setSelectedJobId}>
-                  <SelectTrigger className="w-full sm:w-56 bg-card border-border rounded-xl flex-shrink-0"><SelectValue placeholder="Filter by job" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Jobs</SelectItem>
-                    {jobs.map((j) => <SelectItem key={j.id} value={j.id}>{j.title}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Health Scorecard */}
-              <div className="mb-4">
-                <PipelineHealthScorecard applicants={filteredApplicants} />
-              </div>
-
-                  <DragDropContext onDragEnd={handleDragEnd}>
-                    {/* Kanban board designed to keep ALL SIX stages on screen: busy
-                        columns get readable width, while collapsed columns shrink to
-                        slim rails (still valid drop targets). Slim styled scrollbars
-                        replace the chunky OS default; the board only scrolls
-                        horizontally as a last resort. Full-bleed into page padding. */}
-                    <div className="flex gap-2.5 overflow-x-auto overscroll-x-contain scrollbar-slim pb-3 -mx-6 px-6 lg:-mx-8 lg:px-8">
-                      {APPLICANT_STATUSES.map((status) => {
-                        const columnApplicants = filteredApplicants.filter((a) => a.status === status.value);
-                        const isCollapsed = collapsedCols[status.value] ?? columnApplicants.length === 0;
-
-                        // COLLAPSED RAIL: slim vertical strip — label, count, expand
-                        // control — and a fully functional drop target: drop a card on
-                        // it and the column expands with its new candidate.
-                        if (isCollapsed) {
-                          return (
-                            <Droppable key={status.value} droppableId={status.value}>
-                              {(provided, snapshot) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.droppableProps}
-                                  className={`flex w-11 min-w-[2.75rem] flex-col items-center overflow-hidden rounded-2xl bg-secondary/30 min-h-[320px] max-h-[calc(100vh-20rem)] py-2.5 transition-colors duration-200 ${
-                                    snapshot.isDraggingOver ? "bg-primary/10 ring-2 ring-inset ring-primary/40" : ""
-                                  }`}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => setCollapsedCols((p) => ({ ...p, [status.value]: false }))}
-                                    aria-label={`Expand ${status.label} column`}
-                                    title={`Expand ${status.label}`}
-                                    className="rounded-md p-1 text-muted-foreground/50 transition-colors hover:bg-secondary hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                  >
-                                    <Maximize2 className="w-3 h-3" aria-hidden="true" />
-                                  </button>
-                                  <div className={`mt-2 w-2 h-2 rounded-full flex-shrink-0 ${status.color.split(" ")[0]}`} />
-                                  <span className="mt-2 [writing-mode:vertical-rl] rotate-180 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground select-none">
-                                    {status.label}
-                                  </span>
-                                  <span className="mt-2 font-mono tabular-nums text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
-                                    {columnApplicants.length}
-                                  </span>
-                                  <div className="flex-1" />
-                                  <div className="hidden">{provided.placeholder}</div>
-                                </div>
-                              )}
-                            </Droppable>
-                          );
-                        }
-
-                        return (
-                          <div key={status.value} className="flex flex-[1_1_215px] min-w-[215px] flex-col rounded-2xl bg-secondary/30 min-h-[320px] max-h-[calc(100vh-20rem)]">
-                            {/* Column header stays put while the card list scrolls below it */}
-                            <div className="flex items-center justify-between gap-1.5 px-3 pt-2.5 pb-2 flex-shrink-0">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${status.color.split(" ")[0]}`} />
-                                <span className="font-mono text-xs font-semibold uppercase tracking-wider text-foreground truncate">{status.label}</span>
-                              </div>
-                              <div className="flex items-center gap-1 flex-shrink-0">
-                                <span className="font-mono tabular-nums text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
-                                  {columnApplicants.length}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => setCollapsedCols((p) => ({ ...p, [status.value]: true }))}
-                                  aria-label={`Collapse ${status.label} column`}
-                                  title="Collapse column"
-                                  className="rounded-md p-1 text-muted-foreground/40 transition-colors hover:bg-secondary hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                >
-                                  <Minimize2 className="w-3 h-3" aria-hidden="true" />
-                                </button>
-                              </div>
-                            </div>
-                            <Droppable
-                              droppableId={status.value}
-                              renderClone={(prov, _snap, rubric) => {
-                                // Portal the dragged clone to <body> so it renders OUTSIDE the
-                                // column's overflow scroll AND the page's framer-motion `filter`
-                                // wrapper (a non-none filter would otherwise re-anchor the
-                                // position:fixed clone and clip it during cross-column drags).
-                                const dragged = columnApplicants[rubric.source.index];
-                                return createPortal(
-                                  <div ref={prov.innerRef} {...prov.draggableProps}>
-                                    {dragged ? renderPipelineCard(dragged, prov.dragHandleProps, true) : null}
-                                  </div>,
-                                  document.body,
-                                );
-                              }}
-                            >
-                              {(provided, snapshot) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.droppableProps}
-                                  className={`flex-1 overflow-y-auto scrollbar-slim px-2.5 pb-2.5 space-y-2 rounded-b-2xl transition-colors duration-200 ${
-                                    snapshot.isDraggingOver ? "bg-primary/10 ring-2 ring-inset ring-primary/30" : ""
-                                  }`}
-                                >
-                                  {columnApplicants.map((applicant, index) => (
-                                    <Draggable key={applicant.id} draggableId={applicant.id} index={index}>
-                                      {(prov, snap) => (
-                                        <div ref={prov.innerRef} {...prov.draggableProps}>
-                                          {renderPipelineCard(applicant, prov.dragHandleProps, snap.isDragging)}
-                                        </div>
-                                      )}
-                                    </Draggable>
-                                  ))}
-                                  {columnApplicants.length === 0 && !snapshot.isDraggingOver && (
-                                    <div className="flex items-center justify-center rounded-xl border border-dashed border-border/60 py-10 text-center">
-                                      <p className="text-[10px] text-muted-foreground/50">Drop candidates here</p>
-                                    </div>
-                                  )}
-                                  {provided.placeholder}
-                                </div>
-                              )}
-                            </Droppable>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </DragDropContext>
-            </div>
+            <Suspense fallback={<div className="flex min-h-0 flex-1 items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" aria-label="Loading" /></div>}>
+              <PipelineBoard
+                applicants={applicants}
+                jobs={jobs}
+                selectedJobId={selectedJobId}
+                onJobChange={setSelectedJobId}
+                onStatusUpdate={handleStatusUpdate}
+                onBulkStatusUpdate={updateApplicantStatusBulk}
+                onOpenApplicant={(a) => openApplicant(a.id, "pipeline")}
+                applicantHref={pipelineApplicantHref}
+                view={pipelineView}
+                onViewChange={setPipelineView}
+              />
+            </Suspense>
           )}
 
           {/* CV LIBRARY TAB */}
@@ -890,26 +701,6 @@ const Dashboard = () => {
           sessionToken={sessionToken || ""}
         />
       )}
-
-      {/* Confirmation Dialog for Rejected/Hired */}
-      <AlertDialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Move to {APPLICANT_STATUSES.find(s => s.value === confirmDialog.targetStatus)?.label}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to move <strong>{confirmDialog.applicantName}</strong> to{" "}
-              <strong>{APPLICANT_STATUSES.find(s => s.value === confirmDialog.targetStatus)?.label}</strong>?
-              This action can be reversed by dragging back.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmMove}>Confirm</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Delete Job Confirmation */}
       <AlertDialog open={!!deleteJobTarget} onOpenChange={(open) => !open && !deletingJob && setDeleteJobTarget(null)}>

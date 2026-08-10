@@ -1,4 +1,4 @@
-import { type ReactNode, type ComponentType } from "react";
+import { useId, type ReactNode, type ComponentType } from "react";
 import { motion } from "framer-motion";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import AnimatedCounter from "@/components/careers/AnimatedCounter";
@@ -29,13 +29,17 @@ export function Panel({
   className?: string;
   bodyClassName?: string;
 }) {
+  const headingId = useId();
   return (
-    <section className={`h-full ${PANEL} ${className}`}>
+    <section className={`h-full ${PANEL} ${className}`} aria-labelledby={title ? headingId : undefined}>
       {(title || action) && (
         <header className="flex items-center justify-between gap-3 border-b border-[hsl(var(--intel-border))] px-4 py-2.5">
           <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
             {Icon && <Icon className="h-3.5 w-3.5" aria-hidden="true" />}
-            {title}
+            {/* Heading semantics only — no visual change. Preflight makes h2 inherit
+                font-size/weight/margin, so it renders identically to the plain text
+                it replaces while giving screen-reader users a real landmark to jump to. */}
+            {title && <h2 id={headingId}>{title}</h2>}
           </div>
           {action}
         </header>
@@ -128,6 +132,7 @@ export function MetricTile({
   series,
   seriesClassName,
   hint,
+  tone = "default",
   onClick,
 }: {
   label: string;
@@ -136,14 +141,22 @@ export function MetricTile({
   series?: number[];
   seriesClassName?: string;
   hint?: string;
+  /** "warning" gives the tile amber emphasis (border + value colour). Defaults to
+   *  current styling, so existing callers are unaffected. */
+  tone?: "default" | "warning";
   onClick?: () => void;
 }) {
   const interactive = !!onClick;
   const Tag: "button" | "div" = interactive ? "button" : "div";
+  // Built inline (not via the shared PANEL constant) so the border colour can vary
+  // by tone without stacking two conflicting border-color utility classes.
+  const surface = `rounded-xl border ${
+    tone === "warning" ? "border-[hsl(var(--intel-warning)/0.5)]" : "border-[hsl(var(--intel-border))]"
+  } bg-[hsl(var(--intel-card))]`;
   return (
     <Tag
       {...(interactive ? { onClick, type: "button" as const } : {})}
-      className={`flex h-full flex-col gap-1.5 ${PANEL} px-4 py-3.5 text-left transition-colors ${
+      className={`flex h-full flex-col gap-1.5 ${surface} px-4 py-3.5 text-left transition-colors ${
         interactive
           ? "hover:bg-[hsl(var(--intel-card-hover))] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
           : ""
@@ -153,7 +166,13 @@ export function MetricTile({
         <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{label}</span>
         <DeltaBadge delta={delta} />
       </div>
-      <span className="text-2xl font-semibold tabular-nums leading-none text-foreground">{value}</span>
+      <span
+        className={`text-2xl font-semibold tabular-nums leading-none ${
+          tone === "warning" ? "text-[hsl(var(--intel-warning))]" : "text-foreground"
+        }`}
+      >
+        {value}
+      </span>
       {/* Hint and sparkline coexist: the hint carries the metric's denominator or
           sample size, which is what stops a bare number being read as a fact
           about the whole pipeline. It must not be crowded out by a trend line. */}

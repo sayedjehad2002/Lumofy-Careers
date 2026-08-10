@@ -82,6 +82,13 @@ export interface Applicant {
   rating?: CandidateRating;
   aiAnalysis?: AIAnalysis;
   stageEnteredAt?: string;
+  /** Acquisition channel, decided server-side on submit.
+   *  undefined = applied before source tracking existed - never guess it. */
+  source?: string;
+  referrer?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
 }
 
 export const STAGE_SLA_DAYS: Record<string, number> = {
