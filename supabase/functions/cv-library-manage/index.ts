@@ -153,6 +153,42 @@ Deno.serve(async (req) => {
       });
     }
 
+    // PURGE MANY — bulk permanent erasure (GDPR right to be forgotten), used by
+    // the Trash view's "Delete all" action. Same irreversible effect as "purge",
+    // batched into two round trips (one storage removal, one row delete) instead
+    // of one request per candidate.
+    if (action === "purge-many") {
+      const { candidateIds } = body;
+      if (!Array.isArray(candidateIds) || candidateIds.length === 0) {
+        return new Response(JSON.stringify({ error: "candidateIds required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: rows } = await supabase
+        .from("cv_library_candidates")
+        .select("resume_file_path")
+        .in("id", candidateIds);
+
+      const paths = (rows || [])
+        .map((r) => r.resume_file_path)
+        .filter((p): p is string => !!p);
+      if (paths.length > 0) {
+        await supabase.storage.from("cv-library").remove(paths);
+      }
+
+      const { error, count } = await supabase
+        .from("cv_library_candidates")
+        .delete({ count: "exact" })
+        .in("id", candidateIds);
+
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true, deleted: count ?? candidateIds.length }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // SYNC-CLASSIFICATION: zero-AI-call backfill. Many candidates carry an accurate
     // ai_analysis (the analyzer reads the PDF directly) while their classification
     // columns hold placeholder junk from a classify pass that ran on empty extracted

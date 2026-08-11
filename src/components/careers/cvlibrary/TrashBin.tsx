@@ -2,6 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, RotateCcw, Trash2, AlertTriangle, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -27,6 +31,8 @@ export default function TrashBin({ sessionToken, onChange }: Props) {
   const [items, setItems] = useState<TrashedCandidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+  const [purgingAll, setPurgingAll] = useState(false);
 
   const fetchTrash = useCallback(async () => {
     setLoading(true);
@@ -79,6 +85,23 @@ export default function TrashBin({ sessionToken, onChange }: Props) {
     }
   };
 
+  const handleDeleteAll = async () => {
+    setConfirmDeleteAll(false);
+    setPurgingAll(true);
+    try {
+      const { error } = await supabase.functions.invoke("cv-library-manage", {
+        body: { action: "purge-many", sessionToken, candidateIds: items.map(c => c.id) },
+      });
+      if (error) throw error;
+      toast.success(`Permanently deleted ${items.length} candidate${items.length === 1 ? "" : "s"}`);
+      setItems([]);
+    } catch {
+      toast.error("Delete all failed");
+    } finally {
+      setPurgingAll(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
@@ -87,10 +110,42 @@ export default function TrashBin({ sessionToken, onChange }: Props) {
           <h3 className="font-semibold text-lg">Trash</h3>
           <Badge variant="secondary" className="text-xs">{items.length}</Badge>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchTrash} disabled={loading}>
-          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Refresh"}
-        </Button>
+        <div className="flex items-center gap-2">
+          {items.length > 0 && (
+            <Button
+              variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive"
+              onClick={() => setConfirmDeleteAll(true)}
+              disabled={loading || purgingAll}
+            >
+              {purgingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />}
+              Delete all
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={fetchTrash} disabled={loading}>
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Refresh"}
+          </Button>
+        </div>
       </div>
+
+      <AlertDialog open={confirmDeleteAll} onOpenChange={setConfirmDeleteAll}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently delete all {items.length} candidate{items.length === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This erases every CV file and record currently in the Trash for good — GDPR right to erasure. It cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void handleDeleteAll()}
+            >
+              Delete all permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="rounded-xl bg-card border border-border p-4 text-xs text-muted-foreground flex items-start gap-2">
         <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" aria-hidden="true" />

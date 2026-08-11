@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Brain, Users, Globe, Briefcase, TrendingUp, Layers } from "lucide-react";
+import { Brain, Users, Globe, Briefcase, TrendingUp, TrendingDown, Building2, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { TONE_TEXT, TONE_BORDER, CHART_SERIES } from "@/components/careers/statusColors";
 
@@ -130,7 +130,7 @@ export default function TalentPoolInsights({ candidates }: Props) {
           value={insights.uniqueNationalities}
           sub={`known for ${insights.withNationality} of ${candidates.length}`}
         />
-        <StatCard icon={<Briefcase className="w-4 h-4" />} label="Departments" value={insights.depts.length} />
+        <StatCard icon={<Building2 className="w-4 h-4" />} label="Departments" value={insights.depts.length} />
       </div>
 
       {insights.withSkills < candidates.length * 0.9 && (
@@ -238,7 +238,7 @@ export default function TalentPoolInsights({ candidates }: Props) {
       {insights.gapDepts.length > 0 && (
         <div className="rounded-xl bg-card border border-border p-4">
           <h4 className="mb-1 flex items-center gap-2 text-sm font-semibold">
-            <TrendingUp className={`h-4 w-4 ${TONE_TEXT.warning}`} aria-hidden="true" />
+            <TrendingDown className={`h-4 w-4 ${TONE_TEXT.warning}`} aria-hidden="true" />
             Thinnest pools
           </h4>
           <p className="mb-3 text-xs text-muted-foreground">

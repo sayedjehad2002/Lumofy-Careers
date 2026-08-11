@@ -2,7 +2,7 @@ import { useState } from "react";
 import { DEFAULT_AI_WEIGHTS, type AIScoringWeights } from "@/types/careers";
 import {
   Plus, Trash2, Upload, FileText, Sparkles, Loader2, Wand2, RefreshCw,
-  Calendar, ChevronDown, Briefcase, X, MessageSquarePlus,
+  Calendar, ChevronDown, Briefcase, Megaphone, X, MessageSquarePlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -820,7 +820,7 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
               Save as draft
             </Button>
             <Button className="btn-sheen" onClick={() => handleSave("open")} disabled={jdUploading || jdReading || draftingAll}>
-              {jdUploading ? <Loader2 className="w-4 h-4 animate-spin mr-1" aria-hidden="true" /> : <Briefcase className="w-4 h-4 mr-2" aria-hidden="true" />}
+              {jdUploading ? <Loader2 className="w-4 h-4 animate-spin mr-1" aria-hidden="true" /> : <Megaphone className="w-4 h-4 mr-2" aria-hidden="true" />}
               {isEdit ? "Update & publish" : "Publish job"}
             </Button>
           </div>

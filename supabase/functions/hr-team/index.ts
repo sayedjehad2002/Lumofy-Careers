@@ -49,8 +49,52 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: false });
       const now = Date.now();
       const pending = (invites || []).filter((i) => new Date(i.expires_at).getTime() > now);
+
+      // Last sign-in lives in auth.users, which hr_users does not mirror. The
+      // Users view reports dormant accounts, so the date has to be real — an
+      // "inactive 57 days" badge invented from created_at would be a lie about
+      // someone's access. listUsers is paginated; the team is small, but ask for
+      // a page big enough that a growing team never silently loses rows.
+      // When each colleague last signed in is OWNER-ONLY. Gated here rather than
+      // hidden in the UI: an admin or viewer who opened devtools could otherwise
+      // read every teammate's login history straight out of the response body.
+      // Non-owners never receive the field at all.
+      //
+      // NOTE: supabase-js reports failures in the returned `error` field rather
+      // than throwing, so a try/catch alone silently yields an empty map and the
+      // whole roster renders as "unavailable". Check `error` explicitly and log
+      // it — a silent degrade on an access-review page is worse than a loud one.
+      // The catch stays for genuine network/runtime faults.
+      let withActivity = members || [];
+      if (canManage) {
+        const activity: Record<string, string | null> = {};
+        try {
+          const { data: authData, error: authErr } = await supabase.auth.admin.listUsers({
+            page: 1,
+            perPage: 200,
+          });
+          if (authErr) {
+            console.error("hr-team: listUsers failed —", authErr.message);
+          } else {
+            for (const u of authData?.users || []) {
+              if (u.email) activity[u.email.toLowerCase()] = u.last_sign_in_at ?? null;
+            }
+            console.log(`hr-team: activity resolved for ${Object.keys(activity).length} auth users`);
+          }
+        } catch (e) {
+          console.error("hr-team: listUsers threw —", (e as Error).message);
+        }
+
+        withActivity = (members || []).map((m) => ({
+          ...m,
+          last_sign_in_at: Object.prototype.hasOwnProperty.call(activity, m.email.toLowerCase())
+            ? activity[m.email.toLowerCase()]
+            : undefined,
+        }));
+      }
+
       // callerEmail lets the UI mark "you" without a second round trip.
-      return json({ members: members || [], invites: pending, callerRole, callerEmail, canManage });
+      return json({ members: withActivity, invites: pending, callerRole, callerEmail, canManage });
     }
 
     if (!canManage) return json({ error: "Only an owner can change team access." }, 403);

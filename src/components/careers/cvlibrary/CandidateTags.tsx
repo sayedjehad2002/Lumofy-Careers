@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Tag, Plus, X, Palette } from "lucide-react";
+import { Tag, Tags, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -79,7 +79,7 @@ export default function CandidateTags({ candidateId, currentTags, onUpdateTags, 
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <Palette className="w-4 h-4 text-primary" />
+        <Tags className="w-4 h-4 text-primary" />
         <span className="text-xs font-semibold text-muted-foreground uppercase">Tags</span>
       </div>
       <div className="flex flex-wrap gap-1.5">

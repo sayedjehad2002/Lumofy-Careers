@@ -4,8 +4,8 @@ import {
   Download, Eye, Brain, Pencil, Loader2, X, Tag, FileText,
   AlertCircle, Check, Archive, RefreshCw, User, Mail, Phone,
   Globe, MapPin, Briefcase, Filter, ArrowUpDown, Plus,
-  Shield, TrendingUp, Target, BarChart3,
-  AlertTriangle, History, Trash2, UserPlus
+  TrendingUp, Target,
+  AlertTriangle, Trash2, UserPlus
 } from "lucide-react";
 import SmartSearch, { parseQuery, type ParsedQuery } from "./cvlibrary/SmartSearch";
 import SavedFilters, { type SavedFilter } from "./cvlibrary/SavedFilters";
@@ -19,9 +19,6 @@ import BulkPipelineAdd from "./cvlibrary/BulkPipelineAdd";
 import { useCareers } from "@/contexts/CareersContext";
 import { toTitleCase, candidateDisplayName } from "@/lib/utils";
 const ExportReporting = lazy(() => import("./cvlibrary/ExportReporting")); // lazy: defers xlsx (~94KB) to the Export sub-tab
-import DataCompleteness from "./cvlibrary/DataCompleteness";
-import GDPRRetention from "./cvlibrary/GDPRRetention";
-import AuditTrail, { type AuditEntry } from "./cvlibrary/AuditTrail";
 import TrashBin from "./cvlibrary/TrashBin";
 import CandidateAnalysis, { type CVAIAnalysis } from "./cvlibrary/CandidateAnalysis";
 import { Button } from "@/components/ui/button";
@@ -104,7 +101,7 @@ const RECOMMENDATION_COLORS: Record<string, string> = {
   "Not Recommended": `${TONE_SOFT.danger} ${TONE_BORDER.danger}`,
 };
 
-type CVSubTab = "library" | "duplicates" | "insights" | "matching" | "reparse" | "export" | "completeness" | "gdpr" | "audit" | "trash";
+type CVSubTab = "library" | "duplicates" | "insights" | "matching" | "reparse" | "export" | "trash";
 
 interface Props {
   sessionToken: string;
@@ -116,7 +113,7 @@ interface Props {
   onSubTabChange?: (sub: string) => void;
 }
 
-const SUB_TAB_IDS: CVSubTab[] = ['library','duplicates','insights','matching','reparse','export','completeness','gdpr','audit','trash'];
+const SUB_TAB_IDS: CVSubTab[] = ['library','duplicates','insights','matching','reparse','export','trash'];
 const isSubTab = (v?: string): v is CVSubTab => !!v && (SUB_TAB_IDS as string[]).includes(v);
 
 export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, subTab: subTabProp, onSubTabChange }: Props) {
@@ -157,7 +154,6 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
     if (onSubTabChange) onSubTabChange(t); else setLocalSubTab(t);
   }, [onSubTabChange]);
   const [parsedQuery, setParsedQuery] = useState<ParsedQuery>({ include: [], exclude: [], raw: "" });
-  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   // Multi-select for bulk actions (survives filter/folder changes on purpose —
   // HR builds a selection across several searches, then adds everyone at once).
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -186,16 +182,6 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
     });
   }, [candidates]);
 
-  const addAudit = useCallback((candidateId: string, candidateName: string, action: AuditEntry["action"], details?: string) => {
-    setAuditLog(prev => [{
-      id: crypto.randomUUID(),
-      candidateId,
-      candidateName,
-      action,
-      details,
-      timestamp: new Date().toISOString(),
-    }, ...prev].slice(0, 500));
-  }, []);
 
   const fetchCandidates = useCallback(async () => {
     try {
@@ -673,8 +659,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
   const handleUpdateTags = useCallback(async (candidateId: string, tags: string[]) => {
     await handleUpdateCandidate(candidateId, { tags });
     const name = candidates.find(c => c.id === candidateId)?.name || "Unknown";
-    addAudit(candidateId, name, "tag_change", `Tags: ${tags.join(", ")}`);
-  }, [candidates, handleUpdateCandidate, addAudit]);
+  }, [candidates, handleUpdateCandidate]);
 
   const handleViewFromSubTab = useCallback((candidateId: string) => {
     const c = candidates.find(c => c.id === candidateId);
@@ -746,7 +731,6 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
               <div className="mt-3">
                 <CandidateTags candidateId={c.id} currentTags={c.tags || []} onUpdateTags={(cId, tags) => {
                   handleUpdateCandidate(cId, { tags });
-                  addAudit(cId, c.name || "Unknown", "tag_change", `Tags: ${tags.join(", ")}`);
                 }} />
               </div>
 
@@ -840,7 +824,6 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
               analyzing={isBusy}
               onRun={() => {
                 processCandidate(c.id);
-                addAudit(c.id, c.name || "Unknown", "ai_parse");
               }}
               disabled={isBusy}
             />
@@ -867,7 +850,6 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
               <p className="text-[10px] text-muted-foreground px-1">Refresh candidate analysis using the latest CV, job details, and screening answers.</p>
               <Button className="w-full justify-start" variant="outline" size="sm" onClick={() => {
                 setEditCandidate(c);
-                addAudit(c.id, c.name || "Unknown", "edit");
               }}>
                 <Pencil className="w-4 h-4 mr-2" /> Edit fields
               </Button>
@@ -926,7 +908,6 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
               const saved = await handleUpdateCandidate(editCandidate.id, updates);
               if (saved) {
                 setEditCandidate(null);
-                addAudit(editCandidate.id, editCandidate.name || "Unknown", "edit", "Fields updated");
               }
               return saved;
             }}
@@ -945,9 +926,6 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
     { id: "matching", label: "Job Match", icon: <Target className="w-3.5 h-3.5" /> },
     { id: "reparse", label: "Re-Parse", icon: <RefreshCw className="w-3.5 h-3.5" /> },
     { id: "export", label: "Export", icon: <Download className="w-3.5 h-3.5" /> },
-    { id: "completeness", label: "Quality", icon: <BarChart3 className="w-3.5 h-3.5" /> },
-    { id: "gdpr", label: "GDPR", icon: <Shield className="w-3.5 h-3.5" /> },
-    { id: "audit", label: "Audit", icon: <History className="w-3.5 h-3.5" /> },
     { id: "trash", label: "Trash", icon: <Trash2 className="w-3.5 h-3.5" /> },
   ];
 
@@ -1065,26 +1043,6 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
         <Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" aria-hidden="true" /></div>}>
           <ExportReporting candidates={filteredCandidates as any} />
         </Suspense>
-      )}
-
-      {subTab === "completeness" && (
-        <DataCompleteness
-          candidates={candidates as any}
-          onViewCandidate={handleViewFromSubTab}
-          onBulkReparse={() => setSubTab("reparse")}
-        />
-      )}
-
-      {subTab === "gdpr" && (
-        <GDPRRetention
-          candidates={candidates as any}
-          onDelete={handleDelete}
-          onViewCandidate={handleViewFromSubTab}
-        />
-      )}
-
-      {subTab === "audit" && (
-        <AuditTrail entries={auditLog} />
       )}
 
       {subTab === "trash" && (
@@ -1299,7 +1257,6 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
                         className={`group rounded-2xl bg-card border p-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 light-glow ${selectedIds.has(c.id) ? "border-primary/60 bg-primary/[0.04]" : "border-border hover:border-primary/40"}`}
                         onClick={() => {
                           setSelectedCandidate(c);
-                          addAudit(c.id, c.name || "Unknown", "view");
                         }}
                       >
                         <div className="flex items-center gap-3">
@@ -1381,13 +1338,11 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
                           <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
                             <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="View CV" onClick={() => {
                               handleView(c.id);
-                              addAudit(c.id, c.name || "Unknown", "view");
                             }}>
                               <Eye className="w-3.5 h-3.5" />
                             </Button>
                             <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Download CV" onClick={() => {
                               handleDownload(c.id);
-                              addAudit(c.id, c.name || "Unknown", "download");
                             }}>
                               <Download className="w-3.5 h-3.5" />
                             </Button>
@@ -1396,7 +1351,6 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
                               disabled={isProcessing}
                               onClick={() => {
                                 processCandidate(c.id);
-                                addAudit(c.id, c.name || "Unknown", "ai_parse");
                               }}
                             >
                               {isProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
@@ -1422,7 +1376,6 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
             const saved = await handleUpdateCandidate(editCandidate.id, updates);
             if (saved) {
               setEditCandidate(null);
-              addAudit(editCandidate.id, editCandidate.name || "Unknown", "edit", `Fields updated`);
             }
             return saved;
           }}

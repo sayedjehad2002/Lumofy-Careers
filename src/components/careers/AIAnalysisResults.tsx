@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import {
-  AlertTriangle, TrendingUp, Users, Shield, Sparkles, Target,
+  AlertTriangle, TrendingUp, Users, Flag, Sparkles, Target,
   ChevronDown, CheckCircle2, XCircle, Clock, Zap, ArrowRight,
   Building, Star, AlertCircle, Lightbulb, BarChart3
 } from "lucide-react";
@@ -159,7 +159,7 @@ const AIAnalysisResults = ({ analysis, analyzedAt, narrativeMode = false }: AIAn
               </div>
               <div className="p-3 rounded-lg bg-background/60 border border-border/50">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
-                  <Star className="w-3 h-3" />Key Strength
+                  <CheckCircle2 className="w-3 h-3" />Key Strength
                 </p>
                 <p className="text-sm font-medium">{analysis.executiveSummary.keyStrength}</p>
               </div>
@@ -318,7 +318,7 @@ const AIAnalysisResults = ({ analysis, analyzedAt, narrativeMode = false }: AIAn
           <Card className="border-destructive/20 h-full">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base text-destructive">
-                <Shield className="w-4 h-4" />
+                <Flag className="w-4 h-4" />
                 Major Red Flags
                 <Badge variant="secondary" className="ml-auto bg-destructive/10 text-destructive border-0 text-[10px]">
                   {analysis.redFlags.length}

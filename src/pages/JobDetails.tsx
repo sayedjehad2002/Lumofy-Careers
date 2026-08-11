@@ -167,19 +167,19 @@ const JobDetails = () => {
                   {job.department}
                 </Badge>
                 <h1 className="text-2xl sm:text-3xl font-bold mb-4">{job.title}</h1>
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
-                  <span className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <span className="lx-meta-chip">
                     <MapPin className="w-4 h-4" aria-hidden="true" /> {job.location}
                   </span>
-                  <span className="flex items-center gap-1.5">
+                  <span className="lx-meta-chip">
                     <Clock className="w-4 h-4" aria-hidden="true" /> {job.type}
                   </span>
-                  <span className="flex items-center gap-1.5">
+                  <span className="lx-meta-chip">
                     <Calendar className="w-4 h-4" aria-hidden="true" /> Posted {new Date(job.postedDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                   </span>
                   {job.deadline && (
-                    <span className="flex items-center gap-1.5 font-medium text-foreground">
-                      <CalendarClock className="w-4 h-4 text-primary" aria-hidden="true" /> Apply by {new Date(job.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    <span className="lx-meta-chip lx-meta-chip--urgent">
+                      <CalendarClock className="w-4 h-4" aria-hidden="true" /> Apply by {new Date(job.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                     </span>
                   )}
                 </div>
@@ -336,7 +336,7 @@ const JobDetails = () => {
                     {downloading ? (
                       <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" aria-hidden="true" />
                     ) : (
-                      <FileText className="w-3.5 h-3.5 mr-2" aria-hidden="true" />
+                      <Download className="w-3.5 h-3.5 mr-2" aria-hidden="true" />
                     )}
                     Download JD
                   </Button>

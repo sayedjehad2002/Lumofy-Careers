@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { GraduationCap, UserCheck, Clock, Target, Globe, type LucideIcon } from "lucide-react";
+import { GraduationCap, ClipboardCheck, Clock, Target, Globe, type LucideIcon } from "lucide-react";
 import AnimatedCounter from "@/components/careers/AnimatedCounter";
 import { prefersReducedMotion } from "@/lib/motion";
 
@@ -14,7 +14,7 @@ type Stat = { value: number; label: string; accent: string; icon: LucideIcon };
 // Performance numbers lead — PM is the platform's core pillar (same hierarchy
 // as the main site). Accents are the vivid dark-mode brand hues (legible on navy).
 const STATS: Stat[] = [
-  { value: 100, label: "Performance Reviews", accent: "223 90% 68%", icon: UserCheck },
+  { value: 100, label: "Performance Reviews", accent: "223 90% 68%", icon: ClipboardCheck },
   { value: 50, label: "Performance Goals Managed", accent: "264 95% 76%", icon: Target },
   { value: 113, label: "Courses Completed", accent: "149 72% 60%", icon: GraduationCap },
   { value: 76, label: "Learning Hours", accent: "336 80% 70%", icon: Clock },

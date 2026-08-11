@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback } from "react";
 import {
   ArrowLeft, FileText, Download, Eye, Loader2, AlertCircle,
   MessageSquare, Star, User, Briefcase, MoreHorizontal, Sparkles,
-  Mail, Phone, MapPin, ExternalLink, Calendar, Globe, Trash2, FileDown } from
+  Mail, Phone, MapPin, ExternalLink, Linkedin, Calendar, Globe, Trash2, FileDown } from
 "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -715,7 +715,7 @@ const CandidateProfile = ({
                 Applied {new Date(applicant.appliedDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
               </div>
               <div className="flex items-center gap-2 border-t border-border pt-2.5 text-muted-foreground">
-                <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                <Linkedin className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
                 <EditableText value={applicant.linkedin || ""} inputType="url" onSave={(v) => saveField("linkedin", v)} placeholder="Add LinkedIn URL" ariaLabel="LinkedIn URL" className="text-sm" />
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">

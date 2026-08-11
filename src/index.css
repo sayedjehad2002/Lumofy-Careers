@@ -279,6 +279,9 @@
      on EVERY element — a major source of scroll/animation jank. Theme transitions
      are now scoped to `body` (above) only. */
 
+  /* The Lumofy icon language lives OUTSIDE these @layer blocks — see the
+     block below the closing brace for why. */
+
   /* Respect users who prefer reduced motion */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -288,6 +291,53 @@
       scroll-behavior: auto !important;
     }
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Lumofy icon language — every icon on the site, one place.
+
+   Deliberately NOT inside an @layer: `.lucide` is emitted by the
+   lucide-react package, so the class name never appears in the files
+   Tailwind scans. Inside a layer Tailwind tree-shakes the whole block
+   away as unused; at the top level it always ships.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* The brand icon set is drawn on a finer line than Lucide's default, so
+   icons still carrying the stock `stroke-width="2"` are retuned to 1.75.
+   The attribute selector is the point: it only touches icons that never
+   asked for a weight, leaving a considered override (primitives.tsx sets
+   1.5) exactly as its author intended. Round caps and joins already match. */
+.lucide[stroke-width="2"] {
+  stroke-width: 1.75;
+}
+
+/* Press feedback: the icon dips under the finger, then springs back past
+   its resting size before settling. The press is near-instant so the
+   control never feels laggy; the spring lives in the slower release curve.
+   The global prefers-reduced-motion block above already flattens both.
+
+   The `:not()` chain is not defensive clutter — it is the whole trick.
+   Chrome ignores the standalone `scale` property on SVG elements (verified:
+   it computes back to 1), so the press has to go through `transform`, and
+   `transform` is exactly what Tailwind's spin/rotate/translate utilities
+   already drive. Without these exclusions, pressing a control would freeze
+   a loading spinner mid-turn and snap an open accordion chevron upright.
+   Icons that own their transform simply sit the animation out. */
+.lucide:not(.animate-spin):not([class*="rotate-"]):not([class*="translate-"]):not([class*="scale-"]) {
+  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+:is(button, a, summary, label, [role="button"], [role="menuitem"], [role="tab"]):active
+  .lucide:not(.animate-spin):not([class*="rotate-"]):not([class*="translate-"]):not([class*="scale-"]) {
+  transform: scale(0.88);
+  transition-duration: 90ms;
+  transition-timing-function: ease-out;
+}
+
+/* A control that can't act shouldn't answer the press. */
+:is(button, [role="button"]):disabled:active .lucide,
+[aria-disabled="true"]:active .lucide {
+  transform: none;
 }
 
 @layer components {
@@ -369,6 +419,61 @@
   }
   .dark-canvas .eyebrow-pill::before {
     background: hsl(var(--lx-blue-soft));
+  }
+
+  /* Job meta chip — location, employment type and posted date on a role.
+     Same Sirius-blue tint family as .eyebrow-pill so the two read as one
+     system, but lower-case and lighter-weight: these are facts about the
+     job, not a section kicker, and shouting them would compete with the
+     job title directly above.
+
+     The icon sits a step stronger than the label (--primary vs
+     --primary-readable). That is the hierarchy: the glyph carries the
+     colour, the text stays comfortably readable against the tint. */
+  .lx-meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary-readable));
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.25;
+    white-space: nowrap;
+  }
+  .lx-meta-chip svg {
+    color: hsl(var(--primary));
+    flex-shrink: 0;
+  }
+
+  /* In dark mode the hierarchy inverts. --primary-readable lightens for the
+     label, but the icon's raw --primary stays a mid blue that measures 2.89:1
+     against the dark card — under the 3:1 floor for non-text. Lifting the icon
+     to the glow token restores the "icon is the accent" relationship by going
+     brighter than the label rather than darker. */
+  .dark .lx-meta-chip svg {
+    color: hsl(var(--lx-blue-glow));
+  }
+
+  /* The deadline is the one fact that changes behaviour, so it gets a
+     solid-enough fill to win against its neighbours at a glance. */
+  .lx-meta-chip--urgent {
+    background: hsl(var(--primary) / 0.18);
+    color: hsl(var(--primary-readable));
+    font-weight: 700;
+  }
+
+  .dark-canvas .lx-meta-chip {
+    background: hsl(var(--lx-blue-soft) / 0.14);
+    color: hsl(var(--lx-blue-glow));
+  }
+  .dark-canvas .lx-meta-chip svg {
+    color: hsl(var(--lx-blue-soft));
+  }
+  .dark-canvas .lx-meta-chip--urgent {
+    background: hsl(var(--lx-blue-soft) / 0.24);
   }
 
   /* ── Hero: sized fluidly on BOTH axes so it fits every screen ──

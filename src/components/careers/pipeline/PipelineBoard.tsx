@@ -7,7 +7,7 @@ import {
   DragDropContext, Draggable, type DropResult, type DraggableProvided,
   type DraggableProvidedDragHandleProps, type DraggableRubric, type DraggableStateSnapshot,
 } from "@hello-pangea/dnd";
-import { BarChart3, Search, X } from "lucide-react";
+import { KanbanSquare, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -400,7 +400,7 @@ export default function PipelineBoard({
       <div className="mb-3 flex shrink-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-            <BarChart3 className="h-5 w-5 text-primary" aria-hidden="true" />
+            <KanbanSquare className="h-5 w-5 text-primary" aria-hidden="true" />
           </div>
           <div className="min-w-0">
             <h1 className="text-2xl font-bold tracking-tight">Pipeline</h1>

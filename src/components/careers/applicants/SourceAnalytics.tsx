@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Globe, Link2, TrendingUp, Briefcase, Sparkles, Info } from "lucide-react";
+import { Globe, Link2, TrendingUp, Briefcase, Megaphone, Gauge, Info } from "lucide-react";
 import type { Applicant } from "@/types/careers";
 import { Panel, MetricTile } from "@/components/careers/dashboard/primitives";
 import { CHART_SERIES, TONE_TEXT } from "@/components/careers/statusColors";
@@ -204,7 +204,7 @@ const SourceAnalytics = ({ applicants, getJobTitle }: SourceAnalyticsProps) => {
       </Panel>
 
       {data.campaigns.length > 0 && (
-        <Panel title="Campaigns" icon={Sparkles}>
+        <Panel title="Campaigns" icon={Megaphone}>
           <ul className="space-y-2">
             {data.campaigns.map(([name, n]) => (
               <li key={name} className="flex items-center gap-3 text-sm">
@@ -255,7 +255,7 @@ const SourceAnalytics = ({ applicants, getJobTitle }: SourceAnalyticsProps) => {
           </ul>
         </Panel>
 
-        <Panel title="Candidate quality" icon={TrendingUp}>
+        <Panel title="Candidate quality" icon={Gauge}>
           {data.scored === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">No application has been scored yet.</p>
           ) : (

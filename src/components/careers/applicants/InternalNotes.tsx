@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { MessageSquare, Cog, Send, Lock } from "lucide-react";
+import { MessageSquare, Cog, MessageSquarePlus, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { ApplicantEvent } from "@/hooks/use-applicant-events";
@@ -135,7 +135,7 @@ export default function InternalNotes({ notes, events, saving, onAdd }: Internal
           className="h-9 rounded-xl text-sm"
         />
         <Button size="sm" className="h-9 shrink-0 gap-1.5 rounded-xl" onClick={submit} disabled={saving || !draft.trim()}>
-          <Send className="h-3.5 w-3.5" aria-hidden="true" />
+          <MessageSquarePlus className="h-3.5 w-3.5" aria-hidden="true" />
           {saving ? "Saving…" : "Add"}
         </Button>
       </div>

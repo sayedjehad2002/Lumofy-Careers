@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, Eye, Check, Trash2, Mail, Phone, User, Star, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Eye, Check, Trash2, Mail, Phone, User, Star, ShieldCheck, CopyCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -214,7 +214,7 @@ export default function DuplicateDetection({ candidates, onView, onDelete }: Pro
           {certain.length > 0 && (
             <>
               <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                <CopyCheck className="h-3.5 w-3.5" aria-hidden="true" />
                 Same person ({certain.length})
               </p>
               {certain.map(renderGroup)}

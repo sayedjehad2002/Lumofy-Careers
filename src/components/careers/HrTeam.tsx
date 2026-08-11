@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,10 +11,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Panel } from "./dashboard/primitives";
-import { Loader2, UserPlus, Copy, Check, Link2, ShieldCheck, Ban, RotateCcw, Users } from "lucide-react";
+import {
+  Loader2, UserPlus, Copy, Check, Link2, ShieldCheck, Ban, RotateCcw,
+  Users, UserCog,
+} from "lucide-react";
 import { toast } from "sonner";
+import {
+  activityOf, summarize, byLastActive, lastSignInStamp, DORMANT_DAYS,
+  type TeamMember, type ActivityState,
+} from "@/lib/teamMetrics";
 
-interface Member { id: string; email: string; role: string; status: string; created_at: string; }
+type Member = TeamMember;
 interface Invite { id: string; email: string; role: string; expires_at: string; created_at: string; invited_by_email?: string | null; }
 
 const siteUrl = () => (import.meta.env.VITE_SITE_URL as string) || window.location.origin;
@@ -28,6 +35,16 @@ const ROLE_INFO: Record<string, { label: string; blurb: string }> = {
 };
 const roleInfo = (role: string) => ROLE_INFO[role] ?? { label: role, blurb: "" };
 
+/** Activity dot colour. "unknown" stays neutral — an unavailable lookup is not
+ *  evidence of anything, so it must never wear the warning tone. */
+const ACTIVITY_DOT: Record<ActivityState, string> = {
+  today: "bg-[hsl(var(--intel-success))]",
+  recent: "bg-[hsl(var(--intel-success))]/50",
+  dormant: "bg-[hsl(var(--intel-warning))]",
+  never: "bg-muted-foreground/40",
+  unknown: "bg-muted-foreground/25",
+};
+
 // navigator.clipboard can be undefined (non-secure origin, some embedded
 // webviews) — accessing .writeText on it then throws SYNCHRONOUSLY, before any
 // promise exists to .catch(). Wrap the whole thing so any failure (sync or
@@ -38,6 +55,16 @@ const copyToClipboard = async (text: string): Promise<boolean> => {
 };
 
 const initials = (email: string) => email.slice(0, 2).toUpperCase();
+
+/** Compact number + label, used for the roster's summary strip. */
+function Stat({ value, label, tone = "" }: { value: number; label: string; tone?: string }) {
+  return (
+    <div className="min-w-0">
+      <p className={`font-mono text-lg font-semibold tabular-nums leading-none ${tone || "text-foreground"}`}>{value}</p>
+      <p className="mt-1 truncate text-[11px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
 
 const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
   const [members, setMembers] = useState<Member[]>([]);
@@ -142,16 +169,27 @@ const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
   };
 
   const you = roleInfo(callerRole);
+
+  // One clock read per render pass, shared by every derivation below, so two
+  // rows can never disagree about what "today" means.
+  const now = Date.now();
+  const summary = useMemo(() => summarize(members, now), [members, now]);
+
   // Disabled accounts are history, not staff — they sit in their own group below
   // the people who can actually sign in, rather than interleaved by join date.
-  const activeMembers = members.filter((m) => m.status === "active");
-  const disabledMembers = members.filter((m) => m.status !== "active");
+  const activeMembers = useMemo(
+    () => byLastActive(members.filter((m) => m.status === "active"), now),
+    [members, now],
+  );
+  const disabledMembers = useMemo(() => members.filter((m) => m.status !== "active"), [members]);
 
   const memberRow = (m: Member) => {
     const isYou = !!callerEmail && m.email === callerEmail;
     const isOwner = m.role === "owner";
     const busy = busyId === m.id;
     const disabled = m.status !== "active";
+    const act = activityOf(m, now);
+    const stamp = lastSignInStamp(m);
     return (
       <div key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5">
         <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${disabled ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}>
@@ -166,6 +204,28 @@ const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
             {disabled ? "Cannot sign in." : roleInfo(m.role).blurb}
           </p>
         </div>
+
+        {/* Last activity. Sits before the controls so the answer to "should this
+            person still have access?" is next to the control that changes it.
+            The exact stamp is shown, not just the relative phrase — an access
+            review has to be able to cite a date, and "3 days ago" drifts the
+            moment you screenshot it.
+
+            Owner-only. The server already withholds the field from anyone else,
+            so this check just keeps the column from reserving empty space. */}
+        {canManage && !disabled && (
+          <span className="w-[150px] shrink-0 text-right">
+            <span className="flex items-center justify-end gap-1.5 text-[11px] text-muted-foreground">
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${ACTIVITY_DOT[act.state]}`} aria-hidden="true" />
+              {act.label}
+            </span>
+            {stamp && (
+              <span className="mt-0.5 block font-mono text-[10px] tabular-nums text-muted-foreground/70">
+                {stamp}
+              </span>
+            )}
+          </span>
+        )}
 
         {/* Owners can retune a member between Admin and Viewer in place. Owner
             rows stay a static badge — an owner is changed in the database on
@@ -202,7 +262,7 @@ const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
   };
 
   return (
-    <div className="max-w-3xl space-y-5">
+    <div className="space-y-5">
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-foreground">HR Team</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
@@ -210,112 +270,168 @@ const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
         </p>
       </div>
 
-      {/* Who you are + what your role grants. Answers "am I allowed to do this?"
-          before the person goes looking for a control that isn't there. */}
-      {!loading && callerEmail && (
-        <Panel title="Your access" icon={ShieldCheck}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
-              {initials(callerEmail)}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground">{callerEmail}</p>
-              <p className="text-xs text-muted-foreground">{you.blurb}</p>
-            </div>
-            <Badge variant="secondary" className="border-0 text-[10px]">{you.label}</Badge>
-          </div>
-          {!canManage && (
-            <p className="mt-3 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
-              Inviting people, changing roles and disabling accounts are owner-only, which is why those
-              controls aren't shown here.
-            </p>
-          )}
-        </Panel>
-      )}
-
-      {canManage && (
-        <Panel title="Invite a teammate" icon={UserPlus}>
-          <form onSubmit={createInvite} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="flex-1 space-y-1.5">
-              <label htmlFor="invite-email" className="text-xs text-muted-foreground">Email</label>
-              <Input id="invite-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teammate@company.com" disabled={creating} />
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="invite-role" className="text-xs text-muted-foreground">Role</label>
-              <Select value={role} onValueChange={(v) => setRole(v as "admin" | "viewer")} disabled={creating}>
-                <SelectTrigger id="invite-role" className="w-32"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="viewer">Viewer</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" disabled={creating} className="rounded-lg">
-              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create invite link"}
-            </Button>
-          </form>
-          <p className="mt-2 text-[11px] text-muted-foreground">{roleInfo(role).blurb}</p>
-          {lastLink && (
-            <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-secondary/40 p-2">
-              <Link2 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-              <code className="flex-1 truncate text-xs text-muted-foreground">{lastLink}</code>
-              <Button size="sm" variant="outline" onClick={copyLast} aria-label={copied ? "Copied" : "Copy invite link"} className="shrink-0 rounded-lg">
-                {copied ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
-              </Button>
-            </div>
-          )}
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            Send this link to your teammate. It expires in 7 days, works once, and only the invited email can use it.
-          </p>
-        </Panel>
-      )}
-
-      <Panel title={`Team members (${activeMembers.length})`} icon={Users}>
-        {loading ? (
-          <div className="py-6 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" /></div>
-        ) : (
-          <>
-            <div className="divide-y divide-border/60">{activeMembers.map(memberRow)}</div>
-
-            {disabledMembers.length > 0 && (
-              <div className="mt-4 border-t border-border pt-3">
-                <div className="mb-1 flex items-center gap-2">
-                  <Ban className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                  <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Disabled ({disabledMembers.length})
-                  </h3>
+      {/* Two-column workspace. The roster is the work, so it takes the wide
+          column; identity, invites and pending links are reference material and
+          sit in a rail that sticks as the roster scrolls. Collapses to one
+          column below xl so laptops keep full-width rows rather than two
+          cramped halves. */}
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 space-y-5">
+          <Panel
+            title={`Users (${summary.total})`}
+            icon={Users}
+            action={
+              !loading && (
+                <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                  {summary.active} active
+                </span>
+              )
+            }
+          >
+            {loading ? (
+              <div className="py-10 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" /></div>
+            ) : (
+              <>
+                {/* What the roster adds up to, before the rows themselves. */}
+                {/* The idle count is derived from sign-in times, which only an
+                    owner receives — so it only appears for an owner. */}
+                <div className={`grid gap-4 border-b border-border/60 pb-4 ${canManage ? "grid-cols-3 sm:grid-cols-5" : "grid-cols-2 sm:grid-cols-4"}`}>
+                  <Stat value={summary.owners} label="Owners" />
+                  <Stat value={summary.admins} label="Admins" />
+                  <Stat value={summary.viewers} label="Viewers" />
+                  {canManage && (
+                    <Stat
+                      value={summary.dormant.length}
+                      label={`Idle ${DORMANT_DAYS}d+`}
+                      tone={summary.dormant.length ? "text-[hsl(var(--intel-warning))]" : ""}
+                    />
+                  )}
+                  <Stat value={summary.disabled} label="Disabled" />
                 </div>
-                <p className="mb-1 text-[11px] text-muted-foreground">
-                  These accounts still exist but cannot sign in.
-                  {canManage ? " Enable one to restore their access." : ""}
-                </p>
-                <div className="divide-y divide-border/60">{disabledMembers.map(memberRow)}</div>
-              </div>
+
+                <div className="mt-1 divide-y divide-border/60">{activeMembers.map(memberRow)}</div>
+
+                {disabledMembers.length > 0 && (
+                  <div className="mt-4 border-t border-border pt-3">
+                    <div className="mb-1 flex items-center gap-2">
+                      <Ban className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Disabled ({disabledMembers.length})
+                      </h3>
+                    </div>
+                    <p className="mb-1 text-[11px] text-muted-foreground">
+                      These accounts still exist but cannot sign in.
+                      {canManage ? " Enable one to restore their access." : ""}
+                    </p>
+                    <div className="divide-y divide-border/60">{disabledMembers.map(memberRow)}</div>
+                  </div>
+                )}
+              </>
             )}
-          </>
-        )}
-      </Panel>
+          </Panel>
 
-      {canManage && invites.length > 0 && (
-        <Panel title={`Pending invites (${invites.length})`} icon={Link2}>
-          <div className="divide-y divide-border/60">
-            {invites.map((inv) => (
-              <div key={inv.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-foreground">{inv.email}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {inv.invited_by_email ? `invited by ${inv.invited_by_email} · ` : ""}
-                    expires {new Date(inv.expires_at).toLocaleDateString()}
-                  </p>
+        </div>
+
+        {/* Reference rail. `self-start` keeps sticky working inside a grid — a
+            stretched grid item is already full height and would never stick. */}
+        <div className="space-y-5 xl:sticky xl:top-4 xl:self-start">
+          {/* Who you are + what your role grants. Answers "am I allowed to do this?"
+              before the person goes looking for a control that isn't there. */}
+          {!loading && callerEmail && (
+            <Panel title="Your access" icon={ShieldCheck}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
+                  {initials(callerEmail)}
                 </div>
-                <Badge variant="secondary" className="border-0 text-[10px]">{roleInfo(inv.role).label}</Badge>
-                <Button size="sm" variant="outline" onClick={() => regen(inv)} className="h-7 rounded-lg text-xs">New link</Button>
-                <Button size="sm" variant="ghost" onClick={() => revoke(inv.id)} className="h-7 text-xs text-destructive hover:text-destructive">Revoke</Button>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">{callerEmail}</p>
+                  <p className="text-xs text-muted-foreground">{you.blurb}</p>
+                </div>
+                <Badge variant="secondary" className="border-0 text-[10px]">{you.label}</Badge>
               </div>
-            ))}
-          </div>
-        </Panel>
-      )}
+              {!canManage && (
+                <p className="mt-3 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
+                  Inviting people, changing roles and disabling accounts are owner-only, which is why those
+                  controls aren't shown here.
+                </p>
+              )}
+            </Panel>
+          )}
+
+          {canManage && (
+            <Panel title="Invite a teammate" icon={UserPlus}>
+              <form onSubmit={createInvite} className="space-y-3">
+                <div className="space-y-1.5">
+                  <label htmlFor="invite-email" className="text-xs text-muted-foreground">Email</label>
+                  <Input id="invite-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teammate@company.com" disabled={creating} />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="invite-role" className="text-xs text-muted-foreground">Role</label>
+                  <Select value={role} onValueChange={(v) => setRole(v as "admin" | "viewer")} disabled={creating}>
+                    <SelectTrigger id="invite-role" className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="viewer">Viewer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">{roleInfo(role).blurb}</p>
+                </div>
+                <Button type="submit" disabled={creating} className="w-full rounded-lg">
+                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create invite link"}
+                </Button>
+              </form>
+              {lastLink && (
+                <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-secondary/40 p-2">
+                  <Link2 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  <code className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{lastLink}</code>
+                  <Button size="sm" variant="outline" onClick={copyLast} aria-label={copied ? "Copied" : "Copy invite link"} className="shrink-0 rounded-lg">
+                    {copied ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
+                  </Button>
+                </div>
+              )}
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Send this link to your teammate. It expires in 7 days, works once, and only the invited email can use it.
+              </p>
+            </Panel>
+          )}
+
+          {canManage && invites.length > 0 && (
+            <Panel title={`Pending invites (${invites.length})`} icon={Link2}>
+              <div className="divide-y divide-border/60">
+                {invites.map((inv) => (
+                  <div key={inv.id} className="space-y-1.5 py-2.5 first:pt-0 last:pb-0">
+                    <div className="flex items-center gap-2">
+                      <p className="min-w-0 flex-1 truncate text-sm text-foreground">{inv.email}</p>
+                      <Badge variant="secondary" className="border-0 text-[10px]">{roleInfo(inv.role).label}</Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {inv.invited_by_email ? `invited by ${inv.invited_by_email} · ` : ""}
+                      expires {new Date(inv.expires_at).toLocaleDateString()}
+                    </p>
+                    <div className="flex gap-1.5">
+                      <Button size="sm" variant="outline" onClick={() => regen(inv)} className="h-7 rounded-lg text-xs">New link</Button>
+                      <Button size="sm" variant="ghost" onClick={() => revoke(inv.id)} className="h-7 text-xs text-destructive hover:text-destructive">Revoke</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          )}
+
+          {/* What the three roles mean, spelled out once. Saves an owner from
+              guessing at the dropdown they are about to change someone with. */}
+          <Panel title="What the roles mean" icon={UserCog}>
+            <dl className="space-y-2.5">
+              {(["owner", "admin", "viewer"] as const).map((r) => (
+                <div key={r}>
+                  <dt className="text-xs font-semibold text-foreground">{ROLE_INFO[r].label}</dt>
+                  <dd className="text-[11px] leading-relaxed text-muted-foreground">{ROLE_INFO[r].blurb}</dd>
+                </div>
+              ))}
+            </dl>
+          </Panel>
+        </div>
+      </div>
 
       {/* Removing someone's access is worth one deliberate beat. */}
       <AlertDialog open={!!toDisable} onOpenChange={(open) => !open && setToDisable(null)}>

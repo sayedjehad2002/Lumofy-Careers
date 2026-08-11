@@ -3,7 +3,7 @@ import {
   Brain, Loader2, Target, Zap, BookOpen, Briefcase, AlertTriangle,
   TrendingUp, MessageSquare, Quote, Check, AlertCircle, X,
   Shield, Building2, ThumbsUp, ThumbsDown, Route, BarChart3, ShieldAlert,
-  Info, ChevronDown, ShieldCheck, Scale,
+  Info, ChevronDown, ShieldCheck, Scale, FileSearch,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
@@ -608,7 +608,7 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
           {ai.evidenceQuality?.level && (
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-secondary/30 px-3 py-2 text-xs">
               <span className="flex items-center gap-1.5 text-muted-foreground">
-                <TrendingUp className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                <FileSearch className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                 Evidence quality
                 <InfoHint
                   label="Evidence quality"

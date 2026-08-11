@@ -2,8 +2,8 @@ import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from "react
 import lumofyLogo from "@/assets/lumofy-mark.png";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
-  Briefcase, Users, BarChart3, ExternalLink, LogOut,
-  Loader2, LayoutDashboard, Library, Search, UsersRound, UserX
+  Briefcase, Users, Columns3, ExternalLink, LogOut,
+  Loader2, LayoutDashboard, Library, Search, UserCog, UserX
 } from "lucide-react";
 import CommandPalette from "@/components/careers/CommandPalette";
 import { Button } from "@/components/ui/button";
@@ -171,9 +171,9 @@ const Dashboard = () => {
     { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-4 h-4" />, group: "Hiring" },
     { id: "jobs", label: "Jobs", icon: <Briefcase className="w-4 h-4" />, group: "Hiring" },
     { id: "applicants", label: "Applicants", icon: <Users className="w-4 h-4" />, group: "Hiring" },
-    { id: "pipeline", label: "Pipeline", icon: <BarChart3 className="w-4 h-4" />, group: "Hiring" },
+    { id: "pipeline", label: "Pipeline", icon: <Columns3 className="w-4 h-4" />, group: "Hiring" },
     { id: "cv-library", label: "CV Library", icon: <Library className="w-4 h-4" />, group: "Talent" },
-    { id: "hr-team", label: "HR Team", icon: <UsersRound className="w-4 h-4" />, group: "Tools" },
+    { id: "hr-team", label: "HR Team", icon: <UserCog className="w-4 h-4" />, group: "Tools" },
   ];
   const navGroups = ["Hiring", "Talent", "Tools"];
 
