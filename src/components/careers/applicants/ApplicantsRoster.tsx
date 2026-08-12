@@ -1,9 +1,8 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { Users, Search, X, Check } from "lucide-react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { Search, X, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -25,6 +24,8 @@ import RosterBulkBar from "./RosterBulkBar";
 import RosterFilters from "./RosterFilters";
 import CompareDrawer from "./CompareDrawer";
 import { useBulkAnalysis } from "./useBulkAnalysis";
+import JobFilter from "./JobFilter";
+import { LxApplicants } from "@/components/icons/lumofy";
 
 const WINDOW_INITIAL = 60;
 const WINDOW_STEP = 60;
@@ -35,11 +36,12 @@ const SHOW_ALL = Number.MAX_SAFE_INTEGER;
 const TERMINAL: ApplicantStatus[] = ["rejected", "hired"];
 
 export interface ApplicantsRosterProps {
-  /** Already scoped to selectedJobId by Dashboard. */
+  /** Already scoped to selectedJobIds by Dashboard. */
   applicants: Applicant[];
   jobs: Job[];
-  selectedJobId: string;
-  onJobChange: (jobId: string) => void;
+  /** Empty = every job. */
+  selectedJobIds: readonly string[];
+  onJobIdsChange: Dispatch<SetStateAction<string[]>>;
   applicantHref: (applicantId: string) => string;
   onBulkStatusUpdate: (ids: string[], status: ApplicantStatus) => Promise<{ updated: string[] }>;
   onDeleteApplicant: (id: string) => Promise<void>;
@@ -49,7 +51,7 @@ export interface ApplicantsRosterProps {
 }
 
 export default function ApplicantsRoster({
-  applicants, jobs, selectedJobId, onJobChange, applicantHref,
+  applicants, jobs, selectedJobIds, onJobIdsChange, applicantHref,
   onBulkStatusUpdate, onDeleteApplicant, onAnalysisComplete, getJobTitle, sessionToken,
 }: ApplicantsRosterProps) {
   const [facet, setFacet] = useState<FacetId>("all");
@@ -102,7 +104,7 @@ export default function ApplicantsRoster({
 
   // Reset the window whenever the result set changes, or a narrow search would
   // inherit a huge limit from a previous browse.
-  useEffect(() => { setLimit(WINDOW_INITIAL); }, [facet, deferredSearch, sort, selectedJobId, filters]);
+  useEffect(() => { setLimit(WINDOW_INITIAL); }, [facet, deferredSearch, sort, selectedJobIds, filters]);
 
   // Selection must never outlive the rows it points at, or the count lies.
   useEffect(() => {
@@ -225,7 +227,7 @@ export default function ApplicantsRoster({
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-            <Users className="h-5 w-5 text-primary" aria-hidden="true" />
+            <LxApplicants className="h-5 w-5 text-primary" />
           </div>
           <div className="min-w-0">
             <h1 className="text-2xl font-bold tracking-tight">Applicants</h1>
@@ -311,15 +313,7 @@ export default function ApplicantsRoster({
           )}
         </div>
 
-        <Select value={selectedJobId} onValueChange={onJobChange}>
-          <SelectTrigger className="h-9 w-full shrink-0 rounded-xl border-border bg-card sm:w-52" aria-label="Filter by job">
-            <SelectValue placeholder="Filter by job" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All jobs</SelectItem>
-            {jobs.map((j) => <SelectItem key={j.id} value={j.id}>{j.title}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <JobFilter jobs={jobs} selected={selectedJobIds} onChange={onJobIdsChange} className="w-full sm:w-52" />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -399,7 +393,7 @@ export default function ApplicantsRoster({
       ) : (
         <div className="rounded-xl border border-dashed border-[hsl(var(--intel-border))] py-16 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-secondary">
-            <Users className="h-6 w-6 text-muted-foreground/40" aria-hidden="true" />
+            <LxApplicants className="h-6 w-6 text-muted-foreground/40" />
           </div>
           {applicants.length === 0 ? (
             <p className="font-medium">No applications yet</p>

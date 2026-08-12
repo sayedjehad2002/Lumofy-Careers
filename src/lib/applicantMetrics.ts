@@ -112,6 +112,20 @@ export function applyScoreRange(applicants: Applicant[], min: number, max: numbe
 }
 
 /**
+ * Scope a list to a set of jobs.
+ *
+ * An EMPTY selection means "all jobs", not "no jobs". That reading is the whole
+ * contract of the control: the filter starts empty, and a filter nobody has
+ * touched must never hide anything. Clearing the last checkbox therefore returns
+ * to the full list rather than emptying the screen.
+ */
+export function filterByJobs(applicants: Applicant[], jobIds: readonly string[]): Applicant[] {
+  if (jobIds.length === 0) return applicants;
+  const wanted = new Set(jobIds);
+  return applicants.filter((a) => wanted.has(a.jobId));
+}
+
+/**
  * The filters behind the popover — the ones the chips cannot express.
  *
  * Deliberately small. The old AdvancedFilters carried eight fields including a

@@ -1,10 +1,13 @@
 import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from "react";
 import lumofyLogo from "@/assets/lumofy-mark.png";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ExternalLink, LogOut, Loader2, Search, UserX } from "lucide-react";
+// The sidebar runs on Lumofy's own icon set so the primary navigation — the one
+// surface visible on every screen — is unmistakably the brand's rather than a
+// generic library's.
 import {
-  Briefcase, Users, Columns3, ExternalLink, LogOut,
-  Loader2, LayoutDashboard, Library, Search, UserCog, UserX
-} from "lucide-react";
+  LxOverview, LxJobs, LxApplicants, LxPipeline, LxLibrary, LxHrTeam,
+} from "@/components/icons/lumofy";
 import CommandPalette from "@/components/careers/CommandPalette";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,6 +58,7 @@ const SourceAnalytics = lazy(() => import("@/components/careers/applicants/Sourc
 // From its own module, deliberately: importing these from PipelineBoard.tsx would
 // pull the board back into this chunk and undo the lazy split above.
 import { INITIAL_PIPELINE_VIEW, type PipelineViewState } from "@/components/careers/pipeline/pipelineView";
+import { filterByJobs } from "@/lib/applicantMetrics";
 
 type Tab = "overview" | "jobs" | "applicants" | "pipeline" | "cv-library" | "hr-team";
 
@@ -85,7 +89,9 @@ const Dashboard = () => {
     (t: Tab, sub?: string) => navigate(dashboardPath(t, sub)),
     [navigate]
   );
-  const [selectedJobId, setSelectedJobId] = useState<string>("all");
+  // Empty = every job. Shared by the Applicants roster and the Pipeline board so
+  // switching tabs keeps the same scope instead of silently widening it.
+  const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
 
   /**
    * The open candidate is the URL, not component state.
@@ -168,19 +174,19 @@ const Dashboard = () => {
   const boardLayout = activeTab === "pipeline";
 
   const mainTabs: { id: Tab; label: string; icon: React.ReactNode; group: string }[] = [
-    { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-4 h-4" />, group: "Hiring" },
-    { id: "jobs", label: "Jobs", icon: <Briefcase className="w-4 h-4" />, group: "Hiring" },
-    { id: "applicants", label: "Applicants", icon: <Users className="w-4 h-4" />, group: "Hiring" },
-    { id: "pipeline", label: "Pipeline", icon: <Columns3 className="w-4 h-4" />, group: "Hiring" },
-    { id: "cv-library", label: "CV Library", icon: <Library className="w-4 h-4" />, group: "Talent" },
-    { id: "hr-team", label: "HR Team", icon: <UserCog className="w-4 h-4" />, group: "Tools" },
+    { id: "overview", label: "Overview", icon: <LxOverview className="w-4 h-4" />, group: "Hiring" },
+    { id: "jobs", label: "Jobs", icon: <LxJobs className="w-4 h-4" />, group: "Hiring" },
+    { id: "applicants", label: "Applicants", icon: <LxApplicants className="w-4 h-4" />, group: "Hiring" },
+    { id: "pipeline", label: "Pipeline", icon: <LxPipeline className="w-4 h-4" />, group: "Hiring" },
+    { id: "cv-library", label: "CV Library", icon: <LxLibrary className="w-4 h-4" />, group: "Talent" },
+    { id: "hr-team", label: "HR Team", icon: <LxHrTeam className="w-4 h-4" />, group: "Tools" },
   ];
   const navGroups = ["Hiring", "Talent", "Tools"];
 
-  const filteredApplicants = useMemo(() => {
-    if (selectedJobId === "all") return applicants;
-    return applicants.filter((a) => a.jobId === selectedJobId);
-  }, [applicants, selectedJobId]);
+  const filteredApplicants = useMemo(
+    () => filterByJobs(applicants, selectedJobIds),
+    [applicants, selectedJobIds],
+  );
 
   const handleStatusUpdate = async (applicantId: string, status: ApplicantStatus) => {
     try {
@@ -570,7 +576,7 @@ const Dashboard = () => {
               applicants={applicants}
               archivedJobs={archivedJobs}
               onCreate={() => { setEditingJob(null); setJobFormOpen(true); }}
-              onOpen={(jobId) => { setSelectedJobId(jobId); setActiveTab("applicants"); }}
+              onOpen={(jobId) => { setSelectedJobIds([jobId]); setActiveTab("applicants"); }}
               onEdit={(job) => { setEditingJob(job); setJobFormOpen(true); }}
               onDuplicate={handleDuplicateJob}
               onArchive={setDeleteJobTarget}
@@ -591,8 +597,8 @@ const Dashboard = () => {
             <ApplicantsRoster
               applicants={filteredApplicants}
               jobs={jobs}
-              selectedJobId={selectedJobId}
-              onJobChange={setSelectedJobId}
+              selectedJobIds={selectedJobIds}
+              onJobIdsChange={setSelectedJobIds}
               applicantHref={listApplicantHref}
               onBulkStatusUpdate={updateApplicantStatusBulk}
               onDeleteApplicant={deleteApplicant}
@@ -658,8 +664,8 @@ const Dashboard = () => {
               <PipelineBoard
                 applicants={applicants}
                 jobs={jobs}
-                selectedJobId={selectedJobId}
-                onJobChange={setSelectedJobId}
+                selectedJobIds={selectedJobIds}
+                onJobIdsChange={setSelectedJobIds}
                 onStatusUpdate={handleStatusUpdate}
                 onBulkStatusUpdate={updateApplicantStatusBulk}
                 onOpenApplicant={(a) => openApplicant(a.id, "pipeline")}

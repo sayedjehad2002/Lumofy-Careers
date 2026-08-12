@@ -68,8 +68,8 @@ function Harness({
     <PipelineBoard
       applicants={applicants}
       jobs={jobs}
-      selectedJobId="all"
-      onJobChange={() => {}}
+      selectedJobIds={[]}
+      onJobIdsChange={() => {}}
       onStatusUpdate={async () => {}}
       onBulkStatusUpdate={onBulk ?? (async (ids) => ({ updated: ids }))}
       onOpenApplicant={() => {}}

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   ROSTER_FACETS, rosterFacets, rosterSummary, applyScoreRange, distinctPeople,
-  applyRosterFilters, activeFilterCount, NO_FILTERS,
+  applyRosterFilters, activeFilterCount, NO_FILTERS, filterByJobs,
 } from "@/lib/applicantMetrics";
 import type { AIAnalysis, Applicant } from "@/types/careers";
 
@@ -161,5 +161,41 @@ describe("applyRosterFilters", () => {
   it("counts only the filters that are doing something", () => {
     expect(activeFilterCount(NO_FILTERS)).toBe(0);
     expect(activeFilterCount({ ...NO_FILTERS, stage: "new", scoreMin: 50 })).toBe(2);
+  });
+});
+
+describe("filterByJobs", () => {
+  const list = [
+    app({ id: "1", jobId: "fullstack" }),
+    app({ id: "2", jobId: "eng-intern" }),
+    app({ id: "3", jobId: "senior-ai" }),
+    app({ id: "4", jobId: "marketing" }),
+  ];
+
+  it("treats an empty selection as every job, not as none", () => {
+    // The contract the whole control rests on. If this ever inverted, a filter
+    // nobody had touched would blank the screen on first paint.
+    expect(filterByJobs(list, [])).toHaveLength(4);
+  });
+
+  it("keeps candidates from every selected job", () => {
+    const out = filterByJobs(list, ["fullstack", "eng-intern", "senior-ai"]);
+    expect(out.map((a) => a.id)).toEqual(["1", "2", "3"]);
+  });
+
+  it("still narrows to a single job", () => {
+    expect(filterByJobs(list, ["marketing"]).map((a) => a.id)).toEqual(["4"]);
+  });
+
+  it("ignores ids that match no candidate rather than throwing", () => {
+    // A saved scope can outlive an archived job; a stale id must not break the page.
+    expect(filterByJobs(list, ["deleted-job"])).toHaveLength(0);
+    expect(filterByJobs(list, ["fullstack", "deleted-job"]).map((a) => a.id)).toEqual(["1"]);
+  });
+
+  it("does not mutate or reorder the input", () => {
+    const copy = [...list];
+    filterByJobs(list, ["senior-ai"]);
+    expect(list).toEqual(copy);
   });
 });

@@ -1,11 +1,24 @@
 import { forwardRef } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, TrendingUp, Sparkles, Briefcase } from "lucide-react";
+import { Home, Sprout, Telescope, Briefcase } from "lucide-react";
 
+/**
+ * Four destinations, four distinct ideas.
+ *
+ * Sparkles and TrendingUp were both wrong here, and both for the same reason:
+ * each already carries a settled meaning elsewhere in the product. Sparkles is
+ * the AI marker (nine files), so on "Mission" it promised a feature rather than
+ * a purpose. TrendingUp is the metrics glyph — and the Growth section is career
+ * acceleration, learning and well-being, not a chart that goes up.
+ *
+ * Telescope reads as looking far ahead, which is what "the problem worth
+ * joining" is about. Sprout reads as personal development rather than a rising
+ * line. Neither appears anywhere else in the app, so neither collides.
+ */
 const navItems = [
   { to: "/", label: "Home", icon: Home },
-  { to: "/#why", label: "Mission", icon: Sparkles },
-  { to: "/#growth", label: "Growth", icon: TrendingUp },
+  { to: "/#why", label: "Mission", icon: Telescope },
+  { to: "/#growth", label: "Growth", icon: Sprout },
   { to: "/jobs", label: "Apply", icon: Briefcase },
 ];
 
@@ -40,11 +53,17 @@ const MobileBottomNav = forwardRef<HTMLElement>((_, ref) => {
                     : "text-[hsl(var(--lx-on-dark-3))] hover:text-[hsl(var(--lx-on-dark))]"
                 }`}
               >
-                <div className="relative">
+                {/* The active lift lives on this wrapper, not on the icon.
+                    The global press animation deliberately skips any icon that
+                    owns its own transform (`:not([class*="scale-"])`), so a
+                    `scale-110` on the <Icon/> made the selected tab the one
+                    icon that never answered a tap — backwards, on the control
+                    the thumb is actually on. */}
+                <div className={`relative transition-transform duration-200 ${isActive ? "scale-110" : ""}`}>
                   {isActive && (
                     <span className="absolute -inset-2 bg-[hsl(var(--lx-blue-soft)/0.15)] rounded-lg" />
                   )}
-                  <Icon className={`w-5 h-5 relative z-10 transition-transform duration-200 ${isActive ? "scale-110" : ""}`} />
+                  <Icon className="w-5 h-5 relative z-10" />
                 </div>
                 <span className="text-[10px] font-medium">
                   {item.label}

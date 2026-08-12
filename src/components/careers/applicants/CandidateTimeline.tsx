@@ -1,13 +1,19 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  FileText, Brain, ArrowRight, Calendar, Clock, MessageSquare
-} from "lucide-react";
-import { APPLICANT_STATUSES, type Applicant } from "@/types/careers";
+import type { Applicant, ApplicantStatus } from "@/types/careers";
+import { APPLICANT_STATUSES } from "@/types/careers";
 import type { ApplicantEvent } from "@/hooks/use-applicant-events";
-import { TONE_SOFT } from "@/components/careers/statusColors";
+import { STATUS_COLORS, STATUS_SOFT } from "@/components/careers/statusColors";
+import {
+  buildTimeline, daysSpanned, relativeDay,
+  type TimelineEntry,
+} from "@/lib/candidateTimeline";
+import { prefersReducedMotion } from "@/lib/motion";
+import {
+  LxDocument, LxCandidate, LxReviewing, LxShortlist, LxAnalysis,
+  LxHourglass, LxNote, LxInterview, LxHired, LxRejected,
+  type LxIconProps,
+} from "@/components/icons/lumofy";
 
 interface CandidateTimelineProps {
   applicant: Applicant;
@@ -15,188 +21,170 @@ interface CandidateTimelineProps {
   events: ApplicantEvent[];
 }
 
-interface TimelineEvent {
-  id: string;
-  type: "applied" | "status_change" | "ai_analyzed" | "note";
-  label: string;
-  detail?: string;
-  /** Email of the HR user who did it. Undefined = never recorded, not "nobody". */
-  actor?: string;
-  /** True when derived from the candidate's current state rather than a recorded event. */
-  inferred?: boolean;
-  date: Date;
-  icon: React.ReactNode;
-  color: string;
+type LxIcon = (p: LxIconProps) => JSX.Element;
+
+/**
+ * A stage gets the icon for what that stage MEANS, not a generic arrow.
+ *
+ * This is the difference between "something changed" and "they reached
+ * interview" — the whole point of the card is that a hiring manager reads the
+ * candidate's position in one pass, and shape carries that faster than text.
+ */
+const STAGE_ICON: Record<ApplicantStatus, LxIcon> = {
+  new: LxCandidate,
+  reviewing: LxReviewing,
+  shortlisted: LxShortlist,
+  interview: LxInterview,
+  hired: LxHired,
+  rejected: LxRejected,
+};
+
+function iconFor(e: TimelineEntry): LxIcon {
+  if (e.kind === "applied") return LxDocument;
+  if (e.kind === "ai") return LxAnalysis;
+  if (e.kind === "note") return LxNote;
+  return e.to ? STAGE_ICON[e.to] : LxCandidate;
+}
+
+/** Node tint. Stage rows follow their own stage colour; the rest sit on brand. */
+function toneFor(e: TimelineEntry): string {
+  if (e.kind === "stage" && e.to) return STATUS_SOFT[e.to];
+  if (e.kind === "ai") return "bg-[hsl(var(--chart-3)/0.14)] text-[hsl(var(--chart-3))]";
+  if (e.kind === "note") return "bg-secondary text-muted-foreground";
+  return "bg-primary/12 text-primary";
+}
+
+const initials = (email: string) => {
+  const local = email.split("@")[0] ?? "";
+  const parts = local.split(/[._-]+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return local.slice(0, 2).toUpperCase() || "?";
+};
+
+function Attribution({ e }: { e: TimelineEntry }) {
+  if (e.kind === "applied") return <span className="text-muted-foreground/60">by the candidate</span>;
+  if (e.kind === "ai") return <span className="text-muted-foreground/60">by Lumofy AI</span>;
+  if (e.actor) {
+    return (
+      <span className="flex min-w-0 items-center gap-1.5" title={e.actor}>
+        <span
+          className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-primary/15 text-[8px] font-bold leading-none text-primary"
+          aria-hidden="true"
+        >
+          {initials(e.actor)}
+        </span>
+        <span className="truncate text-muted-foreground">{e.actor}</span>
+      </span>
+    );
+  }
+  if (e.inferred) {
+    return <span className="italic text-muted-foreground/50">stage inferred — not recorded at the time</span>;
+  }
+  return <span className="italic text-muted-foreground/50">author not recorded</span>;
 }
 
 const CandidateTimeline = ({ applicant, events }: CandidateTimelineProps) => {
-  const timeline = useMemo(() => {
-    const list: TimelineEvent[] = [];
+  const entries = useMemo(() => buildTimeline(applicant, events), [applicant, events]);
+  const now = useMemo(() => Date.now(), [entries]);
+  const span = daysSpanned(entries);
+  const reduced = prefersReducedMotion();
 
-    // Applied
-    list.push({
-      id: "applied",
-      type: "applied",
-      label: "Application Submitted",
-      detail: `Applied with CV: ${applicant.cvFileName}`,
-      date: new Date(applicant.appliedDate),
-      icon: <FileText className="w-3.5 h-3.5" />,
-      color: "bg-primary/15 text-primary",
-    });
-
-    // ONLY events with a REAL recorded timestamp appear here. Notes and ratings
-    // are not timestamped in the schema, and status changes only are once
-    // stageEnteredAt exists — stamping them with the applied date invented a
-    // history that looked authoritative and was wrong. Notes live in the Internal
-    // Notes card; the rating lives in the Rating card; the score lives in the
-    // analysis. This card's one job is real chronology.
-    // Recorded moves and notes — the only entries that can name a person.
-    for (const e of events) {
-      const to = APPLICANT_STATUSES.find((s) => s.value === e.to_status);
-      const from = APPLICANT_STATUSES.find((s) => s.value === e.from_status);
-      list.push(
-        e.kind === "stage_change"
-          ? {
-              id: e.id,
-              type: "status_change",
-              label: from
-                ? `${from.label} → ${to?.label ?? e.to_status}`
-                : `Moved to ${to?.label ?? e.to_status}`,
-              actor: e.actor_email ?? undefined,
-              date: new Date(e.created_at),
-              icon: <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />,
-              color: to?.color || "bg-muted text-muted-foreground",
-            }
-          : {
-              id: e.id,
-              type: "note",
-              label: "Note added",
-              detail: e.note ?? undefined,
-              actor: e.actor_email ?? undefined,
-              date: new Date(e.created_at),
-              icon: <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />,
-              color: TONE_SOFT.muted,
-            },
-      );
-    }
-
-    // Fallback for candidates moved before any of this was recorded. Shown so the
-    // timeline is not silent about how they got where they are, but flagged as
-    // inferred from their current status — there is no event behind it and no
-    // person to credit. Suppressed once a real move exists, so the two cannot
-    // contradict each other.
-    const hasRecordedMove = events.some((e) => e.kind === "stage_change");
-    if (!hasRecordedMove && applicant.status !== "new" && applicant.stageEnteredAt) {
-      const statusInfo = APPLICANT_STATUSES.find(s => s.value === applicant.status);
-      list.push({
-        id: "status",
-        type: "status_change",
-        label: `Moved to ${statusInfo?.label || applicant.status}`,
-        inferred: true,
-        date: new Date(applicant.stageEnteredAt),
-        icon: <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />,
-        color: statusInfo?.color || "bg-muted text-muted-foreground",
-      });
-    }
-
-    if (applicant.aiAnalysis?.analyzedAt) {
-      list.push({
-        id: "ai",
-        type: "ai_analyzed",
-        label: "AI analysis completed",
-        date: new Date(applicant.aiAnalysis.analyzedAt),
-        icon: <Brain className="w-3.5 h-3.5" aria-hidden="true" />,
-        color: TONE_SOFT.ai,
-      });
-    }
-
-    return list
-      .filter((e) => !Number.isNaN(e.date.getTime()))
-      .sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [applicant, events]);
-
-  const totalDays = timeline.length >= 2
-    ? Math.max(1, Math.floor((timeline[timeline.length - 1].date.getTime() - timeline[0].date.getTime()) / (1000 * 60 * 60 * 24)))
-    : 0;
+  const stage = APPLICANT_STATUSES.find((s) => s.value === applicant.status);
+  const StageIcon = STAGE_ICON[applicant.status];
 
   return (
-    <Card className="border-border/50">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-base flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Clock className="w-4 h-4 text-primary" />
-              </div>
-              Candidate Timeline
-            </CardTitle>
-          </div>
-          {totalDays > 0 && (
-            <Badge variant="secondary" className="text-[10px] py-0 border-0">
-              <Calendar className="w-3 h-3 mr-1" />
-              {totalDays} days in pipeline
-            </Badge>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="max-h-[400px] overflow-y-auto overscroll-contain scrollbar-slim">
-          <div className="relative pl-6">
-            {/* Vertical line */}
-            <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
+    <section className="overflow-hidden rounded-2xl border border-[hsl(var(--intel-border))] bg-[hsl(var(--intel-card))]">
+      {/* Where they stand, before any history. A hiring manager opening this card
+          wants the answer first and the evidence second — the old header led with
+          the word "Timeline", which nobody needed to be told. */}
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-[hsl(var(--intel-border))] px-5 py-3.5">
+        <span
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${STATUS_SOFT[applicant.status]}`}
+        >
+          <StageIcon className="h-5 w-5" />
+        </span>
 
-            <div className="space-y-4">
-              {timeline.map((event, i) => (
-                <motion.div
-                  key={event.id}
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.06 }}
-                  className="relative"
+        <div className="min-w-0 flex-1">
+          <p className="flex items-baseline gap-1.5 text-sm font-semibold tracking-tight text-foreground">
+            {stage?.label ?? applicant.status}
+            <span className="text-[11px] font-normal text-muted-foreground">· current stage</span>
+          </p>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-muted-foreground">
+            <LxHourglass className="h-3 w-3 shrink-0" />
+            {span > 0 ? <>{span} {span === 1 ? "day" : "days"} of activity</> : <>first day</>}
+            <span aria-hidden="true">·</span>
+            {entries.length} {entries.length === 1 ? "event" : "events"}
+          </p>
+        </div>
+      </header>
+
+      {entries.length === 0 ? (
+        <p className="px-5 py-10 text-center text-sm text-muted-foreground">Nothing recorded yet.</p>
+      ) : (
+        <ol className="max-h-[420px] overflow-y-auto overscroll-contain scrollbar-slim px-5 py-4">
+          {entries.map((e, i) => {
+            const Icon = iconFor(e);
+            const isLast = i === entries.length - 1;
+            const railColor =
+              e.kind === "stage" && e.to ? STATUS_COLORS[e.to] : "hsl(var(--border))";
+
+            return (
+              <motion.li
+                key={e.id}
+                initial={reduced ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: reduced ? 0 : Math.min(i * 0.06, 0.3), duration: 0.28 }}
+                className="relative flex gap-3.5 pb-4 last:pb-0"
+              >
+                {/* The connector is a segment BELOW each node rather than one long
+                    line behind everything. It can then take the colour of the
+                    stage it leads into, so the rail itself shows the journey
+                    warming from New through to the current stage — and it stops
+                    cleanly at the last node instead of trailing into space. */}
+                {!isLast && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-[17px] top-9 bottom-0 w-[2px] rounded-full opacity-30"
+                    style={{ background: `linear-gradient(to bottom, ${railColor}, transparent)` }}
+                  />
+                )}
+
+                <span
+                  className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${toneFor(e)}`}
                 >
-                  {/* Dot */}
-                  <div className={`absolute -left-6 top-1 w-5 h-5 rounded-full flex items-center justify-center ${event.color}`}>
-                    {event.icon}
+                  <Icon className="h-[18px] w-[18px]" />
+                </span>
+
+                <div className="min-w-0 flex-1 pt-1">
+                  <div className="flex items-baseline gap-2">
+                    <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-foreground">
+                      {e.label}
+                    </p>
+                    <time
+                      dateTime={e.at.toISOString()}
+                      title={e.at.toLocaleString("en-GB")}
+                      className="shrink-0 text-[10px] tabular-nums text-muted-foreground"
+                    >
+                      {relativeDay(e.at, now)}
+                    </time>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-muted/20 border border-border/20">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-xs font-semibold">{event.label}</span>
-                      <span className="text-[10px] text-muted-foreground ml-auto">
-                        {event.date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </span>
-                    </div>
-                    {event.detail && (
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">{event.detail}</p>
-                    )}
-                    {/* Who did it. An entry with no recorded actor says so rather
-                        than being credited to anyone — the applied and AI entries
-                        have no human behind them at all, and anything from before
-                        this was tracked genuinely cannot be attributed. */}
-                    {event.type !== "applied" && event.type !== "ai_analyzed" && (
-                      <p className="mt-0.5 text-[10px] text-muted-foreground/70">
-                        {event.actor ? (
-                          <>
-                            by{" "}
-                            <span className="font-medium text-muted-foreground" title={event.actor}>
-                              {event.actor}
-                            </span>
-                          </>
-                        ) : event.inferred ? (
-                          <span className="italic">from current status — not recorded at the time</span>
-                        ) : (
-                          <span className="italic">author not recorded</span>
-                        )}
-                      </p>
-                    )}
+                  {e.detail && (
+                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground" title={e.detail}>
+                      {e.detail}
+                    </p>
+                  )}
+
+                  <div className="mt-1 flex min-w-0 items-center text-[10px]">
+                    <Attribution e={e} />
                   </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+                </div>
+              </motion.li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
   );
 };
 

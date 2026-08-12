@@ -10,7 +10,6 @@ import {
 import { KanbanSquare, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -21,11 +20,13 @@ import {
   BOARD_STAGES, TRIAGE_FILTERS, daysInStage, defaultCollapsedStages, groupByStage,
   matchesSearch, slaState, sortColumn, triageFacts,
 } from "@/lib/pipelineMetrics";
+import { filterByJobs } from "@/lib/applicantMetrics";
 import type { PipelineViewState } from "./pipelineView";
 import PipelineCandidateCard from "../PipelineCandidateCard";
 import PipelineColumn from "./PipelineColumn";
 import PipelineTriageBar from "./PipelineTriageBar";
 import BulkActionBar from "./BulkActionBar";
+import JobFilter from "../applicants/JobFilter";
 
 export interface PipelineBoardProps {
   /**
@@ -35,8 +36,9 @@ export interface PipelineBoardProps {
    */
   applicants: Applicant[];
   jobs: Job[];
-  selectedJobId: string;
-  onJobChange: (jobId: string) => void;
+  /** Empty = every job. */
+  selectedJobIds: readonly string[];
+  onJobIdsChange: Dispatch<SetStateAction<string[]>>;
   onStatusUpdate: (id: string, status: ApplicantStatus) => Promise<void>;
   onBulkStatusUpdate: (ids: string[], status: ApplicantStatus) => Promise<{ updated: string[] }>;
   onOpenApplicant: (a: Applicant) => void;
@@ -83,7 +85,7 @@ type ConfirmState = {
 const CLOSED_CONFIRM: ConfirmState = { open: false, ids: [], name: "", target: "new" };
 
 export default function PipelineBoard({
-  applicants, jobs, selectedJobId, onJobChange, onStatusUpdate, onBulkStatusUpdate,
+  applicants, jobs, selectedJobIds, onJobIdsChange, onStatusUpdate, onBulkStatusUpdate,
   onOpenApplicant, applicantHref, view, onViewChange,
 }: PipelineBoardProps) {
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set());
@@ -138,8 +140,8 @@ export default function PipelineBoard({
   }, [applicants]);
 
   const scoped = useMemo(
-    () => (selectedJobId === "all" ? applicants : applicants.filter((a) => a.jobId === selectedJobId)),
-    [applicants, selectedJobId],
+    () => filterByJobs(applicants, selectedJobIds),
+    [applicants, selectedJobIds],
   );
 
   const facts = useMemo(() => triageFacts(scoped, now), [scoped, now]);
@@ -187,7 +189,7 @@ export default function PipelineBoard({
   }, [byId]);
 
   // Changing the job filter changes the pool underneath a selection entirely.
-  useEffect(() => { setSelectedIds(new Set()); }, [selectedJobId]);
+  useEffect(() => { setSelectedIds(new Set()); }, [selectedJobIds]);
 
   // ---- selection -----------------------------------------------------------
 
@@ -433,15 +435,7 @@ export default function PipelineBoard({
               </button>
             )}
           </div>
-          <Select value={selectedJobId} onValueChange={onJobChange}>
-            <SelectTrigger className="h-9 w-full shrink-0 rounded-xl border-border bg-card sm:w-56">
-              <SelectValue placeholder="Filter by job" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Jobs</SelectItem>
-              {jobs.map((j) => <SelectItem key={j.id} value={j.id}>{j.title}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <JobFilter jobs={jobs} selected={selectedJobIds} onChange={onJobIdsChange} className="w-full sm:w-56" />
         </div>
       </div>
 
