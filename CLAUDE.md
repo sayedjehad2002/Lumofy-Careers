@@ -186,10 +186,12 @@ DESIGN.md, PRODUCT.md          brand/design system, product context (see stale n
 
 ## Accounts (who owns what)
 
-- GitHub, Vercel (project `lumofy-careers`, team `sayedjehad2002s-projects` as of June 2026): the
-  personal **`sayedjehad2002`** account, not the work Lumofy account. Pushing needs
+- GitHub: the personal **`sayedjehad2002`** account, not the work Lumofy account. Pushing needs
   `sayedjehad2002` GitHub credentials (`gh auth switch --user sayedjehad2002` if a push says
   "Repository not found").
+- Vercel: project `lumofy-careers` on the **work team `lumofy-ops`** (checked 2026-09-24: the
+  push of b2944be built there and went READY in production). An older note put it on the
+  personal `sayedjehad2002s-projects` team; that is out of date.
 - Supabase careers project and Google Gemini key: the **careers Google account** (the user knows which).
   An older June note says Supabase is on `sayedjehad2002`; `docs/DEPLOY.md` and the verified
   2026-07-08 token fix say the careers account. Confirm with `npx supabase projects list` under the
