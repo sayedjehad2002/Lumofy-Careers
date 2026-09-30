@@ -29,11 +29,25 @@ const jobs: Job[] = [{
 }];
 
 // Mutable so a test can hold the signed-in fetch "in flight".
-const dataState = vi.hoisted(() => ({ ready: true }));
+const dataState = vi.hoisted(() => {
+  const s = {
+    ready: true,
+    partial: false,
+    loadFull: (() => Promise.resolve(true)) as (id: string) => Promise<boolean>,
+    // Stable identity, like the real useCallback, so effects keyed on it do not re-fire.
+    loadFullStable: (id: string) => s.loadFull(id),
+  };
+  return s;
+});
 
 vi.mock("@/contexts/CareersContext", () => ({
   useCareers: () => ({
-    jobs, applicants, loading: false, adminDataReady: dataState.ready, sessionToken: "t", authReady: true, isHrUser: true,
+    jobs,
+    applicants: dataState.partial
+      ? applicants.map((a) => ({ ...a, analysisPartial: true, aiAnalysis: { fitScore: 80 } as Applicant["aiAnalysis"] }))
+      : applicants,
+    loadFullApplicant: dataState.loadFullStable,
+    loading: false, adminDataReady: dataState.ready, sessionToken: "t", authReady: true, isHrUser: true,
     hrEmail: "hr@lumofy.com", hrRole: "owner", hrChecked: true,
     addJob: vi.fn(), updateJob: vi.fn(), archiveJob: vi.fn(), restoreJob: vi.fn(),
     deleteApplicant: vi.fn(), updateApplicantStatus: vi.fn(), updateApplicantStatusBulk: vi.fn(),
@@ -72,9 +86,13 @@ let Dashboard: React.ComponentType;
 
 beforeEach(async () => {
   dataState.ready = true;
+  dataState.partial = false;
+  dataState.loadFull = () => Promise.resolve(true);
   vi.resetModules();
   Dashboard = (await import("@/pages/Dashboard")).default;
-});
+  // Re-imports the whole Dashboard graph after resetModules. That takes 7-14s
+  // when the full suite runs in parallel, over the default 10s hook limit.
+}, 30_000);
 
 function LocationProbe() {
   const loc = useLocation();
@@ -129,6 +147,27 @@ describe("candidate URLs", () => {
     renderAt("/dashboard/applicants/cand-1");
     expect(await screen.findByText(/Loading dashboard/i)).toBeInTheDocument();
     expect(screen.queryByText(/Candidate not found/i)).not.toBeInTheDocument();
+  });
+
+  it("fetches the full record before showing a profile the list only has in part", async () => {
+    // The list carries a cut-down analysis; the profile's tabs read past it.
+    dataState.partial = true;
+    const calls: string[] = [];
+    dataState.loadFull = (id) => { calls.push(id); return new Promise(() => {}); };
+    renderAt("/dashboard/applicants/cand-1");
+    expect(await screen.findByLabelText("Loading candidate")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Batool Jalal" })).not.toBeInTheDocument();
+    expect(calls).toEqual(["cand-1"]);
+  });
+
+  it("offers a retry when the full record cannot be loaded", async () => {
+    dataState.partial = true;
+    let attempts = 0;
+    dataState.loadFull = () => { attempts++; return Promise.resolve(false); };
+    renderAt("/dashboard/applicants/cand-1");
+    fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+    await screen.findByRole("button", { name: "Try again" });
+    expect(attempts).toBe(2);
   });
 
   it("returns to the Pipeline when that is where the click came from", async () => {

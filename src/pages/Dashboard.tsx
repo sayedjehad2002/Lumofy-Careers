@@ -77,7 +77,7 @@ const MotionLink = motion(Link);
 // stage, or be moved back one step (to correct mistakes). "hired"/"rejected"
 // are terminal except for reverting out of them.
 const Dashboard = () => {
-  const { jobs, applicants, loading, adminDataReady, sessionToken, authReady, isHrUser, hrEmail, hrRole, hrChecked, addJob, updateJob, archiveJob, restoreJob, deleteApplicant, updateApplicantStatus, updateApplicantStatusBulk, addApplicantNote, updateApplicantAI, refreshData } = useCareers();
+  const { jobs, applicants, loading, adminDataReady, sessionToken, authReady, isHrUser, hrEmail, hrRole, hrChecked, addJob, updateJob, archiveJob, restoreJob, deleteApplicant, updateApplicantStatus, updateApplicantStatusBulk, addApplicantNote, updateApplicantAI, loadFullApplicant, refreshData } = useCareers();
   // The section lives in the URL rather than component state: every tab is then
   // bookmarkable, shareable, survives a refresh, and the browser's back button
   // and "open in new tab" behave the way people expect.
@@ -117,6 +117,26 @@ const Dashboard = () => {
   // flashed "Candidate not found" on every cold candidate link.
   const dataReady = !loading && adminDataReady;
   const applicantNotFound = !!openApplicantId && !selectedApplicant && dataReady;
+
+  /**
+   * The list carries a cut-down AI analysis (see get-applicants `view: "list"`),
+   * so an open profile fetches the full record before it renders — the analysis
+   * tabs, interview prep and PDF export all read past the list's fields.
+   */
+  const [fullLoadFailedId, setFullLoadFailedId] = useState<string | null>(null);
+  const [fullLoadAttempt, setFullLoadAttempt] = useState(0);
+  const needsFullRecord = !!selectedApplicant?.analysisPartial;
+  const selectedId = selectedApplicant?.id;
+  useEffect(() => {
+    if (!needsFullRecord || !selectedId) return;
+    let live = true;
+    setFullLoadFailedId(null);
+    loadFullApplicant(selectedId).then((ok) => {
+      if (live && !ok) setFullLoadFailedId(selectedId);
+    });
+    return () => { live = false; };
+  }, [needsFullRecord, selectedId, loadFullApplicant, fullLoadAttempt]);
+  const fullLoadFailed = needsFullRecord && fullLoadFailedId === selectedId;
 
   /**
    * Which screen sent you here, so Close can put you back. Without this, closing a
@@ -628,9 +648,23 @@ const Dashboard = () => {
 
           {/* A shared link opened cold: the applicants array arrives over the
               network, so hold the frame rather than claiming the person is gone. */}
-          {activeTab === "applicants" && openApplicantId && !selectedApplicant && !applicantNotFound && (
+          {activeTab === "applicants" && openApplicantId && (!selectedApplicant || needsFullRecord) && !applicantNotFound && !fullLoadFailed && (
             <div className="flex items-center justify-center py-32">
               <Loader2 className="w-6 h-6 animate-spin text-primary" aria-label="Loading candidate" />
+            </div>
+          )}
+
+          {activeTab === "applicants" && fullLoadFailed && (
+            <div className="flex flex-col items-center justify-center gap-3 py-32 text-center">
+              <p className="font-semibold">Could not load this candidate</p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setFullLoadAttempt((n) => n + 1)}>
+                  Try again
+                </Button>
+                <Button variant="ghost" size="sm" onClick={closeApplicant}>
+                  Back to {profileOrigin === "pipeline" ? "Pipeline" : "Applicants"}
+                </Button>
+              </div>
             </div>
           )}
 
@@ -652,7 +686,7 @@ const Dashboard = () => {
           )}
 
           {/* CANDIDATE PROFILE (replaces old applicant detail) */}
-          {activeTab === "applicants" && selectedApplicant && (
+          {activeTab === "applicants" && selectedApplicant && !needsFullRecord && (
             <CandidateProfile
               // The dashboard no longer remounts per URL, so going straight from one
               // candidate to another (⌘K search) must not carry the last one's

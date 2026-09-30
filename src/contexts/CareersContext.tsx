@@ -34,6 +34,8 @@ interface CareersContextType {
   updateApplicantStatusBulk: (applicantIds: string[], status: ApplicantStatus) => Promise<{ updated: string[] }>;
   addApplicantNote: (applicantId: string, note: string) => Promise<void>;
   updateApplicantAI: (applicantId: string, analysis: AIAnalysis) => Promise<void>;
+  /** Replace the list copy of one applicant with the full record. False on failure. */
+  loadFullApplicant: (applicantId: string) => Promise<boolean>;
   /** Inline-edit a candidate's identity/contact fields (HR "edit like a Notion page"). */
   updateApplicantFields: (
     applicantId: string,
@@ -143,9 +145,34 @@ export function dbRowToApplicant(row: any): Applicant {
     utmSource: row.utm_source || undefined,
     utmMedium: row.utm_medium || undefined,
     utmCampaign: row.utm_campaign || undefined,
-    aiAnalysis: row.ai_analysis as AIAnalysis | undefined,
+    ...analysisFromRow(row.ai_analysis),
     stageEnteredAt: row.stage_entered_at || undefined,
   };
+}
+
+/** Splits get-applicants' `_partial` marker (list view) off the analysis itself. */
+function analysisFromRow(raw: unknown): Pick<Applicant, "aiAnalysis" | "analysisPartial"> {
+  if (!raw || typeof raw !== "object") return { aiAnalysis: undefined, analysisPartial: false };
+  const { _partial, ...analysis } = raw as Record<string, unknown>;
+  return { aiAnalysis: analysis as unknown as AIAnalysis, analysisPartial: _partial === true };
+}
+
+/**
+ * A refetch of the list must not throw away a full analysis already loaded for an
+ * open profile — that would drop the profile back to a spinner on every live
+ * refresh. Kept only while it is the same analysis (same `analyzedAt`).
+ */
+function keepLoadedAnalyses(prev: Applicant[], next: Applicant[]): Applicant[] {
+  const full = new Map(
+    prev.filter((a) => a.aiAnalysis && !a.analysisPartial).map((a) => [a.id, a.aiAnalysis!]),
+  );
+  if (full.size === 0) return next;
+  return next.map((a) => {
+    const loaded = full.get(a.id);
+    return a.analysisPartial && loaded && loaded.analyzedAt === a.aiAnalysis?.analyzedAt
+      ? { ...a, aiAnalysis: loaded, analysisPartial: false }
+      : a;
+  });
 }
 
 function applicantToDbRow(a: Applicant) {
@@ -209,11 +236,14 @@ export function CareersProvider({ children }: { children: ReactNode }) {
           adminQuery<any[]>(sessionToken, "select", "jobs", {
             order: { column: "created_at", ascending: false },
           }),
-          supabase.functions.invoke("get-applicants", { body: { sessionToken } }),
+          // "list" = cut-down AI analysis (~0.7 MB instead of ~4.7 MB for 421
+          // people). The profile loads the full record with loadFullApplicant.
+          supabase.functions.invoke("get-applicants", { body: { sessionToken, view: "list" } }),
         ]);
         if (jobsRes.data) setJobs(jobsRes.data.map(dbRowToJob));
         if (!applicantsRes.error && applicantsRes.data?.applicants) {
-          setApplicants(applicantsRes.data.applicants.map(dbRowToApplicant));
+          const rows: Applicant[] = applicantsRes.data.applicants.map(dbRowToApplicant);
+          setApplicants((prev) => keepLoadedAnalyses(prev, rows));
         }
       } else {
         // Public: only open jobs, candidate-safe fields, via the secure RPC.
@@ -483,9 +513,10 @@ export function CareersProvider({ children }: { children: ReactNode }) {
   const updateApplicantAI = useCallback(async (applicantId: string, analysis: AIAnalysis) => {
     if (!sessionToken) throw new Error("Not authenticated");
     let prevAnalysis: AIAnalysis | undefined;
+    let prevPartial: boolean | undefined;
     let found = false;
     setApplicants(prev => prev.map(a => {
-      if (a.id === applicantId) { prevAnalysis = a.aiAnalysis; found = true; return { ...a, aiAnalysis: analysis }; }
+      if (a.id === applicantId) { prevAnalysis = a.aiAnalysis; prevPartial = a.analysisPartial; found = true; return { ...a, aiAnalysis: analysis, analysisPartial: false }; }
       return a;
     }));
     const { data, error } = await supabase.functions.invoke("update-applicant", {
@@ -493,9 +524,21 @@ export function CareersProvider({ children }: { children: ReactNode }) {
     });
     if (error || data?.error) {
       import.meta.env.DEV && console.error("updateApplicantAI error:", error || data?.error);
-      if (found) setApplicants(prev => prev.map(a => a.id === applicantId ? { ...a, aiAnalysis: prevAnalysis } : a));
+      if (found) setApplicants(prev => prev.map(a => a.id === applicantId ? { ...a, aiAnalysis: prevAnalysis, analysisPartial: prevPartial } : a));
       throw new Error(error?.message || data?.error || "Failed to save analysis");
     }
+  }, [sessionToken]);
+
+  /** Swap the list's cut-down record for the full one (the profile needs it). */
+  const loadFullApplicant = useCallback(async (applicantId: string): Promise<boolean> => {
+    if (!sessionToken) return false;
+    const { data, error } = await supabase.functions.invoke("get-applicants", {
+      body: { sessionToken, applicantId },
+    });
+    if (error || !data?.applicant) return false;
+    const full = dbRowToApplicant(data.applicant);
+    setApplicants(prev => prev.map(a => (a.id === applicantId ? full : a)));
+    return true;
   }, [sessionToken]);
 
   const updateApplicantFields = useCallback(async (
@@ -529,7 +572,7 @@ export function CareersProvider({ children }: { children: ReactNode }) {
   const getJobById = useCallback((id: string) => jobs.find(j => j.id === id), [jobs]);
 
   return (
-    <CareersContext.Provider value={{ jobs, applicants, loading, adminDataReady, sessionToken, setSessionToken, authReady, isHrUser, hrRole, hrEmail, hrChecked, addJob, updateJob, deleteJob, archiveJob, restoreJob, addApplicant, deleteApplicant, updateApplicantStatus, updateApplicantStatusBulk, addApplicantNote, updateApplicantAI, updateApplicantFields, getJobById, refreshData: fetchData, silentRefresh, lastUpdated, refreshing }}>
+    <CareersContext.Provider value={{ jobs, applicants, loading, adminDataReady, sessionToken, setSessionToken, authReady, isHrUser, hrRole, hrEmail, hrChecked, addJob, updateJob, deleteJob, archiveJob, restoreJob, addApplicant, deleteApplicant, updateApplicantStatus, updateApplicantStatusBulk, addApplicantNote, updateApplicantAI, updateApplicantFields, loadFullApplicant, getJobById, refreshData: fetchData, silentRefresh, lastUpdated, refreshing }}>
       {children}
     </CareersContext.Provider>
   );

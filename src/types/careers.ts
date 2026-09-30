@@ -81,6 +81,13 @@ export interface Applicant {
   notes: string[];
   rating?: CandidateRating;
   aiAnalysis?: AIAnalysis;
+  /**
+   * True when `aiAnalysis` is the list's cut-down copy (score, level,
+   * recommendation, coverage, date, top 3 strengths/gaps). The full analysis is
+   * ~10 KB a person, so the list leaves it out and the profile fetches it by id
+   * (`loadFullApplicant`). Anything reading beyond those fields must check this.
+   */
+  analysisPartial?: boolean;
   stageEnteredAt?: string;
   /** Acquisition channel, decided server-side on submit.
    *  undefined = applied before source tracking existed - never guess it. */
