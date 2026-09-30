@@ -483,9 +483,9 @@ const ApplyPage = () => {
   if (submitted) {
     const reveal = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease } } };
     return (
-      <div className="min-h-screen bg-background">
+      <div className="flex min-h-screen flex-col bg-background">
         <Navbar />
-        <main id="main" className="relative overflow-hidden px-4 py-20 pt-32 text-center sm:py-24">
+        <main id="main" className="relative flex-1 overflow-hidden px-4 py-20 pt-32 text-center sm:py-24">
           {/* Signature aurora glow behind the confirmation */}
           <div
             aria-hidden="true"

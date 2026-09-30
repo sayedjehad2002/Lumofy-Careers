@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, useNavigationType } from "react-router-dom";
 import { ThemeProvider, useTheme } from "@/components/ThemeProvider";
 import { CareersProvider } from "@/contexts/CareersContext";
-import { AnimatePresence, motion, MotionConfig } from "framer-motion";
+import { AnimatePresence, motion, MotionConfig, useIsPresent } from "framer-motion";
 import { Suspense, lazy, useLayoutEffect } from "react";
 import { Loader2 } from "lucide-react";
 import MobileBottomNav from "@/components/careers/MobileBottomNav";
@@ -41,6 +41,14 @@ const pageVariants = {
   animate: { opacity: 1, y: 0 },
   exit: { opacity: 0, y: -8 },
 };
+// Public pages fade only: a transform on the wrapper would become the containing block of their fixed nav
+// (it vanishes mid-transition) and shift where hash arrivals land by the 8px offset.
+const publicPageVariants = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+};
+const isHrAppPath = (pathname: string) => pathname.startsWith("/dashboard") || pathname.startsWith("/hr/");
 
 const pageTransition = {
   type: "tween" as const,
@@ -72,8 +80,11 @@ function ScrollToTop({ pathname }: { pathname: string }) {
   // returning to the jobs list lands where the candidate left off; only PUSH/REPLACE
   // navigations (links, buttons) reset to the top.
   const navType = useNavigationType();
+  // The exiting page's copy still sees the live hash and navigation type; without this it would jump the old page
+  // to the top mid-fade.
+  const isPresent = useIsPresent();
   useLayoutEffect(() => {
-    if (hash || navType === "POP") return;
+    if (!isPresent || hash || navType === "POP") return;
     // Force an instant jump: index.css sets `scroll-behavior: smooth`, which would
     // otherwise animate a long scroll-up on each navigation.
     const html = document.documentElement;
@@ -81,7 +92,7 @@ function ScrollToTop({ pathname }: { pathname: string }) {
     html.style.scrollBehavior = "auto";
     window.scrollTo(0, 0);
     html.style.scrollBehavior = prev;
-  }, [hash, navType, pathname]);
+  }, [isPresent, hash, navType, pathname]);
   return null;
 }
 
@@ -98,7 +109,7 @@ function ScrollToTop({ pathname }: { pathname: string }) {
 function ThemeRouteSync({ pathname }: { pathname: string }) {
   const { theme } = useTheme();
   useLayoutEffect(() => {
-    const isHrApp = pathname.startsWith("/dashboard") || pathname.startsWith("/hr/");
+    const isHrApp = isHrAppPath(pathname);
     const cls = isHrApp ? theme : "light";
     const root = document.documentElement;
     root.classList.remove("light", "dark");
@@ -124,7 +135,7 @@ function AnimatedRoutes() {
           initial="initial"
           animate="animate"
           exit="exit"
-          variants={pageVariants}
+          variants={isHrAppPath(location.pathname) ? pageVariants : publicPageVariants}
           transition={pageTransition}
         >
           <ScrollToTop pathname={location.pathname} />

@@ -1,161 +1,112 @@
-import { Link } from "react-router-dom";
-import { Menu, X } from "lucide-react";
-import { useState, forwardRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import { forwardRef, useEffect, useRef, useState, type MouseEvent } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useCareers } from "@/contexts/CareersContext";
-import lumofyLogoWhite from "@/assets/brand/lumofy-en-white.svg";
+import lumofyLogo from "@/assets/brand/lumofy-en-secondary.svg";
+import "@/components/careers/cx/cx.css";
+import { CxIcon } from "@/components/careers/cx/icons";
+import { scrollToSection } from "@/components/careers/cx/scroll";
 
-// The lumofy.ai master-brand nav: a DARK sticky bar (white wordmark, on-dark
-// links, pill CTA) over the light page — the same bookend pattern as the main
-// website. Art-directed dark in both themes, so no theme toggle lives here.
+const LINKS = [
+  { id: "mission", label: "Mission" },
+  { id: "build", label: "What we build" },
+  { id: "growth", label: "Growth" },
+  { id: "roles", label: "Open roles" },
+];
+const SPY_IDS = ["top", "mission", "build", "growth", "roles", "hiring", "join"];
+
+// Dark sticky bar shared by every public page. On the homepage it starts transparent over the dark hero
+// and turns solid Cosmos after 24px; elsewhere it is solid from the start. Section links scroll in place
+// on the homepage and route to "/#section" from other pages (Index scrolls to the hash on arrival).
 const Navbar = forwardRef<HTMLElement>((_, ref) => {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const { isHrUser } = useCareers();
+  const { pathname } = useLocation();
+  const home = pathname === "/";
+  const { jobs, loading, isHrUser } = useCareers();
+  const openCount = jobs.filter((j) => j.status === "open" && !j.archivedAt).length;
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [current, setCurrent] = useState<string | null>(null);
+  const burgerRef = useRef<HTMLButtonElement>(null);
 
-  // Single-page anchors (Index has a hash-scroll effect that handles these).
-  const links = [
-    { to: "/#why", label: "Mission" },
-    { to: "/#building", label: "What We Build" },
-    { to: "/#growth", label: "Growth" },
-    { to: "/jobs", label: "Open Roles" },
-  ];
+  useEffect(() => {
+    if (!home) return;
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [home]);
 
+  // scroll-spy (homepage only): sections without a nav link clear the marker
+  useEffect(() => {
+    setCurrent(null);
+    if (!home) return;
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => { if (e.isIntersecting) setCurrent(e.target.id); }),
+      { rootMargin: "-45% 0px -50% 0px" },
+    );
+    SPY_IDS.forEach((id) => { const s = document.getElementById(id); if (s) io.observe(s); });
+    return () => io.disconnect();
+  }, [home]);
+
+  useEffect(() => { setMenuOpen(false); }, [pathname]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    // Escape closes the menu; focus returns to the burger only if it was in the menu (never pulled back from the page)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const a = document.activeElement;
+      const inside = a === burgerRef.current || !!document.getElementById("cx-menu")?.contains(a);
+      setMenuOpen(false);
+      if (inside) burgerRef.current?.focus();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
+  const onSection = (id: string) => (e: MouseEvent<HTMLAnchorElement>) => {
+    setMenuOpen(false);
+    if (!home || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    if (scrollToSection(id)) e.preventDefault();
+  };
+  const sectionLink = (id: string, label: string, extra?: Record<string, string>) => (
+    <Link key={id} to={{ pathname: "/", hash: `#${id}` }} onClick={onSection(id)} {...extra}>
+      {label}
+    </Link>
+  );
+
+  const solid = !home || scrolled || menuOpen;
   return (
-    <motion.nav
-      ref={ref as any}
-      aria-label="Primary"
-      className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.06] bg-[hsl(var(--lx-nav)/0.92)] backdrop-blur-xl"
-      initial={{ y: -60, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <div className="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 3xl:max-w-[1800px] 4xl:max-w-[2000px]">
-        <div className="flex items-center justify-between h-[68px]">
-          <Link to="/" className="flex items-center gap-2.5 group" aria-label="Lumofy Careers — home">
-            <img
-              src={lumofyLogoWhite}
-              alt="Lumofy"
-              className="h-8 w-auto transition-transform duration-300 group-hover:scale-[1.03]"
-            />
-            <span className="rounded-full bg-[hsl(var(--lx-blue-soft)/0.16)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[hsl(var(--lx-blue-glow))]">
-              Careers
-            </span>
+    <header ref={ref} className={"cx cx-nav" + (solid ? " is-solid" : "") + (menuOpen ? " is-menu" : "")}>
+      <div className="cx-nav__in">
+        <Link className="cx-nav__brand" to="/" aria-label="Lumofy Careers, home" onClick={home ? onSection("top") : undefined}>
+          <img src={lumofyLogo} alt="Lumofy" width={132} height={30} />
+          <span className="cx-nav__tag">Careers</span>
+        </Link>
+        <nav className="cx-nav__links" aria-label="Primary">
+          {LINKS.map((l) => sectionLink(l.id, l.label, { "aria-current": String(home && current === l.id) }))}
+        </nav>
+        <div className="cx-nav__end">
+          {isHrUser && (
+            <Link className="cx-btn cx-btn--ghost-dark cx-btn--sm cx-nav__hr" to="/dashboard">HR Dashboard</Link>
+          )}
+          <Link className="cx-btn cx-btn--primary cx-btn--sm cx-nav__cta" to={{ pathname: "/", hash: "#roles" }} onClick={onSection("roles")}>
+            Open roles{!loading && openCount > 0 && <span className="cx-nav__count">{openCount}</span>}
           </Link>
-
-          <div className="hidden md:flex items-center gap-1">
-            {links.map((link, i) => (
-              <motion.div
-                key={link.label}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 + i * 0.06, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <Link
-                  to={link.to}
-                  className="whitespace-nowrap px-3.5 py-2 text-[15px] font-medium text-[hsl(var(--lx-on-dark-2))] hover:text-white transition-colors rounded-md relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--lx-blue-soft))]"
-                >
-                  {link.label}
-                  <span className="absolute bottom-0.5 left-3.5 right-3.5 h-[2px] bg-[hsl(var(--lx-blue-soft))] rounded-full scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
-                </Link>
-              </motion.div>
-            ))}
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <Button asChild className="ml-3 h-11 rounded-full px-6 text-[15px] font-semibold btn-sheen shadow-sirius">
-                <Link to="/jobs">View Open Roles</Link>
-              </Button>
-            </motion.div>
-            {isHrUser && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.7, duration: 0.3 }}
-              >
-                <Button
-                  asChild
-                  size="sm"
-                  variant="outline"
-                  className="ml-2 rounded-full border-white/20 bg-transparent text-[hsl(var(--lx-on-dark-2))] hover:bg-white/10 hover:text-white"
-                >
-                  <Link to="/dashboard">HR Dashboard</Link>
-                </Button>
-              </motion.div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 md:hidden">
-            <motion.button
-              className="text-[hsl(var(--lx-on-dark))] p-3 -m-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--lx-blue-soft))]"
-              onClick={() => setMobileOpen(!mobileOpen)}
-              whileTap={{ scale: 0.9 }}
-              aria-label={mobileOpen ? "Close menu" : "Open menu"}
-              aria-expanded={mobileOpen}
-              aria-controls="mobile-menu"
-            >
-              <AnimatePresence mode="wait">
-                {mobileOpen ? (
-                  <motion.span key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                    <X className="w-5 h-5" aria-hidden="true" />
-                  </motion.span>
-                ) : (
-                  <motion.span key="menu" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                    <Menu className="w-5 h-5" aria-hidden="true" />
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </motion.button>
-          </div>
+          <button
+            ref={burgerRef} type="button" className="cx-nav__burger" aria-expanded={menuOpen} aria-controls="cx-menu"
+            aria-label={menuOpen ? "Close menu" : "Open menu"} onClick={() => setMenuOpen((o) => !o)}
+          >
+            <CxIcon name={menuOpen ? "x" : "list"} />
+          </button>
         </div>
       </div>
-
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            id="mobile-menu"
-            className="md:hidden border-t border-white/[0.06] bg-[hsl(var(--lx-nav)/0.97)] backdrop-blur-xl overflow-hidden"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <div className="px-4 py-3 space-y-1">
-              {links.map((link, i) => (
-                <motion.div
-                  key={link.label}
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05, duration: 0.25 }}
-                >
-                  <Link
-                    to={link.to}
-                    className="block px-3 py-2.5 text-[15px] font-medium text-[hsl(var(--lx-on-dark-2))] hover:text-white rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--lx-blue-soft))]"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    {link.label}
-                  </Link>
-                </motion.div>
-              ))}
-              <Button asChild className="mt-2 w-full h-11 rounded-full btn-sheen">
-                <Link to="/jobs" onClick={() => setMobileOpen(false)}>
-                  View Open Roles
-                </Link>
-              </Button>
-              {isHrUser && (
-                <Button asChild size="sm" variant="outline" className="mt-2 w-full rounded-full border-white/20 bg-transparent text-[hsl(var(--lx-on-dark-2))] hover:bg-white/10 hover:text-white">
-                  <Link to="/dashboard" onClick={() => setMobileOpen(false)}>
-                    HR Dashboard
-                  </Link>
-                </Button>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.nav>
+      <div className="cx-menu" id="cx-menu" hidden={!menuOpen}>
+        <nav aria-label="Sections">
+          {LINKS.map((l) => sectionLink(l.id, l.label))}
+          {sectionLink("hiring", "How we hire")}
+          {isHrUser && <Link to="/dashboard">HR Dashboard</Link>}
+        </nav>
+      </div>
+    </header>
   );
 });
 Navbar.displayName = "Navbar";

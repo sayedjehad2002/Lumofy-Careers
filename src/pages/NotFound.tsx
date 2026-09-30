@@ -1,18 +1,18 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Compass } from "lucide-react";
 import Navbar from "@/components/careers/Navbar";
 import Footer from "@/components/careers/Footer";
 import { Button } from "@/components/ui/button";
+import { CxIcon } from "@/components/careers/cx/icons";
 
 const NotFound = () => {
   useEffect(() => {
     document.title = "Page not found – Lumofy Careers";
   }, []);
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
-      <main id="main" className="flex min-h-[60vh] items-center justify-center px-4 pt-24 pb-16">
+      <main id="main" className="flex min-h-[60vh] flex-1 items-center justify-center px-4 pt-24 pb-16">
         <div className="text-center">
           <p><span className="eyebrow-pill">404</span></p>
           <h1 className="sec-title mt-5 text-foreground">
@@ -28,7 +28,7 @@ const NotFound = () => {
             </Button>
             <Button asChild size="lg" variant="outline" className="h-12 rounded-full px-8 text-base">
               <Link to="/">
-                <Compass className="mr-2 h-4 w-4" aria-hidden="true" />
+                <CxIcon name="compass" className="mr-2 h-4 w-4" />
                 Back to careers
               </Link>
             </Button>

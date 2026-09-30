@@ -263,9 +263,9 @@
      The prefers-reduced-motion block below forces scroll-behavior: auto. */
   html {
     scroll-behavior: smooth;
-    /* NOTE: the fixed-navbar anchor offset is handled per-section via `scroll-mt-24`
-       in SectionShell. Do NOT also set scroll-padding-top here — the two stack and
-       over-offset every #anchor jump (heading lands too far below the navbar). */
+    /* NOTE: the public pages' fixed-nav offset lives in careers/cx/cx.css
+       (scroll-padding on html:has(.cx-nav), so keyboard focus clears the bars). No
+       section uses scroll-mt any more; don't add one, or the two offsets stack. */
   }
 
   /* Headings use Source Sans 3 (Lumofy brand display face), heavy weight */

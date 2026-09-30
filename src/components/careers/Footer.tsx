@@ -1,81 +1,66 @@
-import { Linkedin, Mail, MapPin, ArrowRight } from "lucide-react";
-import { forwardRef } from "react";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { forwardRef, type MouseEvent } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { SITE } from "@/data/site";
 import lumofyLogoWhite from "@/assets/brand/lumofy-en-white.svg";
+import "@/components/careers/cx/cx.css";
+import { CxIcon } from "@/components/careers/cx/icons";
+import { scrollToSection } from "@/components/careers/cx/scroll";
 
 const LINKEDIN_URL = "https://www.linkedin.com/company/lumofyinc/";
+const CAREER_LINKS = [
+  { id: "mission", label: "Mission" },
+  { id: "build", label: "What we build" },
+  { id: "growth", label: "Growth" },
+  { id: "roles", label: "Open roles" },
+  { id: "hiring", label: "How we hire" },
+];
 
-// The main site's dark footer, careers edition: white wordmark + bio + pill
-// CTA on the left, link columns on the right, slim legal bar. Fixed dark in
-// both themes — the same bookend as the nav. (pb-24 on mobile clears the
-// bottom nav.)
-const Footer = forwardRef<HTMLElement>((_, ref) => (
-  <footer ref={ref} className="bg-[hsl(var(--lx-foot))] text-[hsl(var(--lx-on-dark-2))]">
-    <div className="mx-auto max-w-[1200px] px-4 pb-24 pt-16 sm:px-6 md:pb-12 lg:px-8 3xl:max-w-[1400px] 3xl:pt-20 4xl:max-w-[1560px]">
-      <div className="flex flex-col gap-12 md:flex-row md:items-start md:justify-between">
-        {/* Brand */}
-        <div className="max-w-xs">
-          <Link to="/" aria-label="Lumofy — home" className="inline-block">
-            <img src={lumofyLogoWhite} alt="Lumofy" className="h-9 w-auto" />
+// Dark footer shared by every public page. Office cities and hours follow lumofy.ai/en/contact.
+// On pages that show the mobile bottom nav (not home, not apply), extra bottom padding keeps the legal line clear of it.
+const Footer = forwardRef<HTMLElement>((_, ref) => {
+  const { pathname } = useLocation();
+  const home = pathname === "/";
+  const navPad = !home && !pathname.includes("/apply");
+  // on the homepage, section links scroll in place like the nav's (a link to the hash already in the URL would do nothing)
+  const onSection = (id: string) => (e: MouseEvent<HTMLAnchorElement>) => {
+    if (!home || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    if (scrollToSection(id)) e.preventDefault();
+  };
+  return (
+    <footer ref={ref} className={"cx cx-foot" + (navPad ? " cx-foot--navpad" : "")}>
+      <div className="cx-wrap cx-foot__in">
+        <div className="cx-foot__brand">
+          <Link to="/" aria-label="Lumofy Careers, home">
+            <img src={lumofyLogoWhite} alt="Lumofy" width={120} height={28} loading="lazy" />
           </Link>
-          <p className="mt-4 text-sm leading-relaxed text-[hsl(var(--lx-on-dark-3))]">
-            AI-powered skills intelligence platform helping organizations build future-ready workforces.
+          <p>
+            Lumofy is the AI-powered workforce performance &amp; development platform helping organizations measure performance,
+            build capabilities, and mobilize their people.
           </p>
-          <Button asChild className="mt-6 h-11 rounded-full px-6 font-semibold btn-sheen">
-            <Link to="/jobs">
-              View Open Roles
-              <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-            </Link>
-          </Button>
         </div>
-
-        {/* Link groups */}
-        <div className="grid grid-cols-2 gap-10 sm:gap-16 lg:gap-24">
-          <nav aria-label="Careers">
-            <h2 className="mb-4 font-display text-xs font-bold uppercase tracking-[0.16em] text-[hsl(var(--lx-on-dark))]">Careers</h2>
-            <ul className="space-y-3">
-              <li><Link to="/jobs" className="text-sm transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--lx-blue-soft))] rounded-sm">Open Positions</Link></li>
-              <li><Link to="/#why" className="text-sm transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--lx-blue-soft))] rounded-sm">Mission</Link></li>
-              <li><Link to="/#building" className="text-sm transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--lx-blue-soft))] rounded-sm">What We Build</Link></li>
-              <li><Link to="/#growth" className="text-sm transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--lx-blue-soft))] rounded-sm">Growth</Link></li>
-            </ul>
-          </nav>
-          <div>
-            <h2 className="mb-4 font-display text-xs font-bold uppercase tracking-[0.16em] text-[hsl(var(--lx-on-dark))]">Get in touch</h2>
-            <ul className="space-y-3">
-              <li>
-                <a href={`mailto:${SITE.careersEmail}`} className="flex items-center gap-2 text-sm transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--lx-blue-soft))] rounded-sm">
-                  <Mail className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                  {SITE.careersEmail}
-                </a>
-              </li>
-              <li>
-                <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--lx-blue-soft))] rounded-sm">
-                  <Linkedin className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                  LinkedIn
-                  <span className="sr-only">(opens in new tab)</span>
-                </a>
-              </li>
-              <li className="flex items-center gap-2 text-sm text-[hsl(var(--lx-on-dark-3))]">
-                <MapPin className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                Sanabis, Bahrain
-              </li>
-            </ul>
-          </div>
+        <nav className="cx-foot__col" aria-label="Careers">
+          <p className="cx-foot__h">Careers</p>
+          {CAREER_LINKS.map((l) => <Link key={l.id} to={{ pathname: "/", hash: `#${l.id}` }} onClick={onSection(l.id)}>{l.label}</Link>)}
+        </nav>
+        <div className="cx-foot__col">
+          <p className="cx-foot__h">Get in touch</p>
+          <a href={`mailto:${SITE.careersEmail}`}><CxIcon name="envelope-simple" />{SITE.careersEmail}</a>
+          <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer"><CxIcon name="linkedin-logo" />LinkedIn<span className="sr-only"> (opens in a new tab)</span></a>
+          <a href="https://lumofy.ai" target="_blank" rel="noopener noreferrer"><CxIcon name="arrow-up-right" />lumofy.ai<span className="sr-only"> (opens in a new tab)</span></a>
+        </div>
+        <div className="cx-foot__col">
+          <p className="cx-foot__h">Offices</p>
+          <p className="cx-foot__line"><CxIcon name="map-pin" />Manama, Bahrain</p>
+          <p className="cx-foot__line"><CxIcon name="map-pin" />Riyadh, Saudi Arabia</p>
+          <p className="cx-foot__line cx-mono">Sun–Thu, 8:00–17:00</p>
         </div>
       </div>
-
-      {/* Slim legal bar */}
-      <div className="mt-14 border-t border-white/[0.08] pt-6">
-        <p className="text-center text-xs text-[hsl(var(--lx-on-dark-3))] sm:text-left">
-          © {new Date().getFullYear()} <span className="font-semibold text-[hsl(var(--lx-on-dark))]">Lumofy</span>. All rights reserved.
-        </p>
+      <div className="cx-wrap cx-foot__legal">
+        <p>© {new Date().getFullYear()} Lumofy. All rights reserved.</p>
       </div>
-    </div>
-  </footer>
-));
+    </footer>
+  );
+});
 Footer.displayName = "Footer";
 
 export default Footer;
