@@ -124,18 +124,10 @@ const CandidateProfile = ({
       const moveNote = `Moved from "${currentJobTitle}" to "${target.title}" on ${new Date().toLocaleDateString()}`;
       onAddNote(applicant.id, moveNote).catch(() => { /* non-fatal */ });
 
-      // The fit score is job-specific — re-run the analysis for the NEW role in the
-      // background (same fire-and-forget pattern as the apply flow). Skipped for
-      // Word CVs, which the AI can't read.
-      const isWordCv = /\.docx?$/i.test(applicant.cvStoragePath || "");
-      if (applicant.cvStoragePath && !isWordCv) {
-        supabase.functions.invoke("auto-analyze-applicant", {
-          body: { applicantId: applicant.id, sessionToken },
-        }).catch(() => { /* non-blocking */ });
-      }
-
+      // The fit score is job-specific, but AI analysis is manual only: HR re-runs
+      // it for the new role from this profile when they choose to.
       refreshData();
-      toast.success(`${applicant.fullName || "Candidate"} moved to ${target.title} — re-running AI analysis for the new role`);
+      toast.success(`${applicant.fullName || "Candidate"} moved to ${target.title}. Re-run AI analysis to score them for this role.`);
       setMoveJobOpen(false);
       setTargetJobId("");
     } catch (e: any) {

@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { useCareers } from "@/contexts/CareersContext";
 import { toast } from "sonner";
 import {
-  addLibraryCandidateToJob, analyzeApplicant, isBulkRunActive, isWordCv,
+  addLibraryCandidateToJob, isBulkRunActive, isWordCv,
   setBulkRunActive, type LibraryCandidateForAdd,
 } from "./addToPipeline";
 
@@ -27,8 +27,7 @@ interface Props {
   sessionToken: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called once after the adds land (before the slow analysis phase) and again
-      when the whole run finishes — parent refreshes pipeline + library data. */
+  /** Called once the adds land — parent refreshes pipeline + library data. */
   onRefresh: () => void;
   /** Library candidate ids that no longer need action (added OR skipped as
       already-in-job / in-batch duplicate) — parent clears them from the
@@ -36,7 +35,9 @@ interface Props {
   onResolved: (resolvedCandidateIds: string[]) => void;
 }
 
-type Phase = "pick" | "adding" | "analyzing" | "done";
+// No analysis phase: AI analysis is manual only (HR runs it from the roster or
+// the applicant profile), so a bulk add never spends Gemini credit on its own.
+type Phase = "pick" | "adding" | "done";
 
 export default function BulkPipelineAdd({
   candidates, jobs, sessionToken, open, onOpenChange, onRefresh, onResolved,
@@ -47,9 +48,6 @@ export default function BulkPipelineAdd({
   const [addTotal, setAddTotal] = useState(0);
   const [addDone, setAddDone] = useState(0);
   const [addFailed, setAddFailed] = useState(0);
-  const [analyzeDone, setAnalyzeDone] = useState(0);
-  const [analyzeFailed, setAnalyzeFailed] = useState(0);
-  const [analyzeTotal, setAnalyzeTotal] = useState(0);
   const [runJobTitle, setRunJobTitle] = useState("");
   // Cancel must be a ref: a useState boolean read inside the running loop is a
   // stale closure and would never observe the click.
@@ -57,7 +55,7 @@ export default function BulkPipelineAdd({
 
   const openJobs = jobs.filter(j => j.status === "open");
   const selectedJob = openJobs.find(j => j.id === selectedJobId);
-  const running = phase === "adding" || phase === "analyzing";
+  const running = phase === "adding";
   // A run from a PREVIOUS mount of this dialog may still be executing (see the
   // module guard in addToPipeline.ts). If so, this fresh instance must not let
   // the user start a second one.
@@ -98,7 +96,6 @@ export default function BulkPipelineAdd({
     setPhase("pick");
     setSelectedJobId("");
     setAddTotal(0); setAddDone(0); setAddFailed(0);
-    setAnalyzeDone(0); setAnalyzeFailed(0); setAnalyzeTotal(0);
     setRunJobTitle("");
   };
 
@@ -139,14 +136,14 @@ export default function BulkPipelineAdd({
     try {
       // ---- Phase 1: create the applicants (fast, one at a time) ----
       setPhase("adding");
-      const added: { candidateId: string; applicantId: string; word: boolean }[] = [];
+      const added: { candidateId: string }[] = [];
       let failed = 0;
       for (let i = 0; i < batch.length; i++) {
         if (cancelRef.current) break;
         const c = batch[i];
         try {
-          const applicantId = await addLibraryCandidateToJob(c, job, sessionToken);
-          added.push({ candidateId: c.id, applicantId, word: isWordCv(c.resume_file_path) });
+          await addLibraryCandidateToJob(c, job, sessionToken);
+          added.push({ candidateId: c.id });
         } catch {
           failed++;
         }
@@ -172,57 +169,20 @@ export default function BulkPipelineAdd({
       } else {
         onResolved(allSelectedIds.filter(id => !failedIds.has(id)));
       }
-      onRefresh();
-
-      // ---- Phase 2: AI analysis, STRICTLY one at a time ----
-      // Concurrent Gemini calls on this key cause sustained overload 5xx
-      // (empirically proven), so each analysis is awaited with a breather.
-      // Reset the cancel flag: "Stop adding" halts phase 1 but we still analyze
-      // whatever landed. Phase 2 has its own stop button.
-      cancelRef.current = false;
-      const analyzable = added.filter(a => !a.word);
-      setAnalyzeTotal(analyzable.length);
-      setPhase("analyzing");
-      let aDone = 0, aFail = 0;
-      for (let i = 0; i < analyzable.length; i++) {
-        if (cancelRef.current) break;
-        try {
-          const { data, error } = await analyzeApplicant(analyzable[i].applicantId, sessionToken);
-          // Gateway failures come back as 200 + {error}; rate limits as a hard 429
-          // error. Either way the applicant sits on "AI Pending" — count it.
-          if (error || data?.error) aFail++; else aDone++;
-        } catch {
-          aFail++;
-        }
-        setAnalyzeDone(aDone);
-        setAnalyzeFailed(aFail);
-        if (i + 1 < analyzable.length) await new Promise(r => setTimeout(r, 3000));
-      }
-      const stoppedAnalyzing = cancelRef.current;
-
       setPhase("done");
       onRefresh();
 
-      const note = stoppedAdding
-        ? " (stopped adding early)"
-        : stoppedAnalyzing ? " (analysis stopped — the rest stay on AI Pending)" : "";
-      if (failed === 0 && aFail === 0) {
-        toast.success(`Added ${added.length} candidate${added.length === 1 ? "" : "s"} to ${job.title}${aDone ? ` · ${aDone} analyzed` : ""}${note}`);
+      const note = stoppedAdding ? " (stopped adding early)" : "";
+      if (failed === 0) {
+        toast.success(`Added ${added.length} candidate${added.length === 1 ? "" : "s"} to ${job.title}${note}`);
       } else {
-        toast.warning(
-          `${job.title}: ${added.length} added, ${failed} failed` +
-          (analyzable.length ? ` · analyses: ${aDone} done, ${aFail} pending` : "") + note
-        );
+        toast.warning(`${job.title}: ${added.length} added, ${failed} failed${note}`);
       }
     } finally {
       setBulkRunActive(false);
     }
   };
 
-  const analyzeMinutes = Math.max(1, Math.round(((toAdd.length - wordCount) * 48) / 60));
-  const progressPhaseDone = phase === "adding" ? addDone : analyzeDone;
-  const progressPhaseFailed = phase === "adding" ? addFailed : analyzeFailed;
-  const progressPhaseTotal = phase === "adding" ? addTotal : analyzeTotal;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -272,13 +232,8 @@ export default function BulkPipelineAdd({
                 </p>
                 {alreadyIn > 0 && <p>{alreadyIn} already in this job's pipeline — skipped automatically.</p>}
                 {batchDupes > 0 && <p>{batchDupes} duplicate{batchDupes === 1 ? "" : "s"} within the selection (same CV file or email) — only the first copy is added.</p>}
-                {wordCount > 0 && <p>{wordCount} Word CV{wordCount === 1 ? "" : "s"} — added without AI analysis (Gemini can't read .doc/.docx).</p>}
-                {toAdd.length > wordCount && (
-                  <p>
-                    AI analysis runs one candidate at a time (~{analyzeMinutes} min total for {toAdd.length - wordCount}).
-                    Keep this page open; you can keep working meanwhile.
-                  </p>
-                )}
+                {wordCount > 0 && <p>{wordCount} Word CV{wordCount === 1 ? "" : "s"} — AI analysis won't be available for {wordCount === 1 ? "it" : "them"} (Gemini can't read .doc/.docx).</p>}
+                <p>AI analysis doesn't run automatically. Run it from Applicants when you're ready.</p>
               </div>
             )}
           </div>
@@ -286,26 +241,12 @@ export default function BulkPipelineAdd({
 
         {running && (
           <div className="space-y-3 py-2">
-            {phase === "adding" ? (
-              <>
-                <p className="text-sm font-medium">Adding to {runJobTitle}… {addDone + addFailed} of {addTotal}</p>
-                <Progress value={addTotal ? Math.round(((addDone + addFailed) / addTotal) * 100) : 0} />
-              </>
-            ) : (
-              <>
-                <p className="text-sm font-medium">
-                  Analyzing candidates… {analyzeDone + analyzeFailed} of {analyzeTotal}
-                </p>
-                <Progress value={analyzeTotal ? Math.round(((analyzeDone + analyzeFailed) / analyzeTotal) * 100) : 100} />
-                <p className="text-xs text-muted-foreground">
-                  One at a time (~45s each) so the AI stays reliable. Closing this dialog won't stop it — just keep the page open.
-                </p>
-              </>
-            )}
+            <p className="text-sm font-medium">Adding to {runJobTitle}… {addDone + addFailed} of {addTotal}</p>
+            <Progress value={addTotal ? Math.round(((addDone + addFailed) / addTotal) * 100) : 0} />
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> {progressPhaseDone} done</span>
-              {progressPhaseFailed > 0 && (
-                <span className="flex items-center gap-1"><XCircle className="w-3.5 h-3.5 text-destructive" /> {progressPhaseFailed} {phase === "adding" ? "failed" : "pending"}</span>
+              <span className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> {addDone} done</span>
+              {addFailed > 0 && (
+                <span className="flex items-center gap-1"><XCircle className="w-3.5 h-3.5 text-destructive" /> {addFailed} failed</span>
               )}
             </div>
           </div>
@@ -317,11 +258,9 @@ export default function BulkPipelineAdd({
               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
               {addDone} added to {runJobTitle}{addFailed > 0 ? ` · ${addFailed} failed (still selected — try again)` : ""}
             </p>
-            {analyzeTotal > 0 && (
-              <p className="text-xs text-muted-foreground">
-                Analyses: {analyzeDone} completed{analyzeFailed > 0 ? `, ${analyzeFailed} still on AI Pending (open the applicant and run analysis manually, or retry later)` : ""}.
-              </p>
-            )}
+            <p className="text-xs text-muted-foreground">
+              Not analyzed yet. Select them in Applicants and choose Run AI analysis when you're ready.
+            </p>
           </div>
         )}
 
@@ -337,7 +276,7 @@ export default function BulkPipelineAdd({
           )}
           {running && (
             <Button variant="outline" onClick={() => { cancelRef.current = true; }}>
-              {phase === "adding" ? "Stop adding" : "Stop analyzing (keep added)"}
+              Stop adding
             </Button>
           )}
           {phase === "done" && (

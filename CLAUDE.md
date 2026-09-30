@@ -112,6 +112,11 @@ DESIGN.md, PRODUCT.md          brand/design system, product context (see stale n
   - Exception to the map: `cv-library-parse`'s blocked-PDF ladder passes the raw id
     `gemini-2.5-pro`, and `mapModel` lets unknown ids through unchanged.
 - **Do not blanket-switch the analyzers to pro.** Their big JSON schemas time out on pro.
+- **AI analysis is manual only (decided 2026-09-29).** Nothing scores a candidate on its own:
+  not the public apply, add-from-CV-Library (single or bulk), move-to-job, or CV Library
+  upload. Upload still runs parse + classify so the card has a name and department. HR scores
+  from the profile, the roster's bulk "Run AI analysis", or the CV Library's Run AI analysis.
+  `auto-analyze-applicant` has no caller in `src/` any more; don't wire an auto-trigger back in.
 - CV pipeline for the library: **parse** (reads the PDF, extracts name/contact/`extracted_text`)
   → **classify** (reads only parse's text, assigns department/role) → **analyze** (reads the PDF
   directly, produces score and summary). An empty parse makes the profile and the classification

@@ -30,8 +30,11 @@ const RECENT_APPLICANT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
  *     with EITHER a valid admin session (`sessionToken`) OR the shared secret
  *     header `x-internal-secret` === env INTERNAL_FUNCTION_SECRET. Trusted callers
  *     bypass the recency check below.
- *   - The PUBLIC apply flow (src/pages/ApplyPage.tsx) calls this fire-and-forget
- *     and CANNOT hold a secret. So an unauthenticated caller is allowed, but only
+ *   - UNAUTHENTICATED CALLERS ARE NOW REFUSED (403). Analysis became manual-only
+ *     on 2026-09-29 and the apply flow stopped calling this. The notes below
+ *     describe the old public path and why it once had to exist.
+ *   - The PUBLIC apply flow (src/pages/ApplyPage.tsx) called this fire-and-forget
+ *     and CANNOT hold a secret. So an unauthenticated caller was allowed, but only
  *     under strict guards to prevent AI-cost abuse / re-analysis loops:
  *       (a) IP rate limiting,
  *       (b) the "already analyzed" short-circuit runs FIRST,
@@ -70,6 +73,17 @@ serve(async (req) => {
       // A provided-but-invalid session is rejected outright; a valid one is trusted.
       if (!auth.valid) return auth.response;
       isTrusted = true;
+    }
+
+    // AI analysis is manual only (decided 2026-09-29): HR runs it from the
+    // dashboard through analyze-cv. The public apply flow no longer calls this,
+    // so an unauthenticated request can only be a cached old apply page or
+    // someone spending Gemini credit on our behalf. Refuse it; the public-path
+    // guards below are kept only so trusted callers read the same as before.
+    if (!isTrusted) {
+      return new Response(JSON.stringify({ error: "AI analysis is run by HR from the dashboard" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // AI analysis is expensive — budget by trust. The PUBLIC (apply-flow) path

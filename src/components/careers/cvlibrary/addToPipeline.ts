@@ -67,7 +67,7 @@ export async function addLibraryCandidateToJob(
         // forever and block the AI backfill (which refuses to overwrite a
         // non-junk name). The filename fallback stays a DISPLAY-only affordance —
         // an empty string satisfies the NOT NULL column while staying falsy, so
-        // auto-analyze-applicant can fill in the real name from the CV itself.
+        // a later (manual) AI analysis can fill in the real name from the CV.
         full_name: toTitleCase(candidate.name),
         email: candidate.email || null,
         phone: candidate.phone || "",
@@ -91,11 +91,4 @@ export async function addLibraryCandidateToJob(
   }).catch(() => { /* non-fatal — the applicant was already created */ });
 
   return (data?.applicantId as string) || applicantId;
-}
-
-/** Trigger the job-fit AI analysis for a newly created applicant. */
-export function analyzeApplicant(applicantId: string, sessionToken: string) {
-  return supabase.functions.invoke("auto-analyze-applicant", {
-    body: { applicantId, sessionToken },
-  });
 }

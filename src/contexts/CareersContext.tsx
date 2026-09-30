@@ -9,6 +9,12 @@ interface CareersContextType {
   jobs: Job[];
   applicants: Applicant[];
   loading: boolean;
+  /**
+   * True once the signed-in fetch (all jobs + applicants) has settled for this
+   * session. `loading` alone cannot say that: it clears after the first,
+   * signed-out fetch of public jobs, before the session token even arrives.
+   */
+  adminDataReady: boolean;
   sessionToken: string | null;
   setSessionToken: (token: string | null) => void;
   authReady: boolean;
@@ -177,6 +183,7 @@ export function CareersProvider({ children }: { children: ReactNode }) {
   useEffect(() => { jobsRef.current = jobs; }, [jobs]);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [adminDataReady, setAdminDataReady] = useState(false);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [isHrUser, setIsHrUser] = useState(false);
@@ -219,8 +226,16 @@ export function CareersProvider({ children }: { children: ReactNode }) {
     } finally {
       if (silent) setRefreshing(false);
       else setLoading(false);
+      // Settled, not necessarily succeeded: a failed fetch must still release the
+      // dashboard rather than hold it on a spinner forever.
+      if (sessionToken) setAdminDataReady(true);
     }
   }, [sessionToken]);
+
+  // Only a sign-out resets this. The hourly token refresh also changes
+  // `sessionToken` and refetches, but the data on screen is still good, so the
+  // dashboard must not drop back to a full-page spinner for it.
+  useEffect(() => { if (!sessionToken) setAdminDataReady(false); }, [sessionToken]);
 
   const silentRefresh = useCallback(() => fetchData({ silent: true }), [fetchData]);
 
@@ -514,7 +529,7 @@ export function CareersProvider({ children }: { children: ReactNode }) {
   const getJobById = useCallback((id: string) => jobs.find(j => j.id === id), [jobs]);
 
   return (
-    <CareersContext.Provider value={{ jobs, applicants, loading, sessionToken, setSessionToken, authReady, isHrUser, hrRole, hrEmail, hrChecked, addJob, updateJob, deleteJob, archiveJob, restoreJob, addApplicant, deleteApplicant, updateApplicantStatus, updateApplicantStatusBulk, addApplicantNote, updateApplicantAI, updateApplicantFields, getJobById, refreshData: fetchData, silentRefresh, lastUpdated, refreshing }}>
+    <CareersContext.Provider value={{ jobs, applicants, loading, adminDataReady, sessionToken, setSessionToken, authReady, isHrUser, hrRole, hrEmail, hrChecked, addJob, updateJob, deleteJob, archiveJob, restoreJob, addApplicant, deleteApplicant, updateApplicantStatus, updateApplicantStatusBulk, addApplicantNote, updateApplicantAI, updateApplicantFields, getJobById, refreshData: fetchData, silentRefresh, lastUpdated, refreshing }}>
       {children}
     </CareersContext.Provider>
   );

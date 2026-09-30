@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCareers } from "@/contexts/CareersContext";
 import { candidateDisplayName } from "@/lib/utils";
 import { toast } from "sonner";
-import { addLibraryCandidateToJob, analyzeApplicant, isWordCv } from "./addToPipeline";
+import { addLibraryCandidateToJob } from "./addToPipeline";
 
 interface CVCandidate {
   id: string;
@@ -49,7 +49,7 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
   // Jobs this candidate is ALREADY an applicant for (matched by the CV file path —
   // deterministic even with no email — or by email). Hidden from the picker so
   // "Add to another job" can't create a duplicate card in the same pipeline
-  // (and a duplicate auto-analyze AI spend).
+  // (and a duplicate AI analysis spend later).
   const candidateEmail = candidate.email?.trim().toLowerCase();
   const jobsAlreadyIn = useMemo(() => new Set(
     applicants
@@ -72,15 +72,9 @@ export default function PipelineIntegration({ candidate, jobs, sessionToken, onD
     try {
       // Shared with the bulk flow (BulkPipelineAdd): creates the applicant and
       // marks the library row Shortlisted.
-      const applicantId = await addLibraryCandidateToJob(candidate, selectedJob, sessionToken);
-
-      // Kick off AI analysis for the new applicant right away (same fire-and-forget
-      // pattern as the public apply flow) so the pipeline card shows a score instead
-      // of sitting on "AI Pending". Skipped for Word CVs — Gemini can't read them,
-      // and a zero-evidence "analysis" would be worse than an honest "AI Pending".
-      if (!isWordCv(candidate.resume_file_path)) {
-        analyzeApplicant(applicantId, sessionToken).catch(() => { /* non-blocking */ });
-      }
+      // No AI analysis here: HR runs it manually (applicant profile, or the
+      // roster's bulk "Run AI analysis") when they choose to.
+      await addLibraryCandidateToJob(candidate, selectedJob, sessionToken);
 
       toast.success(`${candidateDisplayName(candidate.name, candidate.resume_file_name) || "Candidate"} added to ${selectedJob.title}`);
       setSelectedJobId(""); // never leave a stale id pointing at a now-hidden job

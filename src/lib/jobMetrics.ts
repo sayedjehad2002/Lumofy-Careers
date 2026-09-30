@@ -158,3 +158,69 @@ export const JOB_FILTERS: Record<JobFilter, (r: JobRow) => boolean> = {
   backlog: (r) => r.attention === "backlog",
   closed: (r) => r.job.status === "closed",
 };
+
+// ── Job filter (Applicants roster + Pipeline board) ─────────────────────────
+
+/** Titles compared the way a person reads them: "Full stack Intern" is "Full Stack Intern". */
+const titleKey = (title: string) => title.trim().toLowerCase().replace(/\s+/g, " ");
+
+const deptName = (job: Job) => job.department?.trim() || "No department";
+
+export type JobFilterGroup = { department: string; jobs: Job[] };
+
+/**
+ * The job filter's options, grouped under their department.
+ *
+ * A flat list of titles could not tell two roles with the same name apart: two
+ * "Full Stack Intern" openings in different departments showed as the same
+ * line twice, and HR had to guess which box was which. Grouping puts the
+ * department on screen for every role without repeating it on each row.
+ *
+ * The search matches the department as well as the title, so typing "sales"
+ * finds the Sales team's roles. Within a group, live roles come before archived
+ * ones (whose applicants are still on file), then alphabetical.
+ */
+export function jobFilterGroups(jobs: Job[], query = ""): JobFilterGroup[] {
+  const q = query.trim().toLowerCase();
+  const matched = q
+    ? jobs.filter((j) => j.title.toLowerCase().includes(q) || deptName(j).toLowerCase().includes(q))
+    : jobs;
+
+  const byDept = new Map<string, Job[]>();
+  for (const j of matched) {
+    const d = deptName(j);
+    const list = byDept.get(d);
+    if (list) list.push(j);
+    else byDept.set(d, [j]);
+  }
+
+  return [...byDept.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([department, list]) => ({
+      department,
+      jobs: [...list].sort(
+        (a, b) => Number(!!a.archivedAt) - Number(!!b.archivedAt) || a.title.localeCompare(b.title),
+      ),
+    }));
+}
+
+/** True when another role carries the same title, so the title alone is ambiguous. */
+export function hasTitleTwin(jobs: Job[], job: Job): boolean {
+  const key = titleKey(job.title);
+  return jobs.some((j) => j.id !== job.id && titleKey(j.title) === key);
+}
+
+/**
+ * What the filter's button says.
+ *
+ * One role shows its title, plus its department when another role shares that
+ * title; otherwise "Full Stack Intern" on the button would not say which one is
+ * actually applied.
+ */
+export function jobFilterLabel(jobs: Job[], selected: readonly string[]): string {
+  if (selected.length === 0) return "All jobs";
+  if (selected.length > 1) return `${selected.length} jobs`;
+  const job = jobs.find((j) => j.id === selected[0]);
+  if (!job) return "1 job";
+  return hasTitleTwin(jobs, job) ? `${job.title} · ${deptName(job)}` : job.title;
+}

@@ -39,6 +39,8 @@ export interface PipelineBoardProps {
   /** Empty = every job. */
   selectedJobIds: readonly string[];
   onJobIdsChange: Dispatch<SetStateAction<string[]>>;
+  /** Applications per job over every applicant, for the job filter. */
+  jobCounts?: ReadonlyMap<string, number>;
   onStatusUpdate: (id: string, status: ApplicantStatus) => Promise<void>;
   onBulkStatusUpdate: (ids: string[], status: ApplicantStatus) => Promise<{ updated: string[] }>;
   onOpenApplicant: (a: Applicant) => void;
@@ -85,7 +87,7 @@ type ConfirmState = {
 const CLOSED_CONFIRM: ConfirmState = { open: false, ids: [], name: "", target: "new" };
 
 export default function PipelineBoard({
-  applicants, jobs, selectedJobIds, onJobIdsChange, onStatusUpdate, onBulkStatusUpdate,
+  applicants, jobs, selectedJobIds, onJobIdsChange, jobCounts, onStatusUpdate, onBulkStatusUpdate,
   onOpenApplicant, applicantHref, view, onViewChange,
 }: PipelineBoardProps) {
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set());
@@ -435,7 +437,7 @@ export default function PipelineBoard({
               </button>
             )}
           </div>
-          <JobFilter jobs={jobs} selected={selectedJobIds} onChange={onJobIdsChange} className="w-full sm:w-56" />
+          <JobFilter jobs={jobs} selected={selectedJobIds} onChange={onJobIdsChange} counts={jobCounts} className="w-full sm:w-56" />
         </div>
       </div>
 

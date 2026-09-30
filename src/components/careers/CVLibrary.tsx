@@ -254,9 +254,12 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
       // candidate chains trigger sustained "model overloaded" 5xx failures that stamp
       // fresh uploads with the unreadable/ai_error marker. Same discipline as
       // BulkReparse: sequential + a breather.
+      //
+      // Upload only READS the CV (parse + classify, so the card has a name, contact
+      // and department). The scoring analysis is manual: HR runs it per candidate.
       void (async () => {
         for (let i = 0; i < result.uploaded.length; i++) {
-          await processCandidate(result.uploaded[i].id);
+          await processCandidate(result.uploaded[i].id, { analyze: false });
           if (i + 1 < result.uploaded.length) {
             await new Promise((r) => setTimeout(r, 3000));
           }
@@ -293,8 +296,12 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
 
   // Returns true only when the FULL chain (parse -> classify -> analyze) succeeded —
   // bulk re-parse uses this to report truthful succeeded/failed counts. Never throws
-  // (single-candidate button callers rely on that).
-  const processCandidate = async (candidateId: string): Promise<boolean> => {
+  // (single-candidate button callers rely on that). `analyze: false` (upload)
+  // stops after classify: AI analysis only runs when HR asks for it.
+  const processCandidate = async (
+    candidateId: string,
+    { analyze = true }: { analyze?: boolean } = {},
+  ): Promise<boolean> => {
     setProcessingIds(prev => new Set(prev).add(candidateId));
     try {
       // Step 1: Parse CV
@@ -342,7 +349,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
       if (classErr) import.meta.env.DEV && console.error("Classify error:", classErr);
 
       // Step 3: AI Analysis — the step that writes the ALIGNED classification.
-      const analyzed = await runAIAnalysis(candidateId);
+      const analyzed = analyze ? await runAIAnalysis(candidateId) : !classErr;
 
       // Refresh the open profile too — parse/classify update the DB + list, not
       // the already-open selectedCandidate, so without this its header + AI

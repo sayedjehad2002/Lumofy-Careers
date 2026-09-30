@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import type { Applicant, Job } from "@/types/careers";
+import { routeKey } from "@/lib/routeKey";
 
 /**
  * A candidate's page is a URL, so these assert on routing rather than on state:
@@ -27,9 +28,12 @@ const jobs: Job[] = [{
   requirements: [], benefits: [], postedDate: "2026-01-01", screeningQuestions: [],
 }];
 
+// Mutable so a test can hold the signed-in fetch "in flight".
+const dataState = vi.hoisted(() => ({ ready: true }));
+
 vi.mock("@/contexts/CareersContext", () => ({
   useCareers: () => ({
-    jobs, applicants, loading: false, sessionToken: "t", authReady: true, isHrUser: true,
+    jobs, applicants, loading: false, adminDataReady: dataState.ready, sessionToken: "t", authReady: true, isHrUser: true,
     hrEmail: "hr@lumofy.com", hrRole: "owner", hrChecked: true,
     addJob: vi.fn(), updateJob: vi.fn(), archiveJob: vi.fn(), restoreJob: vi.fn(),
     deleteApplicant: vi.fn(), updateApplicantStatus: vi.fn(), updateApplicantStatusBulk: vi.fn(),
@@ -49,7 +53,12 @@ vi.mock("@/components/careers/CandidateProfile", () => ({
   ),
 }));
 vi.mock("@/components/careers/applicants/ApplicantsRoster", () => ({
-  default: () => <div>APPLICANTS LIST</div>,
+  default: ({ selectedJobIds }: { selectedJobIds: readonly string[] }) => (
+    <div>
+      APPLICANTS LIST
+      <span data-testid="job-scope">{selectedJobIds.join(",") || "all"}</span>
+    </div>
+  ),
 }));
 vi.mock("@/components/careers/pipeline/PipelineBoard", () => ({
   default: () => <div>PIPELINE BOARD</div>,
@@ -62,6 +71,7 @@ vi.mock("@/components/careers/CommandPalette", () => ({ default: () => null }));
 let Dashboard: React.ComponentType;
 
 beforeEach(async () => {
+  dataState.ready = true;
   vi.resetModules();
   Dashboard = (await import("@/pages/Dashboard")).default;
 });
@@ -71,15 +81,23 @@ function LocationProbe() {
   return <span data-testid="path">{loc.pathname}</span>;
 }
 
+/** Keys the routes the way App's page transition does, so a remount shows up here. */
+function KeyedShell({ children }: { children: React.ReactNode }) {
+  const { pathname } = useLocation();
+  return <div key={routeKey(pathname)}>{children}</div>;
+}
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <LocationProbe />
-      <Routes>
-        <Route path="/dashboard/:tab/:sub" element={<Dashboard />} />
-        <Route path="/dashboard/:tab" element={<Dashboard />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-      </Routes>
+      <KeyedShell>
+        <Routes>
+          <Route path="/dashboard/:tab/:sub" element={<Dashboard />} />
+          <Route path="/dashboard/:tab" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+        </Routes>
+      </KeyedShell>
     </MemoryRouter>
   );
 }
@@ -104,6 +122,15 @@ describe("candidate URLs", () => {
     expect(screen.queryByText("APPLICANTS LIST")).not.toBeInTheDocument();
   });
 
+  it("waits for the applicants instead of calling a real candidate missing", async () => {
+    // Public jobs had loaded (loading: false) but the signed-in fetch had not, so
+    // the list was still empty and a valid link read "Candidate not found".
+    dataState.ready = false;
+    renderAt("/dashboard/applicants/cand-1");
+    expect(await screen.findByText(/Loading dashboard/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Candidate not found/i)).not.toBeInTheDocument();
+  });
+
   it("returns to the Pipeline when that is where the click came from", async () => {
     renderAt("/dashboard/applicants/cand-1?from=pipeline");
     fireEvent.click(await screen.findByRole("button", { name: "Back" }));
@@ -120,5 +147,25 @@ describe("candidate URLs", () => {
     renderAt("/dashboard/applicants/cand-1?from=../../evil");
     fireEvent.click(await screen.findByRole("button", { name: "Back" }));
     expect(screen.getByTestId("path")).toHaveTextContent("/dashboard/applicants");
+  });
+
+  it("opens Applicants scoped to the role clicked on Jobs", async () => {
+    // The manager-reported bug: the page transition was keyed on the full path, so
+    // the move to /dashboard/applicants remounted the dashboard and dropped the
+    // filter the click had just set. Applicants opened on "All jobs".
+    renderAt("/dashboard/jobs");
+    fireEvent.click(await screen.findByRole("button", { name: /Content Marketing Intern.*View applicants/ }));
+    expect(screen.getByTestId("path")).toHaveTextContent("/dashboard/applicants");
+    expect(await screen.findByTestId("job-scope")).toHaveTextContent("job1");
+  });
+});
+
+describe("routeKey", () => {
+  it("gives every dashboard URL one key and public pages their own", () => {
+    expect(routeKey("/dashboard")).toBe("/dashboard");
+    expect(routeKey("/dashboard/jobs")).toBe("/dashboard");
+    expect(routeKey("/dashboard/applicants/cand-1")).toBe("/dashboard");
+    expect(routeKey("/jobs/abc")).toBe("/jobs/abc");
+    expect(routeKey("/dashboardx")).toBe("/dashboardx");
   });
 });

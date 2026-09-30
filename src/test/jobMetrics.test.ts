@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   daysOpen, jobAttention, jobRows, sortJobs, jobsSummary, JOB_FILTERS,
+  jobFilterGroups, jobFilterLabel, hasTitleTwin,
   SOURCING_MAX_APPLICANTS, SOURCING_MIN_DAYS, BACKLOG_MIN_UNREVIEWED,
   type JobRow,
 } from "@/lib/jobMetrics";
@@ -188,5 +189,49 @@ describe("jobsSummary and filters", () => {
     expect(rows.filter(JOB_FILTERS.backlog)).toHaveLength(s.backlog);
     expect(rows.filter(JOB_FILTERS.closed)).toHaveLength(s.closed);
     expect(rows.filter(JOB_FILTERS.all)).toHaveLength(rows.length);
+  });
+});
+
+describe("job filter", () => {
+  // The case that prompted this: two openings with the same title in different teams.
+  const salesIntern = job({ id: "fs-sales", title: "Full Stack Intern", department: "Sales" });
+  const engIntern = job({ id: "fs-eng", title: "Full stack Intern", department: "Engineering" });
+  const pm = job({ id: "pm", title: "Product Manager", department: "Product" });
+  const oldEng = job({ id: "old", title: "Backend Developer", department: "Engineering", archivedAt: daysAgo(3) });
+  const jobs = [salesIntern, pm, oldEng, engIntern];
+
+  it("groups roles under their department, departments alphabetical", () => {
+    const groups = jobFilterGroups(jobs);
+    expect(groups.map((g) => g.department)).toEqual(["Engineering", "Product", "Sales"]);
+    expect(groups[2].jobs.map((j) => j.id)).toEqual(["fs-sales"]);
+  });
+
+  it("puts live roles before archived ones inside a department", () => {
+    const eng = jobFilterGroups(jobs).find((g) => g.department === "Engineering")!;
+    expect(eng.jobs.map((j) => j.id)).toEqual(["fs-eng", "old"]);
+  });
+
+  it("searches the department as well as the title", () => {
+    expect(jobFilterGroups(jobs, "sales").flatMap((g) => g.jobs.map((j) => j.id))).toEqual(["fs-sales"]);
+    expect(jobFilterGroups(jobs, "full stack").flatMap((g) => g.jobs.map((j) => j.id))).toEqual(["fs-eng", "fs-sales"]);
+    expect(jobFilterGroups(jobs, "nothing like this")).toEqual([]);
+  });
+
+  it("files a role with no department under a named group, not a blank one", () => {
+    const groups = jobFilterGroups([job({ id: "x", department: "  " })]);
+    expect(groups[0].department).toBe("No department");
+  });
+
+  it("treats titles that differ only in case or spacing as twins", () => {
+    expect(hasTitleTwin(jobs, salesIntern)).toBe(true);
+    expect(hasTitleTwin(jobs, pm)).toBe(false);
+  });
+
+  it("names the department on the button only when the title is ambiguous", () => {
+    expect(jobFilterLabel(jobs, [])).toBe("All jobs");
+    expect(jobFilterLabel(jobs, ["fs-sales"])).toBe("Full Stack Intern · Sales");
+    expect(jobFilterLabel(jobs, ["pm"])).toBe("Product Manager");
+    expect(jobFilterLabel(jobs, ["pm", "fs-eng"])).toBe("2 jobs");
+    expect(jobFilterLabel(jobs, ["gone"])).toBe("1 job");
   });
 });

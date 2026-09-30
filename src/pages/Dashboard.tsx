@@ -77,7 +77,7 @@ const MotionLink = motion(Link);
 // stage, or be moved back one step (to correct mistakes). "hired"/"rejected"
 // are terminal except for reverting out of them.
 const Dashboard = () => {
-  const { jobs, applicants, loading, sessionToken, authReady, isHrUser, hrEmail, hrRole, hrChecked, addJob, updateJob, archiveJob, restoreJob, deleteApplicant, updateApplicantStatus, updateApplicantStatusBulk, addApplicantNote, updateApplicantAI, refreshData } = useCareers();
+  const { jobs, applicants, loading, adminDataReady, sessionToken, authReady, isHrUser, hrEmail, hrRole, hrChecked, addJob, updateJob, archiveJob, restoreJob, deleteApplicant, updateApplicantStatus, updateApplicantStatusBulk, addApplicantNote, updateApplicantAI, refreshData } = useCareers();
   // The section lives in the URL rather than component state: every tab is then
   // bookmarkable, shareable, survives a refresh, and the browser's back button
   // and "open in new tab" behave the way people expect.
@@ -112,7 +112,11 @@ const Dashboard = () => {
     [applicants, openApplicantId]
   );
   /** Set when the id in the URL matches nobody — a deleted or mistyped link, once the data is in. */
-  const applicantNotFound = !!openApplicantId && !selectedApplicant && !loading;
+  // `adminDataReady`, not `!loading`: loading clears after the signed-out fetch of
+  // public jobs, while the applicants are still on their way. Keying off it
+  // flashed "Candidate not found" on every cold candidate link.
+  const dataReady = !loading && adminDataReady;
+  const applicantNotFound = !!openApplicantId && !selectedApplicant && dataReady;
 
   /**
    * Which screen sent you here, so Close can put you back. Without this, closing a
@@ -187,6 +191,13 @@ const Dashboard = () => {
     () => filterByJobs(applicants, selectedJobIds),
     [applicants, selectedJobIds],
   );
+
+  /** Per-role counts for the job filter, over everyone rather than the scoped list. */
+  const jobCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const a of applicants) m.set(a.jobId, (m.get(a.jobId) ?? 0) + 1);
+    return m;
+  }, [applicants]);
 
   const handleStatusUpdate = async (applicantId: string, status: ApplicantStatus) => {
     try {
@@ -324,7 +335,9 @@ const Dashboard = () => {
     );
   }
 
-  if (loading) {
+  // Same reason: without the applicants in, every screen behind this gate would
+  // briefly read "0 applications" and an empty board.
+  if (!dataReady) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -599,6 +612,7 @@ const Dashboard = () => {
               jobs={jobs}
               selectedJobIds={selectedJobIds}
               onJobIdsChange={setSelectedJobIds}
+              jobCounts={jobCounts}
               applicantHref={listApplicantHref}
               onBulkStatusUpdate={updateApplicantStatusBulk}
               onDeleteApplicant={deleteApplicant}
@@ -640,6 +654,10 @@ const Dashboard = () => {
           {/* CANDIDATE PROFILE (replaces old applicant detail) */}
           {activeTab === "applicants" && selectedApplicant && (
             <CandidateProfile
+              // The dashboard no longer remounts per URL, so going straight from one
+              // candidate to another (⌘K search) must not carry the last one's
+              // drafts, dialogs or in-flight analysis across.
+              key={selectedApplicant.id}
               applicant={selectedApplicant}
               job={jobs.find(j => j.id === selectedApplicant.jobId)}
               sessionToken={sessionToken}
@@ -666,6 +684,7 @@ const Dashboard = () => {
                 jobs={jobs}
                 selectedJobIds={selectedJobIds}
                 onJobIdsChange={setSelectedJobIds}
+                jobCounts={jobCounts}
                 onStatusUpdate={handleStatusUpdate}
                 onBulkStatusUpdate={updateApplicantStatusBulk}
                 onOpenApplicant={(a) => openApplicant(a.id, "pipeline")}

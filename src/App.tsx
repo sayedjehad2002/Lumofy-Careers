@@ -10,6 +10,7 @@ import { Suspense, lazy, useLayoutEffect } from "react";
 import { Loader2 } from "lucide-react";
 import MobileBottomNav from "@/components/careers/MobileBottomNav";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { routeKey } from "@/lib/routeKey";
 
 // Route-level code splitting: the public site no longer ships the admin
 // dashboard + its heavy libs (recharts/xlsx/jspdf/dnd) in the initial bundle.
@@ -61,7 +62,11 @@ const PageLoader = () => (
 // its header. Rendered INSIDE the keyed transition wrapper, so it fires as the new
 // page mounts (after the outgoing page animates out) — not mid-exit. Skips hash
 // links so in-page anchors (#building, #growth, …) still scroll to their target.
-function ScrollToTop() {
+//
+// `pathname` is a prop, like ThemeRouteSync's, so the exiting clone keeps the old
+// value. It has to be a dependency now that the dashboard stays mounted across its
+// own tabs (see lib/routeKey): a mount-only effect would never fire there.
+function ScrollToTop({ pathname }: { pathname: string }) {
   const { hash } = useLocation();
   // Browser back/forward (POP) keeps the browser's native scroll restoration so
   // returning to the jobs list lands where the candidate left off; only PUSH/REPLACE
@@ -76,7 +81,7 @@ function ScrollToTop() {
     html.style.scrollBehavior = "auto";
     window.scrollTo(0, 0);
     html.style.scrollBehavior = prev;
-  }, [hash, navType]);
+  }, [hash, navType, pathname]);
   return null;
 }
 
@@ -115,14 +120,14 @@ function AnimatedRoutes() {
       </a>
       <AnimatePresence mode="wait">
         <motion.div
-          key={location.pathname}
+          key={routeKey(location.pathname)}
           initial="initial"
           animate="animate"
           exit="exit"
           variants={pageVariants}
           transition={pageTransition}
         >
-          <ScrollToTop />
+          <ScrollToTop pathname={location.pathname} />
           <ThemeRouteSync pathname={location.pathname} />
           <Suspense fallback={<PageLoader />}>
             <Routes location={location}>

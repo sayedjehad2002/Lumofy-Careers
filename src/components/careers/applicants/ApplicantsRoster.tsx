@@ -42,6 +42,8 @@ export interface ApplicantsRosterProps {
   /** Empty = every job. */
   selectedJobIds: readonly string[];
   onJobIdsChange: Dispatch<SetStateAction<string[]>>;
+  /** Applications per job over every applicant, for the job filter. */
+  jobCounts?: ReadonlyMap<string, number>;
   applicantHref: (applicantId: string) => string;
   onBulkStatusUpdate: (ids: string[], status: ApplicantStatus) => Promise<{ updated: string[] }>;
   onDeleteApplicant: (id: string) => Promise<void>;
@@ -51,7 +53,7 @@ export interface ApplicantsRosterProps {
 }
 
 export default function ApplicantsRoster({
-  applicants, jobs, selectedJobIds, onJobIdsChange, applicantHref,
+  applicants, jobs, selectedJobIds, onJobIdsChange, jobCounts, applicantHref,
   onBulkStatusUpdate, onDeleteApplicant, onAnalysisComplete, getJobTitle, sessionToken,
 }: ApplicantsRosterProps) {
   const [facet, setFacet] = useState<FacetId>("all");
@@ -313,7 +315,7 @@ export default function ApplicantsRoster({
           )}
         </div>
 
-        <JobFilter jobs={jobs} selected={selectedJobIds} onChange={onJobIdsChange} className="w-full sm:w-52" />
+        <JobFilter jobs={jobs} selected={selectedJobIds} onChange={onJobIdsChange} counts={jobCounts} className="w-full sm:w-52" />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

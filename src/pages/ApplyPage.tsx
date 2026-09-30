@@ -457,16 +457,11 @@ const ApplyPage = () => {
       };
 
       setSubmitPhase("submitting");
-      const newApplicantId = await addApplicant(newApplicant);
+      await addApplicant(newApplicant);
       setSubmitted(true);
       toast.success("Application submitted successfully!");
-
-      // Fire-and-forget: trigger automatic AI analysis (use the server-created id)
-      supabase.functions.invoke("auto-analyze-applicant", {
-        body: { applicantId: newApplicantId },
-      }).catch((err) => {
-        import.meta.env.DEV && console.warn("Auto-analyze trigger failed (non-blocking):", err);
-      });
+      // No AI analysis here: HR runs it manually from the dashboard when they
+      // choose to (keeps Gemini spend under HR's control).
     } catch (err: any) {
       import.meta.env.DEV && console.error("Submit error:", err);
       const msg = err?.message || "";
