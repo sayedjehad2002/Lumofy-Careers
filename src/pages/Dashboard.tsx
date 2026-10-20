@@ -9,7 +9,7 @@ import { ExternalLink, LogOut, Loader2, Search, UserX } from "lucide-react";
 // surface visible on every screen — is unmistakably the brand's rather than a
 // generic library's.
 import {
-  LxOverview, LxJobs, LxApplicants, LxPipeline, LxLibrary, LxHrTeam,
+  LxOverview, LxJobs, LxApplicants, LxPipeline, LxLibrary, LxHrTeam, LxAnalysis,
 } from "@/components/icons/lumofy";
 import CommandPalette from "@/components/careers/CommandPalette";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,8 @@ import ApplicantsRoster from "@/components/careers/applicants/ApplicantsRoster";
 // it behind a dynamic import takes the whole drag-and-drop chunk off the
 // dashboard's critical path, same as DashboardOverview above.
 const PipelineBoard = lazy(() => import("@/components/careers/pipeline/PipelineBoard"));
+// lazy: only HR who open the analyzer need it.
+const CvAnalyzer = lazy(() => import("@/components/careers/analyzer/CvAnalyzer"));
 // lazy: shares the recharts chunk — only loaded when the Sources sub-route opens.
 const SourceAnalytics = lazy(() => import("@/components/careers/applicants/SourceAnalytics"));
 // From its own module, deliberately: importing these from PipelineBoard.tsx would
@@ -63,9 +65,9 @@ const SourceAnalytics = lazy(() => import("@/components/careers/applicants/Sourc
 import { INITIAL_PIPELINE_VIEW, type PipelineViewState } from "@/components/careers/pipeline/pipelineView";
 import { filterByJobs } from "@/lib/applicantMetrics";
 
-type Tab = "overview" | "jobs" | "applicants" | "pipeline" | "cv-library" | "hr-team";
+type Tab = "overview" | "jobs" | "applicants" | "pipeline" | "cv-analyzer" | "cv-library" | "hr-team";
 
-const TAB_IDS: Tab[] = ["overview", "jobs", "applicants", "pipeline", "cv-library", "hr-team"];
+const TAB_IDS: Tab[] = ["overview", "jobs", "applicants", "pipeline", "cv-analyzer", "cv-library", "hr-team"];
 const isTab = (v: string | undefined): v is Tab => !!v && (TAB_IDS as string[]).includes(v);
 /** Every section has its own path, e.g. /dashboard/cv-library/insights. */
 export const dashboardPath = (tab: string, sub?: string) => `/dashboard/${tab}${sub ? `/${sub}` : ""}`;
@@ -205,6 +207,7 @@ const Dashboard = () => {
     { id: "jobs", label: "Jobs", icon: <LxJobs className="w-4 h-4" />, group: "Hiring" },
     { id: "applicants", label: "Applicants", icon: <LxApplicants className="w-4 h-4" />, group: "Hiring" },
     { id: "pipeline", label: "Pipeline", icon: <LxPipeline className="w-4 h-4" />, group: "Hiring" },
+    { id: "cv-analyzer", label: "CV Analyzer", icon: <LxAnalysis className="w-4 h-4" />, group: "Hiring" },
     { id: "cv-library", label: "CV Library", icon: <LxLibrary className="w-4 h-4" />, group: "Talent" },
     { id: "hr-team", label: "HR Team", icon: <LxHrTeam className="w-4 h-4" />, group: "Tools" },
   ];
@@ -751,6 +754,16 @@ const Dashboard = () => {
           )}
 
           {/* HR TEAM TAB */}
+          {/* CV ANALYZER TAB — attach a CV, pick a role, run the AI */}
+          {activeTab === "cv-analyzer" && (
+            <Suspense fallback={<div className="flex items-center justify-center py-32"><Loader2 className="w-6 h-6 animate-spin text-primary" aria-label="Loading" /></div>}>
+              <CvAnalyzer
+                jobs={activeJobs.filter((j) => j.status === "open")}
+                onOpenApplicant={(id) => openApplicant(id, "cv-analyzer")}
+              />
+            </Suspense>
+          )}
+
           {activeTab === "hr-team" && sessionToken && (
             <HrTeam sessionToken={sessionToken} />
           )}
