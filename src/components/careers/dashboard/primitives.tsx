@@ -1,8 +1,10 @@
 import { useId, type ReactNode, type ComponentType } from "react";
 import { motion } from "framer-motion";
-import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Minus, Search, X } from "lucide-react";
 import AnimatedCounter from "@/components/careers/AnimatedCounter";
 import { brandEase, prefersReducedMotion } from "@/lib/motion";
+import { Spark } from "@/components/careers/cx/parts";
+import "./dx.css";
 
 /**
  * Dashboard primitives — the shared "Intelligence in Motion, tool-tuned" language:
@@ -223,6 +225,133 @@ export function Meter({
           style={{ transformOrigin: "left", width: "100%" }}
         />
       </div>
+    </div>
+  );
+}
+
+/* ───────────── Path of Light layer (dx.css) ─────────────
+   The public careers site's language, tuned for a tool: an eyebrow pill with the
+   brand sparkle, a Source Sans display title, one plain summary sentence, pill
+   chips, hairline list surfaces. Every dashboard tab builds its top from these,
+   so the tabs read as one product with the site candidates see. */
+
+/** Tab header: eyebrow, display title, one summary sentence, and actions on the right. */
+export function PageHeader({
+  eyebrow,
+  title,
+  summary,
+  actions,
+  className = "",
+}: {
+  eyebrow?: string;
+  title: ReactNode;
+  summary?: ReactNode;
+  actions?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <header className={`dx-head ${className}`}>
+      <div className="dx-head__copy">
+        {eyebrow && (
+          <p className="dx-eyebrow">
+            <Spark />
+            {eyebrow}
+          </p>
+        )}
+        <h1 className="dx-title">{title}</h1>
+        {summary && <p className="dx-sum">{summary}</p>}
+      </div>
+      {actions && <div className="dx-head__actions">{actions}</div>}
+    </header>
+  );
+}
+
+/** Filter chip with an optional count. `tone="warning"` for chips that name a problem. */
+export function Chip({
+  active,
+  count,
+  tone,
+  onClick,
+  disabled,
+  title,
+  children,
+}: {
+  active: boolean;
+  count?: number;
+  tone?: "warning";
+  onClick: () => void;
+  disabled?: boolean;
+  title?: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      disabled={disabled}
+      title={title}
+      onClick={onClick}
+      className={`dx-chip${tone === "warning" ? " dx-chip--warn" : ""}${active ? " is-on" : ""}`}
+    >
+      {children}
+      {count !== undefined && <span className="dx-chip__n">{count}</span>}
+    </button>
+  );
+}
+
+/** Toolbar search field: mist well, Sirius focus ring, clear button once there is text. */
+export function SearchField({
+  value,
+  onChange,
+  placeholder,
+  label,
+  className = "",
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  placeholder: string;
+  /** Accessible name (the placeholder is not one). */
+  label: string;
+  className?: string;
+}) {
+  return (
+    <div className={`dx-search ${className}`}>
+      <Search aria-hidden="true" />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={label}
+        className="dx-search__input"
+      />
+      {value && (
+        <button type="button" onClick={() => onChange("")} aria-label="Clear search" className="dx-search__clear">
+          <X className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Empty or no-match state: icon in a haze circle, a title, and an optional way out. */
+export function EmptyState({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon?: IconType;
+  title: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="dx-empty">
+      {Icon && (
+        <span className="dx-empty__ic" aria-hidden="true">
+          <Icon />
+        </span>
+      )}
+      <p className="dx-empty__title">{title}</p>
+      {children}
     </div>
   );
 }

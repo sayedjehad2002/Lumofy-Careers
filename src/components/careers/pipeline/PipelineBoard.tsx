@@ -7,9 +7,8 @@ import {
   DragDropContext, Draggable, type DropResult, type DraggableProvided,
   type DraggableProvidedDragHandleProps, type DraggableRubric, type DraggableStateSnapshot,
 } from "@hello-pangea/dnd";
-import { KanbanSquare, Search, X } from "lucide-react";
+
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -27,6 +26,7 @@ import PipelineColumn from "./PipelineColumn";
 import PipelineTriageBar from "./PipelineTriageBar";
 import BulkActionBar from "./BulkActionBar";
 import JobFilter from "../applicants/JobFilter";
+import { PageHeader, SearchField } from "../dashboard/primitives";
 
 export interface PipelineBoardProps {
   /**
@@ -401,45 +401,34 @@ export default function PipelineBoard({
   return (
     <div className="relative flex h-full min-h-0 flex-col">
       {/* Header */}
-      <div className="mb-3 flex shrink-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-            <KanbanSquare className="h-5 w-5 text-primary" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight">Pipeline</h1>
-            <p className="text-sm text-muted-foreground tabular-nums">
-              {filtersOn
-                ? `${totalShown} of ${scoped.length} candidates`
-                : `${scoped.length} candidate${scoped.length === 1 ? "" : "s"}`}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            <Input
+      <PageHeader
+        eyebrow="Hiring"
+        title="Pipeline"
+        className="!mb-3 shrink-0"
+        summary={
+          filtersOn ? (
+            <>
+              <b>{totalShown}</b> of {scoped.length} candidates
+            </>
+          ) : (
+            <>
+              <b>{scoped.length}</b> candidate{scoped.length === 1 ? "" : "s"} on the board
+            </>
+          )
+        }
+        actions={
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <SearchField
               value={view.search}
-              onChange={(e) => patchView({ search: e.target.value })}
+              onChange={(next) => patchView({ search: next })}
               placeholder="Search name, email or role"
-              aria-label="Search the board"
-              className="h-9 w-full rounded-xl pl-8 pr-8 text-sm sm:w-64"
+              label="Search the board"
+              className="w-full sm:w-64"
             />
-            {view.search && (
-              <button
-                type="button"
-                onClick={() => patchView({ search: "" })}
-                aria-label="Clear search"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <X className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-            )}
+            <JobFilter jobs={jobs} selected={selectedJobIds} onChange={onJobIdsChange} counts={jobCounts} className="w-full sm:w-56" />
           </div>
-          <JobFilter jobs={jobs} selected={selectedJobIds} onChange={onJobIdsChange} counts={jobCounts} className="w-full sm:w-56" />
-        </div>
-      </div>
+        }
+      />
 
       <div className="mb-3 shrink-0">
         <PipelineTriageBar

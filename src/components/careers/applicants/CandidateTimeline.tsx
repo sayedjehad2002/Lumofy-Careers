@@ -93,7 +93,7 @@ const CandidateTimeline = ({ applicant, events }: CandidateTimelineProps) => {
   const StageIcon = STAGE_ICON[applicant.status];
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-[hsl(var(--intel-border))] bg-[hsl(var(--intel-card))]">
+    <section className="overflow-hidden dx-card">
       {/* Where they stand, before any history. A hiring manager opening this card
           wants the answer first and the evidence second — the old header led with
           the word "Timeline", which nobody needed to be told. */}

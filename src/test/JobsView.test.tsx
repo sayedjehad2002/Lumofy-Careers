@@ -70,9 +70,11 @@ describe("JobsView", () => {
 
   it("says what is going on in the header", () => {
     renderView([healthy, drowning, starving], roster);
-    expect(screen.getByText(/3 open roles/)).toBeInTheDocument();
-    expect(screen.getByText(/1 needs sourcing/)).toBeInTheDocument();
-    expect(screen.getByText(/never opened/)).toBeInTheDocument();
+    // The counts are bolded inside one sentence, so read the sentence whole.
+    const summary = screen.getByRole("heading", { level: 1 }).nextElementSibling;
+    expect(summary).toHaveTextContent(/3 open roles/);
+    expect(summary).toHaveTextContent(/1 needs sourcing/);
+    expect(summary).toHaveTextContent(/never opened/);
   });
 
   it("flags a starving role but not a young one", () => {

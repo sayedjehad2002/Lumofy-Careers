@@ -9,8 +9,8 @@ import {
   JOB_FILTERS, JOB_SORT_LABELS, jobRows, jobsSummary, sortJobs,
   type JobFilter, type JobSort,
 } from "@/lib/jobMetrics";
-import { TONE_TEXT } from "../statusColors";
 import JobRow from "./JobRow";
+import { PageHeader, Chip, EmptyState } from "../dashboard/primitives";
 
 export interface JobsViewProps {
   jobs: Job[];
@@ -49,6 +49,20 @@ export default function JobsView({
     [rows, filter, sort]
   );
 
+  // Sorting by department groups the board under department headings; every
+  // other order is one list, so "Needs attention" still leads with the problems.
+  const groups = useMemo(() => {
+    if (sort !== "department") return [{ department: null as string | null, rows: visible }];
+    const byDept = new Map<string, typeof visible>();
+    for (const r of visible) {
+      const d = r.job.department?.trim() || "No department";
+      const list = byDept.get(d);
+      if (list) list.push(r);
+      else byDept.set(d, [r]);
+    }
+    return [...byDept.entries()].map(([department, list]) => ({ department: department as string | null, rows: list }));
+  }, [visible, sort]);
+
   /**
    * Only chips with something behind them.
    *
@@ -66,68 +80,60 @@ export default function JobsView({
   return (
     <div>
       {/* ── Header: what is going on, in a sentence ── */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-            <Briefcase className="h-5 w-5 text-primary" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight">Jobs</h1>
-            <p className="mt-0.5 text-sm">
-              {rows.length === 0 ? (
-                <span className="text-muted-foreground">No roles yet.</span>
-              ) : (
+      <PageHeader
+        eyebrow="Hiring"
+        title="Jobs"
+        summary={
+          rows.length === 0 ? (
+            "No roles yet."
+          ) : (
+            <>
+              <b>{summary.open}</b> open role{summary.open === 1 ? "" : "s"}
+              {summary.starving > 0 && (
                 <>
-                  <span className="text-muted-foreground">
-                    {summary.open} open role{summary.open === 1 ? "" : "s"}
+                  {" · "}
+                  <span className="is-warn">
+                    {summary.starving} need{summary.starving === 1 ? "s" : ""} sourcing
                   </span>
-                  {summary.starving > 0 && (
-                    <span className={TONE_TEXT.warning}>
-                      {" · "}{summary.starving} need{summary.starving === 1 ? "s" : ""} sourcing
-                    </span>
-                  )}
-                  {summary.unreviewed > 0 && (
-                    <span className="text-muted-foreground">
-                      {" · "}{summary.unreviewed} application{summary.unreviewed === 1 ? "" : "s"} never opened
-                    </span>
-                  )}
                 </>
               )}
-            </p>
-          </div>
-        </div>
-        <Button onClick={onCreate} className="shrink-0 rounded-xl">
-          <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-          New job
-        </Button>
-      </div>
+              {summary.unreviewed > 0 && (
+                <>
+                  {" · "}
+                  <b>{summary.unreviewed}</b> application{summary.unreviewed === 1 ? "" : "s"} never opened
+                </>
+              )}
+            </>
+          )
+        }
+        actions={
+          <button type="button" onClick={onCreate} className="dx-btn dx-btn--primary">
+            <Plus aria-hidden="true" />
+            New job
+          </button>
+        }
+      />
 
       {/* ── Filters + sort ── */}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        {chips.map((chip) => {
-          const active = filter === chip.id;
-          return (
-            <button
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="dx-chips" role="group" aria-label="Filter roles">
+          {chips.map((chip) => (
+            <Chip
               key={chip.id}
-              type="button"
-              aria-pressed={active}
+              active={filter === chip.id}
+              count={chip.count}
+              tone={chip.id === "starving" ? "warning" : undefined}
               onClick={() => setFilter(chip.id)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                active
-                  ? "border-primary bg-primary/10 text-foreground"
-                  : "border-[hsl(var(--intel-border))] bg-[hsl(var(--intel-card))] text-muted-foreground hover:border-primary/40"
-              }`}
             >
               {chip.label}
-              <span className="ml-1.5 tabular-nums text-muted-foreground">{chip.count}</span>
-            </button>
-          );
-        })}
+            </Chip>
+          ))}
+        </div>
 
         <div className="ml-auto">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 rounded-xl text-xs">
+              <Button variant="outline" size="sm" className="dx-tool">
                 Sort: {JOB_SORT_LABELS[sort]}
               </Button>
             </DropdownMenuTrigger>
@@ -151,64 +157,79 @@ export default function JobsView({
           cards: it drops ~120px of inter-card gutter, aligns the numbers into a
           column you can actually compare down, and gets the whole board on screen. */}
       {visible.length > 0 ? (
-        <div className="divide-y divide-[hsl(var(--intel-border))] overflow-hidden rounded-xl border border-[hsl(var(--intel-border))] bg-[hsl(var(--intel-card))]">
-          {visible.map((row) => (
-            <JobRow
-              key={row.job.id}
-              row={row}
-              onOpen={onOpen}
-              onEdit={onEdit}
-              onDuplicate={onDuplicate}
-              onArchive={onArchive}
-              onToggleStatus={onToggleStatus}
-              onCopyLink={onCopyLink}
-              onShareLinkedIn={onShareLinkedIn}
-              onOpenPublicPage={onOpenPublicPage}
-            />
+        <div className="grid gap-6">
+          {groups.map((group) => (
+            <section key={group.department ?? "all"} aria-label={group.department ?? "All roles"}>
+              {/* Department heading, only when sorted by department: the public
+                  role board's grouping, with the count beside the name. */}
+              {group.department && (
+                <h2 className="dx-label">
+                  {group.department} <span className="dx-label__n">{group.rows.length}</span>
+                </h2>
+              )}
+              <div className="dx-list jr-table">
+                <div className="jr-head" aria-hidden="true">
+                  <span>Role</span>
+                  <span>Where applicants are</span>
+                  <span className="text-right">Total</span>
+                  <span />
+                </div>
+                {group.rows.map((row) => (
+                  <JobRow
+                    key={row.job.id}
+                    row={row}
+                    onOpen={onOpen}
+                    onEdit={onEdit}
+                    onDuplicate={onDuplicate}
+                    onArchive={onArchive}
+                    onToggleStatus={onToggleStatus}
+                    onCopyLink={onCopyLink}
+                    onShareLinkedIn={onShareLinkedIn}
+                    onOpenPublicPage={onOpenPublicPage}
+                  />
+                ))}
+              </div>
+            </section>
           ))}
+
+          <p className="jr-legend" aria-hidden="true">
+            <span><i className="jr-mix__fresh" />New, not yet opened</span>
+            <span><i className="jr-mix__process" />In process</span>
+            <span><i className="jr-mix__hired" />Hired</span>
+            <span><i className="jr-mix__rejected" />Rejected</span>
+          </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-[hsl(var(--intel-border))] py-16 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-secondary">
-            <Briefcase className="h-6 w-6 text-muted-foreground/40" aria-hidden="true" />
-          </div>
-          {rows.length === 0 ? (
-            <>
-              <p className="font-medium">No jobs created yet</p>
-              <p className="mt-1 text-xs text-muted-foreground">Use “New job” to post your first vacancy.</p>
-            </>
-          ) : (
-            <>
-              <p className="font-medium">Nothing matches this filter</p>
-              <button
-                type="button"
-                onClick={() => setFilter("all")}
-                className="mt-1 text-xs text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                Show all {rows.length} roles
-              </button>
-            </>
-          )}
-        </div>
+        rows.length === 0 ? (
+          <EmptyState icon={Briefcase} title="No jobs created yet">
+            <p>Use “New job” to post your first vacancy.</p>
+          </EmptyState>
+        ) : (
+          <EmptyState icon={Briefcase} title="Nothing matches this filter">
+            <button type="button" onClick={() => setFilter("all")}>
+              Show all {rows.length} roles
+            </button>
+          </EmptyState>
+        )
       )}
 
       {archivedJobs.length > 0 && (
         <div className="mt-6">
-          <h2 className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Archived · {archivedJobs.length}
+          <h2 className="dx-label">
+            Archived <span className="dx-label__n">{archivedJobs.length}</span>
           </h2>
-          <div className="divide-y divide-[hsl(var(--intel-border))] overflow-hidden rounded-xl border border-[hsl(var(--intel-border))] bg-[hsl(var(--intel-card))]">
+          <div className="dx-list">
             {archivedJobs.map((job) => {
               const count = applicantCount(job.id);
               return (
                 <div key={job.id} className="flex items-center justify-between gap-4 px-4 py-2.5">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground/80">{job.title}</p>
+                    <p className="dx-row-title truncate text-[0.9375rem] text-foreground/80">{job.title}</p>
                     <p className="text-xs text-muted-foreground">
                       {job.department} · {count} applicant{count === 1 ? "" : "s"} kept
                     </p>
                   </div>
-                  <Button variant="outline" size="sm" className="h-8 shrink-0 rounded-lg text-xs" onClick={() => onRestore(job)}>
+                  <Button variant="outline" size="sm" className="dx-tool shrink-0" onClick={() => onRestore(job)}>
                     <ArchiveRestore className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
                     Restore
                   </Button>

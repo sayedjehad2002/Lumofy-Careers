@@ -10,20 +10,13 @@ interface PipelineTriageBarProps {
 /**
  * Colour carries urgency, not decoration: only the two facts that represent
  * someone waiting on a human get a tint. "Arrived this week" is context, so it
- * stays neutral rather than competing for attention.
+ * stays neutral rather than competing for attention. Styles live in dx.css (.dx-fact).
  */
-const TONE_VALUE: Record<TriageTone, string> = {
-  accent: "text-primary",
-  warning: "text-[hsl(var(--intel-warning))]",
-  muted: "text-foreground/70",
-  neutral: "text-foreground/70",
-};
-
-const TONE_ACTIVE: Record<TriageTone, string> = {
-  accent: "border-primary bg-primary/10",
-  warning: "border-[hsl(var(--intel-warning))] bg-[hsl(var(--intel-warning))]/10",
-  muted: "border-foreground/40 bg-[hsl(var(--intel-card-hover))]",
-  neutral: "border-foreground/40 bg-[hsl(var(--intel-card-hover))]",
+const TONE_CLASS: Record<TriageTone, string> = {
+  accent: " is-accent",
+  warning: " is-warn",
+  muted: "",
+  neutral: "",
 };
 
 /**
@@ -52,22 +45,10 @@ export default function PipelineTriageBar({ facts, active, onToggle }: PipelineT
             aria-pressed={isActive}
             title={empty ? `Nothing here right now — ${fact.hint}` : fact.hint}
             onClick={() => onToggle(isActive ? null : fact.id)}
-            className={`group flex min-w-[132px] flex-1 items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors sm:flex-none ${
-              isActive
-                ? TONE_ACTIVE[fact.tone]
-                : "border-[hsl(var(--intel-border))] bg-[hsl(var(--intel-card))]"
-            } ${
-              empty
-                ? "cursor-default opacity-55"
-                : "cursor-pointer hover:border-primary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            }`}
+            className={`dx-fact flex-1 sm:flex-none${empty ? "" : TONE_CLASS[fact.tone]}${isActive ? " is-on" : ""}`}
           >
-            <span className={`font-mono text-xl font-bold tabular-nums leading-none ${empty ? "text-muted-foreground" : TONE_VALUE[fact.tone]}`}>
-              {fact.count}
-            </span>
-            <span className="min-w-0 text-[11px] font-medium leading-tight text-muted-foreground">
-              {fact.label}
-            </span>
+            <span className="dx-fact__n">{fact.count}</span>
+            <span className="dx-fact__label">{fact.label}</span>
             {isActive && (
               <span className="ml-auto shrink-0 text-muted-foreground" aria-hidden="true">
                 <X className="h-3.5 w-3.5" />

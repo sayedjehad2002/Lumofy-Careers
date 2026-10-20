@@ -1,7 +1,7 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { Search, X, Check } from "lucide-react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { Check, ArrowDown, KanbanSquare } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
@@ -18,7 +18,6 @@ import {
   ROSTER_FACETS, rosterFacets, rosterSummary, applyRosterFilters, activeFilterCount,
   NO_FILTERS, type FacetId, type RosterFilterState,
 } from "@/lib/applicantMetrics";
-import { TONE_TEXT } from "../statusColors";
 import ApplicantRow from "./ApplicantRow";
 import RosterBulkBar from "./RosterBulkBar";
 import RosterFilters from "./RosterFilters";
@@ -26,6 +25,15 @@ import CompareDrawer from "./CompareDrawer";
 import { useBulkAnalysis } from "./useBulkAnalysis";
 import JobFilter from "./JobFilter";
 import { LxApplicants } from "@/components/icons/lumofy";
+import { PageHeader, Chip, SearchField, EmptyState } from "../dashboard/primitives";
+import { statusBreakdown } from "@/lib/dashboardMetrics";
+import { STATUS_COLORS } from "../statusColors";
+
+/**
+ * Stage order for the navigator: the path a candidate walks, then the exit.
+ * Rejected is a real outcome, so it is listed (and counted) rather than hidden.
+ */
+const STAGE_ORDER: ApplicantStatus[] = ["new", "reviewing", "shortlisted", "interview", "hired", "rejected"];
 
 const WINDOW_INITIAL = 60;
 const WINDOW_STEP = 60;
@@ -94,6 +102,7 @@ export default function ApplicantsRoster({
     () => (facet === "all" ? applicants : applicants.filter((a) => ROSTER_FACETS[facet](a, now))),
     [applicants, facet, now],
   );
+  const stageCounts = useMemo(() => statusBreakdown(faceted), [faceted]);
   const refined = useMemo(() => applyRosterFilters(faceted, filters), [faceted, filters]);
   const searched = useMemo(
     () => (deferredSearch.trim()
@@ -226,15 +235,12 @@ export default function ApplicantsRoster({
   return (
     <div>
       {/* ── Header ── */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-            <LxApplicants className="h-5 w-5 text-primary" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight">Applicants</h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {summary.applications === 0 ? (
+      <PageHeader
+        eyebrow="Hiring"
+        title="Applicants"
+        summary={
+          <>
+            {summary.applications === 0 ? (
                 "No applications yet."
               ) : (
                 <>
@@ -258,68 +264,73 @@ export default function ApplicantsRoster({
                   )}
                   {". "}
                   {summary.unopened > 0 && (
-                    <span className={TONE_TEXT.warning}>
+                    <span className="is-warn">
                       {summary.unopened} ha{summary.unopened === 1 ? "s" : "ve"} never been opened.
                     </span>
                   )}
                 </>
               )}
-            </p>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+        actions={
+          <Link to="/dashboard/pipeline" className="dx-btn dx-btn--secondary">
+            <KanbanSquare aria-hidden="true" />
+            Pipeline board
+          </Link>
+        }
+      />
 
-      {/* ── Facet chips ── */}
-      <div className="mb-3 flex flex-wrap items-center gap-2" role="group" aria-label="Filter candidates">
-        {facets.map((f) => {
-          const active = facet === f.id;
+      {/* ── Stage navigator ──
+          The primary way around the roster: where people are in the process.
+          It drives the same stage filter as the Filters popover, so the two can
+          never disagree. Counts follow the Focus chip but not search, so a
+          number never jumps while you type. */}
+      <nav className="ar-stages" aria-label="Filter by stage">
+        <button
+          type="button"
+          aria-pressed={filters.stage === "all"}
+          onClick={() => setFilters((f) => ({ ...f, stage: "all" }))}
+          className={`ar-stage-tab${filters.stage === "all" ? " is-on" : ""}`}
+        >
+          <span className="ar-stage-tab__label">All stages</span>
+          <span className="ar-stage-tab__n">{faceted.length}</span>
+        </button>
+        {STAGE_ORDER.map((status) => {
+          const row = stageCounts.find((r) => r.status === status);
+          const on = filters.stage === status;
           return (
             <button
-              key={f.id}
+              key={status}
               type="button"
-              aria-pressed={active}
-              onClick={() => setFacet(active && f.id !== "all" ? "all" : f.id)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                active
-                  ? "border-primary bg-primary/10 text-foreground"
-                  : "border-[hsl(var(--intel-border))] bg-[hsl(var(--intel-card))] text-muted-foreground hover:border-primary/40"
-              }`}
+              aria-pressed={on}
+              onClick={() => setFilters((f) => ({ ...f, stage: on ? "all" : status }))}
+              className={`ar-stage-tab${on ? " is-on" : ""}${status === "rejected" ? " is-exit" : ""}`}
             >
-              {f.label}
-              <span className="ml-1.5 tabular-nums text-muted-foreground">{f.count}</span>
+              <span className="ar-stage-tab__label">
+                <i style={{ background: STATUS_COLORS[status] }} aria-hidden="true" />
+                {row?.label ?? status}
+              </span>
+              <span className="ar-stage-tab__n">{row?.count ?? 0}</span>
             </button>
           );
         })}
-      </div>
+      </nav>
 
       {/* ── Toolbar ── */}
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name, email or role"
-            aria-label="Search candidates"
-            className="h-9 rounded-xl pl-8 pr-8 text-sm"
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch("")}
-              aria-label="Clear search"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <X className="h-3.5 w-3.5" aria-hidden="true" />
-            </button>
-          )}
-        </div>
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          placeholder="Search name, email or role"
+          label="Search candidates"
+          className="flex-1"
+        />
 
         <JobFilter jobs={jobs} selected={selectedJobIds} onChange={onJobIdsChange} counts={jobCounts} className="w-full sm:w-52" />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-9 shrink-0 rounded-xl text-xs">
+            <Button variant="outline" size="sm" className="dx-tool shrink-0">
               Sort: {SORT_LABELS[sort]}
             </Button>
           </DropdownMenuTrigger>
@@ -339,25 +350,55 @@ export default function ApplicantsRoster({
         <RosterFilters value={filters} onChange={setFilters} />
       </div>
 
-      {/* ── Result count + select-all ── */}
-      <div className="mb-2 flex items-center justify-between px-1">
-        <p className="text-xs text-muted-foreground tabular-nums">
-          {filtersOn ? `${sorted.length} of ${applicants.length}` : `${sorted.length}`} candidate{sorted.length === 1 ? "" : "s"}
-        </p>
-        {visible.length > 0 && (
-          <button
-            type="button"
-            onClick={selectionActive ? clearSelection : selectAllVisible}
-            className="text-xs text-primary transition-colors hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {selectionActive ? "Clear selection" : `Select these ${visible.length}`}
-          </button>
-        )}
+      {/* ── Focus chips + result count ── */}
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="dx-chips" role="group" aria-label="Focus on">
+          <span className="ar-focus-label">Focus</span>
+          {facets.filter((f) => f.id !== "all").map((f) => {
+            const active = facet === f.id;
+            return (
+              <Chip
+                key={f.id}
+                active={active}
+                count={f.count}
+                tone={f.id === "noEmail" ? "warning" : undefined}
+                onClick={() => setFacet(active ? "all" : f.id)}
+              >
+                {f.label}
+              </Chip>
+            );
+          })}
+        </div>
+        <div className="ml-auto flex items-center gap-3">
+          <p className="dx-count">
+            {filtersOn ? `${sorted.length} of ${applicants.length}` : `${sorted.length}`} candidate{sorted.length === 1 ? "" : "s"}
+          </p>
+          {visible.length > 0 && (
+            <button
+              type="button"
+              onClick={selectionActive ? clearSelection : selectAllVisible}
+              className="dx-link focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {selectionActive ? "Clear selection" : `Select these ${visible.length}`}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── The list ── */}
       {sorted.length > 0 ? (
-        <div className="divide-y divide-[hsl(var(--intel-border))] overflow-hidden rounded-xl border border-[hsl(var(--intel-border))] bg-[hsl(var(--intel-card))]">
+        <div className="dx-list ar-table" role="table" aria-label="Candidates">
+          {/* Column headings. The three that can order the list are buttons, and
+              say which way the list is sorted. */}
+          <div className="ar-head" role="row">
+            <span aria-hidden="true" />
+            <span role="columnheader">Candidate</span>
+            <SortHead mode="newest" sort={sort} onSort={setSort}>Role · applied</SortHead>
+            <span role="columnheader">Stage</span>
+            <SortHead mode="waiting" sort={sort} onSort={setSort}>In stage</SortHead>
+            <SortHead mode="score" sort={sort} onSort={setSort} align="end">AI fit</SortHead>
+            <span aria-hidden="true" />
+          </div>
           {visible.map((a) => {
             const days = daysInStage(a, now);
             return (
@@ -393,25 +434,15 @@ export default function ApplicantsRoster({
           )}
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-[hsl(var(--intel-border))] py-16 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-secondary">
-            <LxApplicants className="h-6 w-6 text-muted-foreground/40" />
-          </div>
-          {applicants.length === 0 ? (
-            <p className="font-medium">No applications yet</p>
-          ) : (
-            <>
-              <p className="font-medium">Nothing matches these filters</p>
-              <button
-                type="button"
-                onClick={() => { setFacet("all"); setSearch(""); setFilters(NO_FILTERS); }}
-                className="mt-1 text-xs text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                Clear filters and show all {applicants.length}
-              </button>
-            </>
-          )}
-        </div>
+        applicants.length === 0 ? (
+          <EmptyState icon={LxApplicants} title="No applications yet" />
+        ) : (
+          <EmptyState icon={LxApplicants} title="Nothing matches these filters">
+            <button type="button" onClick={() => { setFacet("all"); setSearch(""); setFilters(NO_FILTERS); }}>
+              Clear filters and show all {applicants.length}
+            </button>
+          </EmptyState>
+        )
       )}
 
       <RosterBulkBar
@@ -462,5 +493,26 @@ export default function ApplicantsRoster({
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+/** A sortable column heading: a button that orders the list, with aria-sort on the header. */
+function SortHead({
+  mode, sort, onSort, align, children,
+}: {
+  mode: SortMode;
+  sort: SortMode;
+  onSort: (mode: SortMode) => void;
+  align?: "end";
+  children: ReactNode;
+}) {
+  const on = sort === mode;
+  return (
+    <span role="columnheader" aria-sort={on ? "descending" : "none"} className={align === "end" ? "text-right" : undefined}>
+      <button type="button" onClick={() => onSort(mode)} className={`ar-sort${on ? " is-on" : ""}`} title={`Order by ${SORT_LABELS[mode].toLowerCase()}`}>
+        {children}
+        <ArrowDown className="h-3 w-3" aria-hidden="true" />
+      </button>
+    </span>
   );
 }

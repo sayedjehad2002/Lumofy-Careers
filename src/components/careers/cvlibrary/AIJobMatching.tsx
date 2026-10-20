@@ -81,10 +81,10 @@ export default function AIJobMatching({ candidates, jobs, onViewCandidate }: Pro
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
         <Sparkles className="w-5 h-5 text-primary" />
-        <h3 className="font-semibold text-lg">AI Job Matching</h3>
+        <h3 className="font-display text-xl font-bold tracking-tight">AI Job Matching</h3>
       </div>
 
-      <div className="rounded-xl bg-card border border-border p-4">
+      <div className="dx-card p-4">
         <p className="text-sm text-muted-foreground mb-3">Select an open job to find matching candidates from your CV library:</p>
         <Select value={selectedJobId} onValueChange={setSelectedJobId}>
           <SelectTrigger className="w-full max-w-md">
@@ -105,14 +105,14 @@ export default function AIJobMatching({ candidates, jobs, onViewCandidate }: Pro
           </p>
 
           {matches.length === 0 ? (
-            <div className="rounded-xl bg-card border border-border p-8 text-center">
+            <div className="dx-card p-8 text-center">
               <Target className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-40" />
               <p className="text-sm text-muted-foreground">No strong matches found for this job</p>
             </div>
           ) : (
             <div className="space-y-2">
               {matches.map(({ candidate: c, score }) => (
-                <div key={c.id} className="rounded-xl bg-card border border-border p-4 hover:border-primary/30 transition-colors cursor-pointer" onClick={() => onViewCandidate(c.id)}>
+                <div key={c.id} className="dx-card p-4 hover:border-primary/30 transition-colors cursor-pointer" onClick={() => onViewCandidate(c.id)}>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
                       {score}
@@ -143,7 +143,7 @@ export default function AIJobMatching({ candidates, jobs, onViewCandidate }: Pro
       )}
 
       {openJobs.length === 0 && (
-        <div className="rounded-xl bg-card border border-border p-8 text-center">
+        <div className="dx-card p-8 text-center">
           <Briefcase className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-40" />
           <p className="font-medium">No open jobs</p>
           <p className="text-xs text-muted-foreground mt-1">Create a job posting first to use AI matching</p>

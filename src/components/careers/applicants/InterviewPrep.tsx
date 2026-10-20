@@ -108,11 +108,11 @@ const InterviewPrep = ({ applicant, job }: InterviewPrepProps) => {
   };
 
   return (
-    <Card className="border-border/50">
+    <Card className="dx-card border-0">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-base flex items-center gap-2.5">
+            <CardTitle className="font-display text-[1.0625rem] font-bold tracking-tight flex items-center gap-2.5">
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${TONE_SUBTLE.success}`}>
                 <ClipboardList className={`w-4 h-4 ${TONE_TEXT.success}`} aria-hidden="true" />
               </div>

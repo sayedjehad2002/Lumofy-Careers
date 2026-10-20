@@ -106,10 +106,10 @@
     --sidebar: 220 20% 97%;
 
     /* Intelligence dashboard tokens */
-    --intel-surface: 220 18% 96%;
+    --intel-surface: 220 45% 97.5%;   /* mist #F6F8FC */
     --intel-card: 0 0% 100%;
-    --intel-card-hover: 220 16% 98%;
-    --intel-border: 220 14% 88%;
+    --intel-card-hover: 222 60% 98.5%;
+    --intel-border: 222 30% 91%;      /* line #E5E9F2 */
     --intel-text-primary: 220 35% 8%;
     --intel-text-secondary: 220 12% 44%;
     --intel-text-muted: 220 10% 58%;
@@ -141,15 +141,15 @@
     --spacing: 0.25rem;
   }
   .dark {
-    /* Cosmos — deep-space neutral base (brand #0C0C0C) with a whisper of Sirius tint */
-    --background: 222 16% 7%;
-    --foreground: 220 9% 94%;
+    /* Cosmos — neutral dark base. Lumofy Design System: greys on dark are never blue-tinted (only Sirius carries colour). */
+    --background: 0 0% 7%;
+    --foreground: 0 0% 94%;
 
-    --card: 222 16% 10%;
-    --card-foreground: 220 9% 94%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 94%;
 
-    --popover: 222 16% 10%;
-    --popover-foreground: 220 9% 94%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 94%;
 
     /* Sirius — Lumofy brand primary #215BEA (hsl 223 83% 52%; ~5.8:1 on white = AA) */
     --primary: 223 83% 52%;
@@ -164,17 +164,17 @@
     --core-glow-strong: 0 0 60px hsl(var(--primary) / 0.4);
     --node-ring-glow: 0.15;
 
-    --secondary: 222 14% 14%;
-    --secondary-foreground: 220 9% 90%;
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 90%;
 
-    --muted: 222 13% 15%;
-    --muted-foreground: 220 10% 64%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 64%;
 
-    --accent: 222 14% 14%;
-    --accent-foreground: 220 9% 90%;
+    --accent: 0 0% 14%;
+    --accent-foreground: 0 0% 90%;
 
-    --border: 222 13% 18%;
-    --input: 222 13% 18%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
     --ring: 223 83% 52%;
 
     --destructive: 0 72% 51%;
@@ -182,8 +182,8 @@
 
     --lumofy-blue: 223 83% 60%;
     --lumofy-glow: 223 83% 70%;
-    --surface: 222 15% 11%;
-    --surface-hover: 222 14% 15%;
+    --surface: 0 0% 11%;
+    --surface-hover: 0 0% 15%;
 
     /* Cosmic accent palette (brand) — Sirius leads; the rest for data / status / graphics */
     --brand-sirius: 223 83% 52%;   /* blue   #215BEA */
@@ -207,16 +207,16 @@
     --chart-3: 264 90% 72%;   /* Eclipse */
     --chart-4: 336 68% 64%;   /* Nova    */
     --chart-5: 59 70% 60%;    /* Stellar */
-    --sidebar: 222 16% 8%;
+    --sidebar: 0 0% 8%;
 
     /* Intelligence dashboard tokens – dark (Cosmos-neutral) */
-    --intel-surface: 222 16% 8%;
-    --intel-card: 222 15% 11%;
-    --intel-card-hover: 222 14% 14%;
-    --intel-border: 222 13% 19%;
-    --intel-text-primary: 220 9% 94%;
-    --intel-text-secondary: 220 10% 65%;
-    --intel-text-muted: 220 8% 50%;
+    --intel-surface: 0 0% 8%;
+    --intel-card: 0 0% 11%;
+    --intel-card-hover: 0 0% 14%;
+    --intel-border: 0 0% 19%;
+    --intel-text-primary: 0 0% 94%;
+    --intel-text-secondary: 0 0% 65%;
+    --intel-text-muted: 0 0% 50%;
     --intel-success: 149 62% 50%;
     --intel-success-subtle: 149 35% 14%;
     --intel-warning: 38 88% 52%;
@@ -225,17 +225,17 @@
     --intel-danger-subtle: 0 40% 14%;
     --intel-accent: 223 83% 60%;
     --intel-accent-subtle: 223 50% 16%;
-    --intel-tab-bg: 222 14% 13%;
-    --intel-tab-active: 222 14% 17%;
-    --intel-gauge-track: 222 13% 16%;
+    --intel-tab-bg: 0 0% 13%;
+    --intel-tab-active: 0 0% 17%;
+    --intel-gauge-track: 0 0% 16%;
 
-    --sidebar-background: 222 16% 8%;
-    --sidebar-foreground: 220 9% 94%;
+    --sidebar-background: 0 0% 8%;
+    --sidebar-foreground: 0 0% 94%;
     --sidebar-primary: 223 83% 56%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 14% 14%;
-    --sidebar-accent-foreground: 220 9% 90%;
-    --sidebar-border: 222 13% 18%;
+    --sidebar-accent: 0 0% 14%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 0 0% 18%;
     --sidebar-ring: 223 83% 56%;
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.12);
     --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.12);

@@ -1,10 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Activity, AlertTriangle, Briefcase, UserCheck } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import type { Job, Applicant } from "@/types/careers";
-import { CHART_SERIES, STATUS_COLORS, TONE_TEXT } from "./statusColors";
-import { Panel, MetricTile, LiveDot } from "./dashboard/primitives";
 import {
   statusBreakdown,
   qualityBands,
@@ -13,20 +10,26 @@ import {
   oldestUnreviewed,
   topUnreviewed,
   dailyCounts,
+  type ActionRow,
 } from "@/lib/dashboardMetrics";
+import { brandEase } from "@/lib/motion";
 import { useCareers } from "@/contexts/CareersContext";
 import { useLiveRefresh } from "@/hooks/use-live-refresh";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+// The public site's own glyphs (Phosphor) and brand sparkle, so the first screen HR
+// sees after sign-in speaks the same visual language as the careers pages.
+import { CxIcon, type CxIconName } from "./cx/icons";
+import { AiStar, Spark } from "./cx/parts";
+import "./dashboard/overview.css";
 
 // Auto-refresh cadence while the Overview is open and the tab is visible.
 const LIVE_INTERVAL_MS = 30_000;
 
-// Applications-per-role volume bands (shared by the tile hint, the bar color,
-// and the caption below — one source so they can't drift out of sync).
+// A role at or under this many applications is flagged as needing more reach.
+// One source for the readout hint, the row flag and the caption, so they can't drift.
 const LOW_VOLUME_MAX = 4;
-const MID_VOLUME_MAX = 9;
 
 interface DashboardOverviewProps {
   jobs: Job[];
@@ -47,6 +50,38 @@ function initialsFor(fullName: string): string {
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
 }
+
+/** Share of a whole as a whole-number percent; a non-zero sliver reads "<1%", never "0%". */
+function pctLabel(count: number, total: number): string {
+  if (total === 0) return "0%";
+  const pct = Math.round((count / total) * 100);
+  return count > 0 && pct === 0 ? "<1%" : `${pct}%`;
+}
+
+const ACTION_ICON: Record<ActionRow["id"], CxIconName | "ai"> = {
+  fastTrackNew: "rocket-launch",
+  unreviewed: "file-text",
+  awaitingAi: "ai",
+  stalledInterviews: "clock",
+  notRecommendedNew: "x",
+};
+
+// Quality ramp: one hue, intensity = quality. Colours live in overview.css (--ov-q1..4).
+const QUALITY_COLOR = ["var(--ov-q1)", "var(--ov-q2)", "var(--ov-q3)", "var(--ov-q4)"];
+const QUALITY_RANGE: Record<string, string> = {
+  Top: "85+",
+  Strong: "70–84",
+  Moderate: "50–69",
+  Weak: "under 50",
+};
+
+// Sections arrive in sequence: transform/opacity only, and MotionConfig in App.tsx
+// turns this off for reduced-motion users.
+const stagger: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
+const rise: Variants = {
+  hidden: { opacity: 0, y: 14 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: brandEase } },
+};
 
 const DashboardOverview = ({ jobs, applicants, onNavigate, applicantHref, onOpenSources }: DashboardOverviewProps) => {
   // Recomputed whenever fresh data lands (not just on mount) — otherwise this
@@ -76,6 +111,7 @@ const DashboardOverview = ({ jobs, applicants, onNavigate, applicantHref, onOpen
 
   const quality = useMemo(() => qualityBands(applicants), [applicants]);
   const actionRows = useMemo(() => actionQueue(applicants, now), [applicants, now]);
+  const fastTrack = actionRows.find((r) => r.id === "fastTrackNew");
   const roleLoad = useMemo(() => applicationsPerRole(applicants, jobs), [applicants, jobs]);
 
   /**
@@ -117,178 +153,158 @@ const DashboardOverview = ({ jobs, applicants, onNavigate, applicantHref, onOpen
     [applicants, effectiveRoleFilter]
   );
 
+  // Rejected is a real outcome, not a step on the way to hired, so it sits off the
+  // path — but it stays on screen: every status is shown and the stages sum to the total.
+  const pathRows = statusRows.filter((s) => s.status !== "rejected");
+  const exitRow = statusRows.find((s) => s.status === "rejected");
+  const scoredPct = applicants.length > 0 ? (quality.scored / applicants.length) * 100 : 0;
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="space-y-5">
-      {/* ── Header ── */}
-      <div>
-        <div className="flex items-center gap-2.5">
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">Overview</h1>
-          <LiveDot />
-          {onOpenSources && (
-            <button
-              type="button"
-              onClick={onOpenSources}
-              className="ml-auto text-xs text-muted-foreground transition-colors hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Where candidates come from &rarr;
-            </button>
-          )}
-        </div>
-        <p className="mt-1 text-sm">
-          {unreviewedCount > 0 ? (
-            <>
-              <span className={TONE_TEXT.warning}>
+    <motion.div className="ov" variants={stagger} initial="hidden" animate="show">
+
+      {/* ── Hero: the one sentence that matters, and the way in ── */}
+      <motion.section variants={rise} className="ov-hero" aria-labelledby="ov-title">
+        <span className="ov-hero__grid" aria-hidden="true" />
+        <span className="ov-hero__glow" aria-hidden="true" />
+        <Spark className="ov-hero__spark" />
+        <Spark className="ov-hero__twinkle ov-hero__twinkle--a" />
+        <Spark className="ov-hero__twinkle ov-hero__twinkle--b" />
+
+        <div className="ov-hero__copy">
+          <p className="ov-eyebrow">
+            <AiStar className="ov-eyebrow__star" />
+            Hiring overview
+            <span className="ov-live" title="Live: refreshes every 30 seconds" aria-hidden="true" />
+          </p>
+          <h1 className="ov-hero__title" id="ov-title">
+            {unreviewedCount > 0 ? (
+              <>
                 {unreviewedCount === 1
-                  ? "1 application has never been opened."
-                  : `${unreviewedCount} applications have never been opened.`}
-              </span>
-              {oldestFormatted && (
-                <span className="text-muted-foreground"> The oldest has been waiting since {oldestFormatted}.</span>
-              )}
-            </>
-          ) : (
-            <span className="text-muted-foreground">Everything received has been reviewed.</span>
-          )}
-        </p>
-      </div>
-
-      {/* ── Four metric tiles ── */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricTile
-          label="Open roles"
-          value={roleLoad.length}
-          hint={lowVolumeRoles > 0 ? `${lowVolumeRoles} with almost no applicants` : undefined}
-          onClick={() => onNavigate("jobs")}
-        />
-        <MetricTile
-          label="Applications"
-          value={applicants.length}
-          hint={`${last7Days} in the last 7 days`}
-          onClick={() => onNavigate("applicants")}
-        />
-        <MetricTile
-          label="Never opened"
-          value={unreviewedCount}
-          hint={`${unreviewedPct}% of everything received`}
-          tone={unreviewedCount > 0 ? "warning" : "default"}
-          onClick={() => onNavigate("applicants")}
-        />
-        <MetricTile
-          label="Scored by AI"
-          value={quality.scored}
-          hint={`${applicants.length - quality.scored} still waiting`}
-          onClick={() => onNavigate("applicants")}
-        />
-      </div>
-
-      {/* ── Where everyone stands ── */}
-      <Panel title="Where everyone stands" icon={Activity}>
-        {applicants.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">No applications yet.</p>
-        ) : (
-          <div className="space-y-4">
-            <Strip
-              rows={statusRows.map((s) => ({ label: s.label, count: s.count, color: STATUS_COLORS[s.status] }))}
-              total={applicants.length}
-            />
-            <div className="flex items-center justify-between border-t border-[hsl(var(--intel-border))] pt-3">
-              <h3 className="text-sm font-medium text-foreground">Candidate quality</h3>
-              <span className="text-[11px] text-muted-foreground">of the {quality.scored} scored</span>
-            </div>
-            {quality.scored === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">No application has been scored yet.</p>
+                  ? "1 application has never been "
+                  : `${unreviewedCount} applications have never been `}
+                <em>opened.</em>
+              </>
             ) : (
-              <Strip
-                rows={quality.bands.map((b, i) => ({
-                  label: b.band,
-                  count: b.count,
-                  color: CHART_SERIES[i % CHART_SERIES.length],
-                }))}
-                total={quality.scored}
-              />
+              <>
+                Everything received has been <em>reviewed.</em>
+              </>
+            )}
+          </h1>
+          <p className="ov-hero__lead">
+            {unreviewedCount > 0
+              ? `That is ${unreviewedPct}% of everything received.`
+              : `All ${applicants.length} applications have been opened at least once.`}
+            {oldestFormatted && ` The oldest has been waiting since ${oldestFormatted}.`}
+          </p>
+          <div className="ov-hero__ctas">
+            {fastTrack ? (
+              <button type="button" className="ov-btn ov-btn--primary" onClick={() => onNavigate("applicants")}>
+                Review {fastTrack.count} fast-track {fastTrack.count === 1 ? "candidate" : "candidates"}
+                <CxIcon name="arrow-right" className="ov-ic ov-nudge" />
+              </button>
+            ) : unreviewedCount > 0 ? (
+              <button type="button" className="ov-btn ov-btn--primary" onClick={() => onNavigate("applicants")}>
+                Open applications
+                <CxIcon name="arrow-right" className="ov-ic ov-nudge" />
+              </button>
+            ) : null}
+            {onOpenSources && (
+              <button type="button" className="ov-btn ov-btn--ghost" onClick={onOpenSources}>
+                <CxIcon name="compass" className="ov-ic" />
+                Where candidates come from
+              </button>
             )}
           </div>
-        )}
-      </Panel>
+        </div>
 
-      {/* ── Act on these ── */}
-      <Panel title="Act on these" icon={AlertTriangle} bodyClassName="p-2">
-        {actionRows.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Nothing needs attention right now.</p>
-        ) : (
-          <ul className="space-y-1">
-            {actionRows.map((r) => (
-              <li key={r.id}>
-                <button
-                  type="button"
-                  onClick={() => onNavigate("applicants")}
-                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-[hsl(var(--intel-card-hover))] ${
-                    r.primary ? "bg-primary/[0.06]" : ""
-                  }`}
-                >
-                  <span
-                    className={`w-6 shrink-0 font-mono text-sm font-semibold tabular-nums ${
-                      r.primary ? "text-primary" : "text-foreground"
-                    }`}
-                  >
-                    {r.count}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">{r.label}</span>
-                  <span className="shrink-0 text-xs font-medium text-muted-foreground">{r.verb} →</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
+        {/* Three supporting facts as a readout, not a row of stat tiles. */}
+        <ul className="ov-readout" aria-label="At a glance">
+          <ReadoutRow
+            icon="briefcase"
+            label="Open roles"
+            value={roleLoad.length}
+            hint={lowVolumeRoles > 0 ? `${lowVolumeRoles} with almost no applicants` : "All are getting applicants"}
+            warn={lowVolumeRoles > 0}
+            onClick={() => onNavigate("jobs")}
+          />
+          <ReadoutRow
+            icon="users-three"
+            label="Applications"
+            value={applicants.length}
+            hint={`${last7Days} in the last 7 days`}
+            onClick={() => onNavigate("applicants")}
+          />
+          <ReadoutRow
+            icon="chart-line-up"
+            label="Scored by AI"
+            value={quality.scored}
+            hint={`${applicants.length - quality.scored} still waiting`}
+            onClick={() => onNavigate("applicants")}
+          >
+            <span className="ov-readout__bar" aria-hidden="true">
+              <span className="ov-grow" style={{ width: `${scoredPct}%` }} />
+            </span>
+          </ReadoutRow>
+        </ul>
+      </motion.section>
 
-      {/* ── Applications per open role + Best unreviewed candidates ── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Panel title="Applications per open role" icon={Briefcase}>
-          {roleLoad.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No open roles.</p>
+      {/* ── Act on these + Best unreviewed candidates ── */}
+      <div className="ov-grid ov-grid--split">
+        <motion.section variants={rise} className="ov-card" aria-labelledby="ov-act">
+          <header className="ov-card__head">
+            <div>
+              <h2 className="ov-card__title" id="ov-act">
+                <Spark className="ov-spark" />
+                Act on these
+              </h2>
+              <p className="ov-card__sub">Where to start, most valuable first. The groups overlap, so they don't add up.</p>
+            </div>
+          </header>
+          {actionRows.length === 0 ? (
+            <p className="ov-empty">
+              <CxIcon name="check" className="ov-ic" />
+              Nothing needs attention right now.
+            </p>
           ) : (
-            <>
-              <p className="mb-3 text-[11px] text-muted-foreground">
-                All {roleLoad.length} open roles. The short bars are the point.
-              </p>
-              <ul className="space-y-2">
-                {roleLoad.map((r) => {
-                  const widthPct = Math.max((r.count / maxRoleCount) * 100, 1.5);
-                  const color =
-                    r.count <= LOW_VOLUME_MAX
-                      ? "hsl(var(--chart-4))"
-                      : r.count <= MID_VOLUME_MAX
-                      ? "hsl(var(--chart-5))"
-                      : "hsl(var(--chart-1))";
-                  return (
-                    <li key={r.jobId} className="flex items-center gap-3">
-                      <span className="w-[42%] truncate text-sm text-foreground" title={r.title}>
-                        {r.title}
-                      </span>
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary/40">
-                        <div className="h-full rounded-full" style={{ width: `${widthPct}%`, background: color }} />
-                      </div>
-                      <span className="w-7 shrink-0 text-right text-sm font-medium tabular-nums text-foreground">
-                        {r.count}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-              <p className="mt-3 text-[11px] text-muted-foreground">
-                Pink under {LOW_VOLUME_MAX + 1} applicants, amber under {MID_VOLUME_MAX + 1}.
-              </p>
-            </>
+            <ol className="ov-actions">
+              {actionRows.map((r) => (
+                <li key={r.id}>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate("applicants")}
+                    className={`ov-action${r.primary ? " is-primary" : ""}`}
+                  >
+                    <span className="ov-action__node" aria-hidden="true">
+                      {ACTION_ICON[r.id] === "ai" ? (
+                        <AiStar className="ov-ic" />
+                      ) : (
+                        <CxIcon name={ACTION_ICON[r.id] as CxIconName} className="ov-ic" />
+                      )}
+                    </span>
+                    <span className="ov-action__n">{r.count}</span>
+                    <span className="ov-action__label">{r.label}</span>
+                    <span className="ov-action__cta" aria-hidden="true">
+                      {r.verb}
+                      <CxIcon name="arrow-right" className="ov-ic ov-nudge" />
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ol>
           )}
-        </Panel>
+        </motion.section>
 
-        <Panel
-          title="Best candidates you haven't reviewed"
-          icon={UserCheck}
-          action={
+        <motion.section variants={rise} className="ov-card" aria-labelledby="ov-best">
+          <header className="ov-card__head">
+            <div>
+              <h2 className="ov-card__title" id="ov-best">
+                <Spark className="ov-spark" />
+                Best candidates you haven't reviewed
+              </h2>
+              <p className="ov-card__sub">Highest AI fit score, still sitting in New.</p>
+            </div>
             <Select value={effectiveRoleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="h-7 w-[170px] text-xs" aria-label="Filter by role">
+              <SelectTrigger className="ov-select" aria-label="Filter by role">
                 <SelectValue placeholder="All roles" />
               </SelectTrigger>
               <SelectContent>
@@ -300,10 +316,10 @@ const DashboardOverview = ({ jobs, applicants, onNavigate, applicantHref, onOpen
                 ))}
               </SelectContent>
             </Select>
-          }
-        >
+          </header>
           {shortlist.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
+            <p className="ov-empty">
+              <CxIcon name="check" className="ov-ic" />
               {quality.scored === 0
                 ? "No scored candidates yet."
                 : effectiveRoleFilter === "all"
@@ -311,66 +327,179 @@ const DashboardOverview = ({ jobs, applicants, onNavigate, applicantHref, onOpen
                 : "No unreviewed candidates for this role."}
             </p>
           ) : (
-            <ul className="space-y-1">
+            <ul className="ov-cands">
               {shortlist.map((a) => (
                 <li key={a.id}>
-                  {/* This row used to dump you on the undifferentiated Applicants
-                      list — it had no way to name a person, because onNavigate only
-                      takes a tab. Now that every candidate has a URL it goes
-                      straight to them, and being an anchor means right-click "open
-                      in new tab" works for triaging several at once. */}
-                  <Link
-                    to={applicantHref(a.id)}
-                    className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-[hsl(var(--intel-card-hover))]"
-                  >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                      {initialsFor(a.fullName)}
+                  {/* An anchor to the candidate's own page, so right-click "open in
+                      new tab" works for triaging several at once. */}
+                  <Link to={applicantHref(a.id)} className="ov-cand">
+                    <span className="ov-avatar" aria-hidden="true">{initialsFor(a.fullName)}</span>
+                    <span className="ov-cand__main">
+                      <span className="ov-cand__name">{a.fullName}</span>
+                      <span className="ov-cand__role">{roleTitleFor(a)}</span>
                     </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-foreground">{a.fullName}</p>
-                      <p className="truncate text-[11px] text-muted-foreground">{roleTitleFor(a)}</p>
-                    </div>
-                    <span className="shrink-0 text-sm font-bold tabular-nums text-primary">
-                      {a.aiAnalysis?.fitScore}
+                    <span className="ov-score">
+                      <b>{a.aiAnalysis?.fitScore}</b>
+                      <small>Fit</small>
                     </span>
                   </Link>
                 </li>
               ))}
             </ul>
           )}
-        </Panel>
+        </motion.section>
       </div>
+
+      {/* ── Where everyone stands ── */}
+      <motion.section variants={rise} className="ov-card" aria-labelledby="ov-stand">
+        <header className="ov-card__head">
+          <div>
+            <h2 className="ov-card__title" id="ov-stand">
+              <Spark className="ov-spark" />
+              Where everyone stands
+            </h2>
+            <p className="ov-card__sub">
+              {applicants.length} applications along the path from first look to hire.
+            </p>
+          </div>
+        </header>
+        {applicants.length === 0 ? (
+          <p className="ov-empty">No applications yet.</p>
+        ) : (
+          <>
+            <ol className="ov-path">
+              {[...pathRows, ...(exitRow ? [exitRow] : [])].map((s) => {
+                const isExit = s.status === "rejected";
+                return (
+                  <li key={s.status}>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate("applicants")}
+                      className={`ov-stage${isExit ? " ov-stage--exit" : ""}${!isExit && s.count > 0 ? " is-lit" : ""}`}
+                      aria-label={`${s.label}: ${s.count}, ${pctLabel(s.count, applicants.length)} of all applications`}
+                    >
+                      <span className="ov-stage__node" aria-hidden="true" />
+                      <span className="ov-stage__n">{s.count}</span>
+                      <span className="ov-stage__label">{s.label}</span>
+                      <span className="ov-stage__pct">{pctLabel(s.count, applicants.length)}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+
+            <div className="ov-divider" />
+
+            <div className="ov-quality">
+              <div className="ov-quality__head">
+                <h3 className="ov-quality__title">Candidate quality</h3>
+                <span className="ov-quality__meta">of the {quality.scored} scored by AI</span>
+              </div>
+              {quality.scored === 0 ? (
+                <p className="ov-empty">No application has been scored yet.</p>
+              ) : (
+                <>
+                  <div
+                    className="ov-seg"
+                    role="img"
+                    aria-label={quality.bands.map((b) => `${b.band} ${b.count}`).join(", ")}
+                  >
+                    {quality.bands.map(
+                      (b, i) =>
+                        b.count > 0 && (
+                          <span
+                            key={b.band}
+                            className="ov-grow"
+                            title={`${b.band}: ${b.count}`}
+                            style={{ flexGrow: b.count, background: QUALITY_COLOR[i] }}
+                          />
+                        )
+                    )}
+                  </div>
+                  <ul className="ov-legend">
+                    {quality.bands.map((b, i) => (
+                      <li key={b.band}>
+                        <i style={{ background: QUALITY_COLOR[i] }} aria-hidden="true" />
+                        {b.band} <b>{b.count}</b>
+                        <small>{QUALITY_RANGE[b.band]}</small>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </motion.section>
+
+      {/* ── Applications per open role ── */}
+      <motion.section variants={rise} className="ov-card" aria-labelledby="ov-roles">
+        <header className="ov-card__head">
+          <div>
+            <h2 className="ov-card__title" id="ov-roles">
+              <Spark className="ov-spark" />
+              Applications per open role
+            </h2>
+            <p className="ov-card__sub">
+              All {roleLoad.length} open roles, busiest first. Roles with {LOW_VOLUME_MAX} or fewer applications are
+              flagged: they may need more reach.
+            </p>
+          </div>
+        </header>
+        {roleLoad.length === 0 ? (
+          <p className="ov-empty">No open roles.</p>
+        ) : (
+          <ul className="ov-roles" style={{ "--rows": Math.ceil(roleLoad.length / 2) } as CSSProperties}>
+            {roleLoad.map((r) => {
+              const low = r.count <= LOW_VOLUME_MAX;
+              return (
+                <li key={r.jobId} className={`ov-role${low ? " is-low" : ""}`}>
+                  <span className="ov-role__title" title={r.title}>
+                    <span>{r.title}</span>
+                    {low && <span className="ov-flag">Low reach</span>}
+                  </span>
+                  <span className="ov-bar" aria-hidden="true">
+                    <span className="ov-grow" style={{ width: `${Math.max((r.count / maxRoleCount) * 100, 2)}%` }} />
+                  </span>
+                  <span className="ov-role__n">{r.count}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </motion.section>
     </motion.div>
   );
 };
 
 export default DashboardOverview;
 
-/** One horizontal bar split into proportional segments, with a legend beneath.
- *  Segments below ~1% still render at a floor width so a single candidate stays visible.
- *  Color travels per-row (not a shared palette indexed by position) so it can never
- *  collide or drift if a row set grows, shrinks, or reorders. */
-function Strip({ rows, total }: {
-  rows: { label: string; count: number; color: string }[]; total: number;
+/** One fact in the hero readout: label, big number, the denominator that keeps it honest. */
+function ReadoutRow({
+  icon, label, value, hint, warn, onClick, children,
+}: {
+  icon: CxIconName;
+  label: string;
+  value: number;
+  hint: string;
+  warn?: boolean;
+  onClick: () => void;
+  children?: ReactNode;
 }) {
-  if (total === 0) return null;
   return (
-    <>
-      <div className="flex h-3.5 overflow-hidden rounded-full bg-secondary/40" role="img"
-        aria-label={rows.map(r => `${r.label} ${r.count}`).join(", ")}>
-        {rows.map((r) => r.count > 0 && (
-          <div key={r.label} title={`${r.label}: ${r.count}`}
-            style={{ width: `${Math.max((r.count / total) * 100, 0.6)}%`, background: r.color }} />
-        ))}
-      </div>
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-        {rows.map((r) => (
-          <span key={r.label} className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-sm" style={{ background: r.color }} aria-hidden="true" />
-            {r.label} <span className="font-medium text-foreground tabular-nums">{r.count}</span>
-          </span>
-        ))}
-      </div>
-    </>
+    <li>
+      <button type="button" className="ov-readout__row" onClick={onClick}>
+        <span className="ov-readout__label">
+          <CxIcon name={icon} className="ov-ic" />
+          {label}
+        </span>
+        <span className="ov-readout__value">
+          {value}
+          <CxIcon name="arrow-up-right" className="ov-ic ov-nudge" />
+        </span>
+        <span className={`ov-readout__hint${warn ? " ov-readout__hint--warn" : ""}`}>{hint}</span>
+        {children}
+      </button>
+    </li>
   );
 }

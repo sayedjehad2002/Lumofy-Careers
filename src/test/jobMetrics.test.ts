@@ -135,6 +135,7 @@ describe("sortJobs", () => {
     applicants,
     unreviewed,
     hired: 0,
+    mix: { fresh: unreviewed, inProcess: applicants - unreviewed, hired: 0, rejected: 0 },
     daysOpen,
     attention,
   });
@@ -233,5 +234,29 @@ describe("job filter", () => {
     expect(jobFilterLabel(jobs, ["pm"])).toBe("Product Manager");
     expect(jobFilterLabel(jobs, ["pm", "fs-eng"])).toBe("2 jobs");
     expect(jobFilterLabel(jobs, ["gone"])).toBe("1 job");
+  });
+});
+
+describe("jobRows stage mix", () => {
+  it("splits every applicant into exactly one bucket, summing to the total", () => {
+    const applicants = [
+      app({ id: "1", status: "new" }),
+      app({ id: "2", status: "new" }),
+      app({ id: "3", status: "reviewing" }),
+      app({ id: "4", status: "shortlisted" }),
+      app({ id: "5", status: "interview" }),
+      app({ id: "6", status: "hired" }),
+      app({ id: "7", status: "rejected" }),
+      app({ id: "8", jobId: "other", status: "new" }),
+    ];
+    const [row] = jobRows([job()], applicants, NOW);
+    expect(row.mix).toEqual({ fresh: 2, inProcess: 3, hired: 1, rejected: 1 });
+    const { fresh, inProcess, hired, rejected } = row.mix;
+    expect(fresh + inProcess + hired + rejected).toBe(row.applicants);
+  });
+
+  it("is all zeros for a role nobody has applied to", () => {
+    const [row] = jobRows([job()], [], NOW);
+    expect(row.mix).toEqual({ fresh: 0, inProcess: 0, hired: 0, rejected: 0 });
   });
 });

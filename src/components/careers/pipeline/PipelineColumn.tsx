@@ -80,7 +80,7 @@ export default function PipelineColumn({
               <ChevronsLeftRight className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
             <div className="mt-2 h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: accent }} aria-hidden="true" />
-            <span className="mt-2 [writing-mode:vertical-rl] rotate-180 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground select-none">
+            <span className="mt-2 [writing-mode:vertical-rl] rotate-180 font-display text-xs font-bold tracking-wide text-muted-foreground select-none">
               {label}
             </span>
             <span className="mt-2 rounded-full bg-[hsl(var(--intel-card-hover))] px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums text-foreground/70">
@@ -102,17 +102,17 @@ export default function PipelineColumn({
     // 248 that pushed the last rail off-screen. Larger breakpoints let the
     // columns breathe; 4xl caps them so an ultrawide doesn't stretch a card to
     // half a metre.
-    <div className="flex h-full min-h-0 flex-[1_1_224px] snap-start flex-col overflow-hidden rounded-xl border border-[hsl(var(--intel-border))] bg-[hsl(var(--intel-surface))] min-w-[224px] 2xl:min-w-[264px] 3xl:min-w-[300px] 4xl:max-w-[440px]">
+    <div className="flex h-full min-h-0 flex-[1_1_224px] snap-start flex-col overflow-hidden rounded-2xl border border-[hsl(var(--intel-border))] bg-[hsl(var(--intel-surface))] min-w-[224px] 2xl:min-w-[264px] 3xl:min-w-[300px] 4xl:max-w-[440px]">
       {/* 2px stage accent. A top rule, not a side stripe — it reads as a tab on
           the column rather than decoration bolted to its edge. */}
       <div className="h-0.5 w-full shrink-0" style={{ backgroundColor: accent }} aria-hidden="true" />
 
-      <div className="flex shrink-0 items-center justify-between gap-1.5 border-b border-[hsl(var(--intel-border))] px-3 py-2">
+      <div className="flex shrink-0 items-center justify-between gap-1.5 border-b border-[hsl(var(--intel-border))] px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-foreground truncate">
+          <span className="truncate font-display text-[0.9375rem] font-bold tracking-tight text-foreground">
             {label}
           </span>
-          <span className="shrink-0 rounded-full bg-[hsl(var(--intel-card-hover))] px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums text-foreground/70">
+          <span className="shrink-0 rounded-full bg-[color:var(--dx-haze)] px-1.5 py-0.5 font-display text-[11px] font-bold tabular-nums text-[color:var(--dx-on-haze)]">
             {total}
           </span>
           {total !== totalUnfiltered && (

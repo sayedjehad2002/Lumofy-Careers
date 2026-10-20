@@ -107,7 +107,7 @@ export default function TrashBin({ sessionToken, onChange }: Props) {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Trash2 className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
-          <h3 className="font-semibold text-lg">Trash</h3>
+          <h3 className="font-display text-xl font-bold tracking-tight">Trash</h3>
           <Badge variant="secondary" className="text-xs">{items.length}</Badge>
         </div>
         <div className="flex items-center gap-2">
@@ -147,7 +147,7 @@ export default function TrashBin({ sessionToken, onChange }: Props) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="rounded-xl bg-card border border-border p-4 text-xs text-muted-foreground flex items-start gap-2">
+      <div className="dx-card p-4 text-xs text-muted-foreground flex items-start gap-2">
         <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" aria-hidden="true" />
         <p>
           Deleted CVs are kept here so they can be recovered. <strong className="text-foreground">Restore</strong> returns
@@ -161,7 +161,7 @@ export default function TrashBin({ sessionToken, onChange }: Props) {
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-xl bg-card border border-border p-10 text-center text-muted-foreground">
+        <div className="dx-card p-10 text-center text-muted-foreground">
           <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" aria-hidden="true" />
           <p className="font-medium">Trash is empty</p>
           <p className="text-sm mt-1">Deleted CVs appear here, recoverable until you permanently delete them.</p>
@@ -173,7 +173,7 @@ export default function TrashBin({ sessionToken, onChange }: Props) {
             const title = c.manual_job_title || c.suggested_job_title;
             const busy = busyId === c.id;
             return (
-              <div key={c.id} className="rounded-xl bg-card border border-border p-4 flex items-center gap-3">
+              <div key={c.id} className="dx-card p-4 flex items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm truncate">{c.name || "Unknown"}</p>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-0.5">

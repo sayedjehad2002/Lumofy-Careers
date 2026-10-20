@@ -5,7 +5,7 @@ import {
   AlertCircle, Check, Archive, RefreshCw, User, Mail, Phone,
   Globe, MapPin, Briefcase, Filter, ArrowUpDown, Plus,
   TrendingUp, Target,
-  AlertTriangle, Trash2, UserPlus
+  AlertTriangle, Trash2, UserPlus, ArrowLeft, Sparkles
 } from "lucide-react";
 import SmartSearch, { parseQuery, type ParsedQuery } from "./cvlibrary/SmartSearch";
 import SavedFilters, { type SavedFilter } from "./cvlibrary/SavedFilters";
@@ -23,7 +23,6 @@ import TrashBin from "./cvlibrary/TrashBin";
 import CandidateAnalysis, { type CVAIAnalysis } from "./cvlibrary/CandidateAnalysis";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -35,9 +34,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { TONE_SOFT, TONE_TEXT, TONE_BORDER, scoreTone } from "./statusColors";
+import { TONE_SOFT, TONE_TEXT, fitBand } from "./statusColors";
 import { Link } from "react-router-dom";
 import { roleFamily } from "@/lib/roleFamilies";
+import { PageHeader, EmptyState } from "./dashboard/primitives";
 
 interface CVCandidate {
   id: string;
@@ -88,18 +88,33 @@ const CV_STATUSES = [
   { value: "archived", label: "Archived", color: "bg-muted text-muted-foreground" },
 ];
 
-const CONFIDENCE_COLORS: Record<string, string> = {
-  High: TONE_SOFT.success,
-  Medium: TONE_SOFT.warning,
-  Low: TONE_SOFT.danger,
+/** Status dot colours for the library's own four statuses (not the pipeline's). */
+const CV_STATUS_DOT: Record<string, string> = {
+  new: "hsl(var(--chart-1))",
+  reviewed: "hsl(var(--chart-5))",
+  shortlisted: "hsl(var(--intel-success))",
+  archived: "var(--dx-line-2)",
 };
 
-const RECOMMENDATION_COLORS: Record<string, string> = {
-  "Fast-Track to Interview": `${TONE_SOFT.success} ${TONE_BORDER.success}`,
-  "Proceed to Next Stage": "bg-[hsl(var(--chart-1)/0.2)] text-[hsl(var(--chart-1))] border-[hsl(var(--chart-1)/0.3)]",
-  "Hold for Review": `${TONE_SOFT.warning} ${TONE_BORDER.warning}`,
-  "Not Recommended": `${TONE_SOFT.danger} ${TONE_BORDER.danger}`,
-};
+/** Initials for the avatar: first and last name part, or the first two letters. */
+function initialsOf(name: string | null | undefined): string {
+  if (!name) return "??";
+  const parts = name.split(/\s+/).filter(Boolean);
+  return parts.length >= 2 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : name.substring(0, 2).toUpperCase();
+}
+
+/** Classification confidence as a three-step meter, so High/Medium/Low read at a glance. */
+function ConfidenceMeter({ level }: { level: string }) {
+  const steps = level === "High" ? 3 : level === "Medium" ? 2 : 1;
+  return (
+    <span className={`cv-conf cv-conf--${level.toLowerCase()}`} title={`${level} confidence in the department and title`}>
+      <span className="cv-conf__bars" aria-hidden="true">
+        {[1, 2, 3].map((n) => <i key={n} className={n <= steps ? "is-on" : undefined} />)}
+      </span>
+      {level}
+    </span>
+  );
+}
 
 type CVSubTab = "library" | "duplicates" | "insights" | "matching" | "reparse" | "export" | "trash";
 
@@ -645,6 +660,22 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
     return result;
   }, [facetBase, selectedFolder, sortBy, isUnclassified, effDeptOf, familyOf]);
 
+  // CVs that share an email or phone with another CV. Counted once per data
+  // change: the row used to re-scan the whole library for every row on every render.
+  const duplicateIds = useMemo(() => {
+    const emails = new Map<string, number>();
+    const phones = new Map<string, number>();
+    for (const c of candidates) {
+      if (c.email) emails.set(c.email, (emails.get(c.email) ?? 0) + 1);
+      if (c.phone) phones.set(c.phone, (phones.get(c.phone) ?? 0) + 1);
+    }
+    return new Set(
+      candidates
+        .filter((c) => (c.email && (emails.get(c.email) ?? 0) > 1) || (c.phone && (phones.get(c.phone) ?? 0) > 1))
+        .map((c) => c.id),
+    );
+  }, [candidates]);
+
   // ---- Sub-tab helpers (must be before early return) ----
   const handleSmartSearch = useCallback((query: string, parsed: ParsedQuery) => {
     setSearchQuery(query);
@@ -683,147 +714,147 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
     const isBusy = isProcessing || isAnalyzing;
     const ai = c.ai_analysis;
 
+    const displayName = candidateDisplayName(c.name, c.resume_file_name);
+    const statusInfo = CV_STATUSES.find(s => s.value === c.status);
+    const unreadable = ai?.unreadable === true;
+
     return (
-      <div>
-        <Button variant="ghost" className="mb-4" onClick={() => setSelectedCandidate(null)}>
-          ← Back to CV library
-        </Button>
+      <div className="cv-detail">
+        <button type="button" className="cv-back" onClick={() => setSelectedCandidate(null)}>
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to CV library
+        </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Candidate Info + AI Analysis */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* Candidate Card */}
-            <div className="rounded-2xl bg-card border border-border p-6 light-glow">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  {/* Match the applicant profile: state the absence honestly
-                      rather than inventing a person called "Unknown". */}
-                  {candidateDisplayName(c.name, c.resume_file_name)
-                    ? <h1 className="text-2xl font-bold">{candidateDisplayName(c.name, c.resume_file_name)}</h1>
-                    : <h1 className="text-2xl font-bold text-muted-foreground">No name on file</h1>}
-                  <p className="text-sm text-muted-foreground mt-1">{c.resume_file_name}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge className={CV_STATUSES.find(s => s.value === c.status)?.color || ""}>
-                    {CV_STATUSES.find(s => s.value === c.status)?.label || c.status}
-                  </Badge>
-                  {c.classification_confidence && (
-                    <Badge className={CONFIDENCE_COLORS[c.classification_confidence] || ""}>
-                      {c.classification_confidence} Confidence
-                    </Badge>
-                  )}
-                </div>
+        {/* ── Identity: who, which file, where they stand, and the three things you do with a CV ── */}
+        <section className="cv-hero dx-card">
+          <div className="cv-hero__id">
+            <span className="cv-hero__avatar" aria-hidden="true">
+              {isBusy ? <Loader2 className="h-5 w-5 animate-spin" /> : initialsOf(displayName)}
+            </span>
+            <div className="min-w-0">
+              {/* Match the applicant profile: state the absence honestly rather
+                  than inventing a person called "Unknown". */}
+              {displayName
+                ? <h1 className="dx-title">{displayName}</h1>
+                : <h1 className="dx-title text-muted-foreground">No name on file</h1>}
+              <p className="cv-hero__file" title={c.resume_file_name}>
+                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                {c.resume_file_name}
+              </p>
+              <div className="cv-hero__badges">
+                <span className="ar-stage">
+                  <i style={{ background: CV_STATUS_DOT[c.status] ?? "var(--dx-line-2)" }} aria-hidden="true" />
+                  {statusInfo?.label || c.status}
+                </span>
+                {c.classification_confidence && <ConfidenceMeter level={c.classification_confidence} />}
+                {ai && !unreadable && (
+                  <span className={`ar-fit ar-fit--${fitBand(ai.fitScore)}`} title={`AI fit score ${ai.fitScore} of 100`}>
+                    {ai.fitScore}
+                  </span>
+                )}
+                {ai?.recommendation && <span className="cv-rec">{ai.recommendation}</span>}
               </div>
-
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <InfoRow icon={<Mail className="w-4 h-4" />} label="Email" value={c.email} />
-                <InfoRow icon={<Phone className="w-4 h-4" />} label="Phone" value={c.phone} />
-                <InfoRow icon={<Globe className="w-4 h-4" />} label="Nationality" value={c.nationality} />
-                <InfoRow icon={<MapPin className="w-4 h-4" />} label="Country" value={c.country} />
-                <InfoRow icon={<MapPin className="w-4 h-4" />} label="Location" value={c.location} />
-                <InfoRow icon={<Briefcase className="w-4 h-4" />} label="Experience" value={c.years_experience ? `${c.years_experience} years` : null} />
-              </div>
-
-              {(c.skills || []).length > 0 && (
-                <div className="mt-4">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Skills</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(c.skills || []).map((s, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">{s}</Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-3">
-                <CandidateTags candidateId={c.id} currentTags={c.tags || []} onUpdateTags={(cId, tags) => {
-                  handleUpdateCandidate(cId, { tags });
-                }} />
-              </div>
-
-              {c.roles_summary && (
-                <div className="mt-4">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Roles Summary</p>
-                  <p className="text-sm">{c.roles_summary}</p>
-                </div>
-              )}
             </div>
+          </div>
+          <div className="cv-hero__actions">
+            <button type="button" className="dx-btn dx-btn--secondary" onClick={() => handleView(c.id)}>
+              <Eye aria-hidden="true" /> View CV
+            </button>
+            <button type="button" className="dx-btn dx-btn--secondary" onClick={() => handleDownload(c.id)}>
+              <Download aria-hidden="true" /> Download
+            </button>
+            <button type="button" className="dx-btn dx-btn--primary" disabled={isBusy} onClick={() => processCandidate(c.id)}>
+              {isBusy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Brain aria-hidden="true" />}
+              Run AI analysis
+            </button>
+          </div>
+        </section>
 
-            {/* AI Classification */}
-            <div className="rounded-2xl bg-card border border-border p-6 light-glow">
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <Brain className="w-4 h-4 text-primary" /> AI Classification
-              </h3>
-              {dept ? (
-                <div className="space-y-4">
-                  {/* Primary Suggestion */}
-                  <div>
-                    <p className="text-xs font-semibold text-primary mb-2 uppercase tracking-wide">Best Fit</p>
-                    <div className="flex gap-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Department</p>
-                        <p className="font-medium">{dept}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Job Title</p>
-                        <p className="font-medium">{title || "—"}</p>
-                      </div>
-                      {c.classification_confidence && (
-                        <div>
-                          <p className="text-xs text-muted-foreground">Confidence</p>
-                          <Badge className={CONFIDENCE_COLORS[c.classification_confidence] || ""}>{c.classification_confidence}</Badge>
-                        </div>
-                      )}
-                    </div>
+        <div className="cv-detail__grid">
+          <div className="cv-detail__main">
+            {/* ── Profile facts ── */}
+            <section className="dx-card cv-panel" aria-labelledby="cv-profile">
+              <h2 className="cv-panel__title" id="cv-profile">Profile</h2>
+              <dl className="cv-facts">
+                <Fact icon={<Mail />} label="Email" value={c.email} />
+                <Fact icon={<Phone />} label="Phone" value={c.phone} />
+                <Fact icon={<Briefcase />} label="Experience" value={c.years_experience ? `${c.years_experience} years` : null} />
+                <Fact icon={<MapPin />} label="Location" value={c.location} />
+                <Fact icon={<MapPin />} label="Country" value={c.country} />
+                <Fact icon={<Globe />} label="Nationality" value={c.nationality} />
+              </dl>
+
+              {/* Summary beside skills and tags: a readable line length for the
+                  prose, and the right half of the card does work instead of
+                  sitting empty. Without a summary, skills and tags take the row. */}
+              <div className={`cv-profile-split${c.roles_summary ? "" : " is-single"}`}>
+                {c.roles_summary && (
+                  <figure className="cv-summary">
+                    <figcaption className="dx-label">Career summary</figcaption>
+                    <p>{c.roles_summary}</p>
+                  </figure>
+                )}
+
+                <div className="cv-profile-side">
+                  {(c.skills || []).length > 0 && <SkillList key={c.id} skills={c.skills || []} />}
+
+                  <div className="cv-block cv-tags">
+                    <CandidateTags candidateId={c.id} currentTags={c.tags || []} onUpdateTags={(cId, tags) => {
+                      handleUpdateCandidate(cId, { tags });
+                    }} />
                   </div>
+                </div>
+              </div>
+            </section>
 
-                  {/* Secondary Suggestion */}
-                  {c.suggested_department_2 && (
-                    <div className="border-t border-border pt-3">
-                      <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">2nd Best Fit</p>
-                      <div className="flex gap-4">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Department</p>
-                          <p className="font-medium">{c.suggested_department_2}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Job Title</p>
-                          <p className="font-medium">{c.suggested_job_title_2 || "—"}</p>
-                        </div>
-                        {c.classification_confidence_2 && (
-                          <div>
-                            <p className="text-xs text-muted-foreground">Confidence</p>
-                            <Badge className={CONFIDENCE_COLORS[c.classification_confidence_2] || ""}>{c.classification_confidence_2}</Badge>
-                          </div>
-                        )}
-                      </div>
+            {/* ── Where they fit (classification) ── */}
+            <section className="dx-card cv-panel" aria-labelledby="cv-fit">
+              <h2 className="cv-panel__title" id="cv-fit">
+                <Brain className="h-4 w-4" aria-hidden="true" /> Where they fit
+              </h2>
+              {dept ? (
+                <>
+                  <div className="cv-fits">
+                    <div className="cv-fitcard cv-fitcard--best">
+                      <p className="cv-fitcard__kicker">Best fit</p>
+                      <p className="cv-fitcard__dept">{dept}</p>
+                      <p className="cv-fitcard__title">{title || "No title suggested"}</p>
+                      {c.classification_confidence && <ConfidenceMeter level={c.classification_confidence} />}
                     </div>
-                  )}
+                    {c.suggested_department_2 && (
+                      <div className="cv-fitcard">
+                        <p className="cv-fitcard__kicker">Second best fit</p>
+                        <p className="cv-fitcard__dept">{c.suggested_department_2}</p>
+                        <p className="cv-fitcard__title">{c.suggested_job_title_2 || "No title suggested"}</p>
+                        {c.classification_confidence_2 && <ConfidenceMeter level={c.classification_confidence_2} />}
+                      </div>
+                    )}
+                  </div>
 
                   {c.classification_reasoning && (
-                    <div className="border-t border-border pt-3">
-                      <p className="text-xs text-muted-foreground mb-1">Reasoning</p>
-                      <p className="text-sm">{c.classification_reasoning}</p>
+                    <div className="cv-block">
+                      <p className="dx-label">Reasoning</p>
+                      <p className="cv-prose">{c.classification_reasoning}</p>
                     </div>
                   )}
                   {(c.classification_evidence || []).length > 0 && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Evidence</p>
-                      <ul className="text-sm space-y-1">
+                    <div className="cv-block">
+                      <p className="dx-label">Evidence from the CV</p>
+                      <ul className="cv-evidence">
                         {(c.classification_evidence || []).map((e, i) => (
-                          <li key={i} className="flex items-start gap-1.5">
-                            <Check className={`w-3 h-3 mt-0.5 flex-shrink-0 ${TONE_TEXT.success}`} aria-hidden="true" />
+                          <li key={i}>
+                            <Check className={`h-3.5 w-3.5 ${TONE_TEXT.success}`} aria-hidden="true" />
                             {e}
                           </li>
                         ))}
                       </ul>
                     </div>
                   )}
-                </div>
+                </>
               ) : (
-                <p className="text-sm text-muted-foreground">Not classified yet.</p>
+                <p className="cv-prose text-muted-foreground">Not classified yet. Re-parse the CV to assign a department and title.</p>
               )}
-            </div>
+            </section>
 
             {/* ====== AI ANALYSIS ====== */}
             <CandidateAnalysis
@@ -836,51 +867,29 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
             />
           </div>
 
-          {/* Right: Actions */}
-          <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-            <div className="rounded-2xl bg-card border border-border p-4 space-y-2 light-glow">
-              <h3 className="font-semibold text-sm mb-3">Actions</h3>
-              <Button className="w-full justify-start" variant="outline" size="sm" onClick={() => handleView(c.id)}>
-                <Eye className="w-4 h-4 mr-2" /> View CV
-              </Button>
-              <Button className="w-full justify-start" variant="outline" size="sm" onClick={() => handleDownload(c.id)}>
-                <Download className="w-4 h-4 mr-2" /> Download CV
-              </Button>
-              <Button
-                className="w-full justify-start" variant="outline" size="sm"
-                disabled={isBusy}
-                onClick={() => processCandidate(c.id)}
-              >
-                {isBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Brain className="w-4 h-4 mr-2" />}
-                Run AI analysis
-              </Button>
-              <p className="text-[10px] text-muted-foreground px-1">Refresh candidate analysis using the latest CV, job details, and screening answers.</p>
-              <Button className="w-full justify-start" variant="outline" size="sm" onClick={() => {
-                setEditCandidate(c);
-              }}>
-                <Pencil className="w-4 h-4 mr-2" /> Edit fields
-              </Button>
+          {/* ── Next steps rail ── */}
+          <aside className="cv-detail__rail">
+            <section className="dx-card cv-panel" aria-labelledby="cv-next">
+              <h2 className="cv-panel__title" id="cv-next">Next steps</h2>
               {jobs.length > 0 && (
-                <div className="pt-1">
-                  <PipelineIntegration
-                    candidate={c as any}
-                    jobs={jobs as any}
-                    sessionToken={sessionToken}
-                    onDone={async () => {
-                      // The add also flips the LIBRARY row to "shortlisted", so refresh
-                      // both datasets and patch the open profile (a stale state copy).
-                      refreshData();
-                      const fresh = await fetchCandidates();
-                      const updated = fresh?.find((x) => x.id === c.id);
-                      if (updated) setSelectedCandidate((prev) => (prev?.id === c.id ? { ...prev, ...updated } : prev));
-                    }}
-                    inPipeline={(!!c.email && pipelineEmails.has(c.email.trim().toLowerCase())) || pipelinePaths.has(c.resume_file_path)}
-                  />
-                </div>
+                <PipelineIntegration
+                  candidate={c as any}
+                  jobs={jobs as any}
+                  sessionToken={sessionToken}
+                  onDone={async () => {
+                    // The add also flips the LIBRARY row to "shortlisted", so refresh
+                    // both datasets and patch the open profile (a stale state copy).
+                    refreshData();
+                    const fresh = await fetchCandidates();
+                    const updated = fresh?.find((x) => x.id === c.id);
+                    if (updated) setSelectedCandidate((prev) => (prev?.id === c.id ? { ...prev, ...updated } : prev));
+                  }}
+                  inPipeline={(!!c.email && pipelineEmails.has(c.email.trim().toLowerCase())) || pipelinePaths.has(c.resume_file_path)}
+                />
               )}
 
-              <div className="border-t border-border pt-2 mt-2">
-                <p className="text-xs text-muted-foreground mb-2">Status</p>
+              <div className="cv-rail-block">
+                <p className="dx-label">Library status</p>
                 <Select
                   value={c.status}
                   onValueChange={(v) => {
@@ -888,20 +897,24 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
                     setSelectedCandidate({ ...c, status: v });
                   }}
                 >
-                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="dx-tool w-full" aria-label="Library status"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {CV_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="border-t border-border pt-2 mt-2">
-                <Button className="w-full justify-start text-destructive" variant="ghost" size="sm" onClick={() => handleDelete(c.id)}>
-                  <Trash2 className="w-4 h-4 mr-2" /> Move to Trash
-                </Button>
+              <div className="cv-rail-block cv-rail-links">
+                <button type="button" className="cv-rail-link" onClick={() => setEditCandidate(c)}>
+                  <Pencil className="h-4 w-4" aria-hidden="true" /> Edit fields
+                </button>
+                <button type="button" className="cv-rail-link cv-rail-link--danger" onClick={() => handleDelete(c.id)}>
+                  <Trash2 className="h-4 w-4" aria-hidden="true" /> Move to Trash
+                </button>
               </div>
-            </div>
-          </div>
+              <p className="cv-hint">Run AI analysis refreshes the score from the latest CV and job details.</p>
+            </section>
+          </aside>
         </div>
 
         {/* Edit dialog must be mounted in THIS profile early-return too: its only
@@ -940,37 +953,44 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
   return (
     <div>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-        <div>
-          <h1 className="text-2xl font-bold mb-1">CV Library</h1>
-          <p className="text-sm text-muted-foreground">{candidates.length} CVs stored · {filteredCandidates.length} shown</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button asChild disabled={uploading}>
-            <label className="cursor-pointer">
-              {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-              Upload CVs
-              <input
-                type="file"
-                multiple
-                accept=".pdf,.doc,.docx"
-                className="hidden"
-                onChange={handleUpload}
-                disabled={uploading}
-              />
-            </label>
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Talent"
+        title="CV Library"
+        summary={
+          <>
+            <b>{candidates.length}</b> CVs across <b>{fullTree.tree.size}</b> departments
+            {candidates.some((c) => c.status === "shortlisted") && (
+              <> · <b>{candidates.filter((c) => c.status === "shortlisted").length}</b> shortlisted</>
+            )}
+            {fullTree.unclassifiedCount > 0 && (
+              <> · <span className="is-warn">{fullTree.unclassifiedCount} not classified yet</span></>
+            )}
+            {filtersActive && <> · <b>{filteredCandidates.length}</b> shown</>}
+          </>
+        }
+        actions={
+          <label
+            className="dx-btn dx-btn--primary focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[color:var(--dx-sirius)]"
+            aria-disabled={uploading || undefined}
+          >
+            {uploading ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Upload aria-hidden="true" />}
+            Upload CVs
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx"
+              className="sr-only"
+              onChange={handleUpload}
+              disabled={uploading}
+            />
+          </label>
+        }
+      />
 
       {/* Sub-Tab Navigation */}
-      <div className="flex gap-1 mb-4 overflow-x-auto pb-1 scrollbar-none">
+      <div className="dx-tabs mb-4">
         {SUB_TABS.map(tab => {
-          const cls = `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-            subTab === tab.id
-              ? "bg-primary/10 text-primary border border-primary/20"
-              : "text-muted-foreground hover:bg-secondary border border-transparent"
-          }`;
+          const cls = `dx-tab${subTab === tab.id ? " is-on" : ""}`;
           // Anchors when the dashboard owns the route, so right-click offers
           // "Open link in new tab"; plain buttons in any standalone usage.
           return onSubTabChange ? (
@@ -1072,11 +1092,11 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
 
           {/* Filter bar */}
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
-            <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
+            <Button variant="outline" size="sm" className="dx-tool" aria-expanded={showFilters} onClick={() => setShowFilters(!showFilters)}>
               <Filter className="w-4 h-4 mr-1" /> Filters
             </Button>
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-44"><ArrowUpDown className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger>
+              <SelectTrigger className="dx-tool w-48"><ArrowUpDown className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="recent">Most Recent</SelectItem>
                 <SelectItem value="name">Name A–Z</SelectItem>
@@ -1087,7 +1107,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
           </div>
 
           {showFilters && (
-            <div className="flex flex-wrap gap-3 mb-4 p-3 rounded-lg bg-card border border-border">
+            <div className="dx-card flex flex-wrap gap-3 mb-4 p-3">
               <Select value={filterDept} onValueChange={setFilterDept}>
                 <SelectTrigger className="w-44"><SelectValue placeholder="Department" /></SelectTrigger>
                 <SelectContent>
@@ -1124,13 +1144,14 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
               {/* Sticky sidebar with its OWN scroll: an expanded department (e.g. 39
                   Customer Success roles) grows taller than the viewport — without
                   max-h + overflow the wheel can't reach the items below the fold. */}
-              <div className="rounded-xl bg-card border border-border p-3 sticky top-4 max-h-[calc(100vh-6rem)] overflow-y-auto overscroll-contain scrollbar-slim">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Folders</p>
+              <div className="dx-card p-3 sticky top-4 max-h-[calc(100vh-6rem)] overflow-y-auto overscroll-contain scrollbar-slim">
+                <p className="dx-label px-2 pt-1">Folders</p>
                 <button
-                  className={`w-full text-left text-sm px-2 py-1.5 rounded-md ${selectedFolder === "all" ? "bg-primary/10 text-primary font-medium" : "hover:bg-secondary text-foreground"}`}
+                  className={`cv-folder${selectedFolder === "all" ? " is-on" : ""}`}
                   onClick={() => setSelectedFolder("all")}
                 >
-                  All CVs ({filtersActive ? `${facetBase.length}/${candidates.length}` : candidates.length})
+                  <span className="min-w-0 flex-1">All CVs</span>
+                  <span className="cv-folder__n">{filtersActive ? `${facetBase.length}/${candidates.length}` : candidates.length}</span>
                 </button>
 
                 {Array.from(fullTree.tree.keys()).sort((a, b) => a.localeCompare(b)).map(dept => {
@@ -1144,7 +1165,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
                   return (
                     <div key={dept}>
                       <button
-                        className={`w-full flex items-start gap-1 text-sm px-2 py-1.5 rounded-md text-left ${selectedFolder === dept ? "bg-primary/10 text-primary font-medium" : "hover:bg-secondary text-foreground"}`}
+                        className={`cv-folder${selectedFolder === dept ? " is-on" : ""}`}
                         onClick={() => {
                           setFolderOpen(prev => ({ ...prev, [dept]: !prev[dept] }));
                           setSelectedFolder(dept);
@@ -1155,7 +1176,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
                           ? <ChevronDown className="w-3 h-3 mt-1 flex-shrink-0" aria-hidden="true" />
                           : <ChevronRight className="w-3 h-3 mt-1 flex-shrink-0" aria-hidden="true" />}
                         <span className="min-w-0 flex-1 leading-snug">{dept}</span>
-                        <span className="ml-auto pl-1 text-xs tabular-nums text-muted-foreground flex-shrink-0">
+                        <span className="cv-folder__n">
                           {filtersActive ? `${shown}/${total}` : total}
                         </span>
                       </button>
@@ -1171,11 +1192,11 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
                             // title is 73 characters, so a single clipped line can
                             // never identify it.
                             title={`${family} — ${variants} title variant${variants === 1 ? "" : "s"}:\n${Array.from(full.titles.keys()).join("\n")}`}
-                            className={`w-full flex items-start gap-1.5 text-left text-xs ml-2 pl-2 pr-1 py-1 rounded-md border-l ${selectedFolder === key ? "bg-primary/10 text-primary font-medium border-primary/40" : "hover:bg-secondary text-muted-foreground border-border/60"}`}
+                            className={`cv-folder cv-folder--family${selectedFolder === key ? " is-on" : ""}`}
                             onClick={() => setSelectedFolder(key)}
                           >
                             <span className="min-w-0 flex-1 line-clamp-2 leading-snug">{family}</span>
-                            <span className="ml-auto pl-1 text-[10px] tabular-nums flex-shrink-0">
+                            <span className="cv-folder__n">
                               {filtersActive ? `${match}/${full.n}` : full.n}
                             </span>
                           </button>
@@ -1187,13 +1208,13 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
 
                 {fullTree.unclassifiedCount > 0 && (
                   <button
-                    className={`w-full flex items-center gap-1 text-sm px-2 py-1.5 rounded-md ${selectedFolder === "unclassified" ? "bg-primary/10 text-primary font-medium" : "hover:bg-secondary text-foreground"}`}
+                    className={`cv-folder${selectedFolder === "unclassified" ? " is-on" : ""}`}
                     onClick={() => setSelectedFolder("unclassified")}
                     title="No department could be determined from these CVs — re-parse or set one by hand."
                   >
                     <AlertCircle className="w-3 h-3 text-destructive flex-shrink-0" aria-hidden="true" />
                     <span>Unclassified</span>
-                    <span className="text-xs text-muted-foreground ml-auto tabular-nums">
+                    <span className="cv-folder__n">
                       {filtersActive
                         ? `${folderTree.unclassifiedCount}/${fullTree.unclassifiedCount}`
                         : fullTree.unclassifiedCount}
@@ -1206,7 +1227,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
             {/* Main Table */}
             <div className="flex-1 min-w-0">
               {selectedIds.size > 0 && (
-                <div className="sticky top-[7.5rem] lg:top-2 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 backdrop-blur">
+                <div className="cv-selbar sticky top-[7.5rem] lg:top-2 z-20 mb-3">
                   <span className="text-sm font-semibold">{selectedIds.size} selected</span>
                   <Button
                     variant="ghost" size="sm" className="h-7 px-2 text-xs"
@@ -1232,13 +1253,19 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />
                 </div>
               ) : filteredCandidates.length === 0 ? (
-                <div className="text-center py-20 text-muted-foreground">
-                  <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No CVs found</p>
-                  <p className="text-sm mt-1">Upload CVs to get started</p>
-                </div>
+                <EmptyState icon={FileText} title="No CVs found">
+                  <p>Upload CVs to get started, or clear the filters.</p>
+                </EmptyState>
               ) : (
-                <div className="space-y-2">
+                <div className="dx-list cv-table">
+                  <div className="cv-head" aria-hidden="true">
+                    <span />
+                    <span>Candidate</span>
+                    <span>Best fit</span>
+                    <span>Status</span>
+                    <span className="text-right">AI fit</span>
+                    <span />
+                  </div>
                   {filteredCandidates.map(c => {
                     const dept = c.manual_department || c.suggested_department;
                     const title = c.manual_job_title || c.suggested_job_title;
@@ -1248,121 +1275,112 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
                     const unreadable = ai?.unreadable === true; // parse couldn't read the file (Word / no text)
                     // Name to show: parsed name, else derived from the file name.
                     const displayName = candidateDisplayName(c.name, c.resume_file_name);
-                    const initials = displayName
-                      ? displayName.split(/\s+/).length >= 2
-                        ? (displayName.split(/\s+/)[0][0] + displayName.split(/\s+/).pop()![0]).toUpperCase()
-                        : displayName.substring(0, 2).toUpperCase()
-                      : "??";
-
-                    const isDuplicate = candidates.some(
-                      other => other.id !== c.id && ((c.email && other.email === c.email) || (c.phone && other.phone === c.phone))
-                    );
+                    const isDuplicate = duplicateIds.has(c.id);
+                    const selected = selectedIds.has(c.id);
+                    const contact = [c.email, c.country || c.nationality].filter(Boolean).join(" · ");
 
                     return (
                       <div
                         key={c.id}
-                        className={`group rounded-2xl bg-card border p-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 light-glow ${selectedIds.has(c.id) ? "border-primary/60 bg-primary/[0.04]" : "border-border hover:border-primary/40"}`}
-                        onClick={() => {
-                          setSelectedCandidate(c);
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Open ${displayName || "this CV"}`}
+                        className={`cv-row group${selected ? " is-selected" : ""}`}
+                        onClick={() => setSelectedCandidate(c)}
+                        onKeyDown={(e) => {
+                          if (e.target !== e.currentTarget) return;
+                          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedCandidate(c); }
                         }}
                       >
-                        <div className="flex items-center gap-3">
-                          {/* p-2 -m-2 enlarges the tap target to ~32px without
-                              shifting layout, so a near-miss doesn't open the
-                              profile; focus-within keeps it visible for keyboard. */}
-                          <div
-                            className={`flex-shrink-0 p-2 -m-2 transition-opacity ${selectedIds.size > 0 ? "opacity-100" : "opacity-40 group-hover:opacity-100 focus-within:opacity-100"}`}
-                            onClick={e => e.stopPropagation()}
+                        {/* Avatar and checkbox share one slot, as on the Applicants table. */}
+                        <div className="ar-sel" onClick={e => e.stopPropagation()}>
+                          <span
+                            className={`ar-avatar transition-opacity ${selectedIds.size > 0 || selected ? "opacity-0" : "opacity-100 group-hover:opacity-0"}`}
+                            aria-hidden="true"
+                          >
+                            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : initialsOf(displayName)}
+                          </span>
+                          <span
+                            className={`absolute inset-0 flex items-center justify-center transition-opacity ${
+                              selectedIds.size > 0 || selected ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
+                            }`}
                           >
                             <Checkbox
-                              checked={selectedIds.has(c.id)}
+                              checked={selected}
                               onCheckedChange={() => toggleSelected(c.id)}
                               aria-label={`Select ${displayName || "candidate"}`}
                             />
-                          </div>
-                          <div className="w-9 h-9 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                            {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : initials}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-sm">{displayName || (isProcessing ? "Processing…" : unreadable ? "Unreadable CV" : "Unnamed candidate")}</span>
-                              <Badge className={`text-[10px] border-0 ${statusInfo?.color}`}>{statusInfo?.label}</Badge>
-                              {c.classification_confidence && (
-                                <Badge className={`text-[10px] border-0 ${CONFIDENCE_COLORS[c.classification_confidence]}`}>
-                                  {c.classification_confidence}
-                                </Badge>
-                              )}
-                              {ai && !unreadable && (
-                                <Badge className={`text-[10px] border-0 ${TONE_SOFT[scoreTone(ai.fitScore)]}`}>
-                                  <Brain className="w-2.5 h-2.5 mr-1" aria-hidden="true" /> {ai.fitScore}/100
-                                </Badge>
-                              )}
-                              {unreadable && (
-                                <Badge variant="destructive" className="text-[10px]">Couldn't read · re-upload PDF</Badge>
-                              )}
-                              {isDuplicate && (
-                                <Badge variant="destructive" className="text-[10px]">Possible Duplicate</Badge>
-                              )}
-                            </div>
-                            {/* Tags inline */}
-                            {c.tags && c.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-0.5" onClick={e => e.stopPropagation()}>
+                          </span>
+                        </div>
+
+                        <div className="ar-cell">
+                          <span className="cv-name">
+                            {displayName || (isProcessing ? "Processing…" : unreadable ? "Unreadable CV" : "Unnamed candidate")}
+                          </span>
+                          <span className="ar-sub" title={contact || c.resume_file_name}>{contact || c.resume_file_name}</span>
+                          {(unreadable || isDuplicate || (c.tags && c.tags.length > 0)) && (
+                            <div className="cv-flags" onClick={e => e.stopPropagation()}>
+                              {unreadable && <span className="jr-badge jr-badge--warn">Couldn't read · re-upload PDF</span>}
+                              {isDuplicate && <span className="jr-badge jr-badge--warn">Possible duplicate</span>}
+                              {c.tags && c.tags.length > 0 && (
                                 <CandidateTags candidateId={c.id} currentTags={c.tags} onUpdateTags={handleUpdateTags} compact />
-                              </div>
-                            )}
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-0.5">
-                              {c.email && <span>{c.email}</span>}
-                              {c.phone && <span>{c.phone}</span>}
-                              {c.nationality && <span>{c.nationality}</span>}
-                              {c.country && <span>{c.country}</span>}
-                            </div>
-                            <div className="flex items-center gap-2 mt-1 text-xs">
-                              {dept && <span className="text-primary/80 font-medium">{dept}</span>}
-                              {dept && title && <span className="text-muted-foreground">·</span>}
-                              {title && <span className="text-muted-foreground">{title}</span>}
-                              {c.suggested_department_2 && (
-                                <>
-                                  <span className="text-muted-foreground">|</span>
-                                  <span className="text-muted-foreground/70">{c.suggested_department_2}</span>
-                                  {c.suggested_job_title_2 && (
-                                    <>
-                                      <span className="text-muted-foreground/50">·</span>
-                                      <span className="text-muted-foreground/70">{c.suggested_job_title_2}</span>
-                                    </>
-                                  )}
-                                </>
-                              )}
-                              {ai?.recommendation && (
-                                <>
-                                  <span className="text-muted-foreground">·</span>
-                                  <Badge className={`text-[10px] border ${RECOMMENDATION_COLORS[ai.recommendation] || ""}`}>
-                                    {ai.recommendation}
-                                  </Badge>
-                                </>
                               )}
                             </div>
-                          </div>
-                          <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="View CV" onClick={() => {
-                              handleView(c.id);
-                            }}>
-                              <Eye className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Download CV" onClick={() => {
-                              handleDownload(c.id);
-                            }}>
-                              <Download className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button
-                              size="sm" variant="ghost" className="h-7 w-7 p-0"
-                              disabled={isProcessing}
-                              onClick={() => {
-                                processCandidate(c.id);
-                              }}
-                            >
-                              {isProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
-                            </Button>
-                          </div>
+                          )}
+                        </div>
+
+                        <div className="ar-cell">
+                          {dept ? (
+                            <>
+                              <span className="cv-dept">{dept}</span>
+                              <span className="ar-sub" title={title || undefined}>{title || "No title suggested"}</span>
+                            </>
+                          ) : (
+                            <span className="ar-sub">Not classified yet</span>
+                          )}
+                          {c.suggested_department_2 && (
+                            <span className="cv-alt" title="Second best fit">
+                              Also {c.suggested_department_2}{c.suggested_job_title_2 ? ` · ${c.suggested_job_title_2}` : ""}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="ar-cell cv-status-cell">
+                          <span className="ar-stage">
+                            <i style={{ background: CV_STATUS_DOT[c.status] ?? "var(--dx-line-2)" }} aria-hidden="true" />
+                            {statusInfo?.label || c.status}
+                          </span>
+                          {c.classification_confidence && <ConfidenceMeter level={c.classification_confidence} />}
+                        </div>
+
+                        <div className="ar-cell ar-fit-cell">
+                          {ai && !unreadable ? (
+                            <span className={`ar-fit ar-fit--${fitBand(ai.fitScore)}`} title={`AI fit score ${ai.fitScore} of 100`}>
+                              {ai.fitScore}
+                            </span>
+                          ) : (
+                            <span className="ar-fit ar-fit--none" title="Not scored yet">—</span>
+                          )}
+                          {ai?.recommendation && <span className="cv-rec cv-rec--row">{ai.recommendation}</span>}
+                        </div>
+
+                        <div className="ar-actions" onClick={e => e.stopPropagation()}>
+                          <button type="button" className="ar-icon-btn" title="View CV" aria-label={`View CV of ${displayName || "candidate"}`} onClick={() => handleView(c.id)}>
+                            <Eye className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                          <button type="button" className="ar-icon-btn" title="Download CV" aria-label={`Download CV of ${displayName || "candidate"}`} onClick={() => handleDownload(c.id)}>
+                            <Download className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            className="ar-icon-btn"
+                            title="Run AI analysis"
+                            aria-label={`Run AI analysis for ${displayName || "candidate"}`}
+                            disabled={isProcessing}
+                            onClick={() => processCandidate(c.id)}
+                          >
+                            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Brain className="h-4 w-4" aria-hidden="true" />}
+                          </button>
                         </div>
                       </div>
                     );
@@ -1392,15 +1410,47 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
   );
 }
 
-function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | null | undefined }) {
+/** Skills read from the CV: calm outline chips, the first ten shown, the rest one click away. */
+const SKILLS_SHOWN = 10;
+function SkillList({ skills }: { skills: string[] }) {
+  const [all, setAll] = useState(false);
+  // Same skill twice in a CV (different casing) is one skill.
+  const unique = skills.filter((sk, i) => skills.findIndex((o) => o.trim().toLowerCase() === sk.trim().toLowerCase()) === i);
+  const shown = all ? unique : unique.slice(0, SKILLS_SHOWN);
+  const hidden = unique.length - shown.length;
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-muted-foreground">{icon}</span>
-      <span className="text-muted-foreground">{label}:</span>
-      <span className={value ? "font-medium" : "text-muted-foreground italic"}>{value || "Not found"}</span>
+    <div className="cv-block">
+      <p className="dx-label">
+        <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+        Skills <span className="dx-label__n">{unique.length}</span>
+      </p>
+      <ul className="sk-list" aria-label="Skills from the CV">
+        {shown.map((sk) => <li key={sk} className="sk-chip">{sk}</li>)}
+        {(hidden > 0 || all) && unique.length > SKILLS_SHOWN && (
+          <li>
+            <button type="button" className="sk-more" onClick={() => setAll((v) => !v)} aria-expanded={all}>
+              {all ? "Show fewer" : `+${hidden} more`}
+            </button>
+          </li>
+        )}
+      </ul>
     </div>
   );
 }
+
+/** One profile fact: icon, small label, value — or an honest "Not found". */
+function Fact({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | null | undefined }) {
+  return (
+    <div className="cv-fact">
+      <dt>
+        <span className="cv-fact__ic" aria-hidden="true">{icon}</span>
+        {label}
+      </dt>
+      <dd className={value ? undefined : "is-missing"}>{value || "Not found"}</dd>
+    </div>
+  );
+}
+
 
 function EditCandidateDialog({
   candidate,

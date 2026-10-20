@@ -1,7 +1,7 @@
 import { memo } from "react";
 import {
-  ChevronRight, MoreVertical, Pencil, Copy, Link2, Linkedin, ExternalLink,
-  EyeOff, Eye, Archive, CheckCircle2,
+  ArrowRight, MoreVertical, Pencil, Copy, Link2, Linkedin, ExternalLink,
+  EyeOff, Eye, Archive, CheckCircle2, MapPin, Clock,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { Job } from "@/types/careers";
 import type { JobRow as JobRowData } from "@/lib/jobMetrics";
-import { TONE_SOFT } from "../statusColors";
 
 export interface JobRowProps {
   row: JobRowData;
@@ -24,12 +23,28 @@ export interface JobRowProps {
   onOpenPublicPage: (jobId: string) => void;
 }
 
+// The four stage buckets, in the order a candidate moves through them.
+const MIX_PARTS = [
+  { key: "fresh", label: "new", className: "jr-mix__fresh" },
+  { key: "inProcess", label: "in process", className: "jr-mix__process" },
+  { key: "hired", label: "hired", className: "jr-mix__hired" },
+  { key: "rejected", label: "rejected", className: "jr-mix__rejected" },
+] as const;
+
+/**
+ * One role on the Jobs board (columns are laid out in dx.css, .jr-row).
+ *
+ * Read left to right: what the role is, where its applicants are, how many,
+ * and the way in. The whole row opens the role's applicants; the explicit
+ * "View applicants" makes that discoverable instead of a hidden convention.
+ */
 function JobRowInner({
   row, onOpen, onEdit, onDuplicate, onArchive, onToggleStatus,
   onCopyLink, onShareLinkedIn, onOpenPublicPage,
 }: JobRowProps) {
-  const { job, applicants, hired, daysOpen, attention } = row;
+  const { job, applicants, hired, daysOpen, attention, mix } = row;
   const isOpen = job.status === "open";
+  const mixSummary = MIX_PARTS.filter((p) => mix[p.key] > 0).map((p) => `${mix[p.key]} ${p.label}`).join(" · ");
 
   return (
     <div
@@ -43,115 +58,117 @@ function JobRowInner({
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(job.id); }
       }}
-      /* py-2 puts the row at ~54px, which is what gets all sixteen roles above
-         the fold at 1080p (16x58 overflowed by ~50px) while staying clear of the
-         44px minimum for something the whole of which is a click target. */
-      className="group grid cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2 transition-colors hover:bg-[hsl(var(--intel-card-hover))] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      className="jr-row group"
     >
-      {/* Identity */}
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <h3 className="truncate text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-            {job.title}
-          </h3>
-          {/* Only the exception is labelled. With every role open, an "Open" badge
-              on all sixteen rows carried no information; a "Closed" one does. */}
-          {!isOpen && (
-            <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-              Closed
-            </span>
-          )}
-          {/* The outcome no other number on the row shows: this role has landed someone. */}
+      {/* Role */}
+      <div className="jr-role">
+        <div className="jr-title-line">
+          <h3 className="jr-title">{job.title}</h3>
+          {/* Only the exceptions are labelled. With every role open, an "Open"
+              badge on all of them carried no information; a "Closed" one does. */}
+          {!isOpen && <span className="jr-badge jr-badge--muted">Closed</span>}
           {hired > 0 && (
-            <span
-              className={`flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${TONE_SOFT.success}`}
-              title={`${hired} candidate${hired === 1 ? "" : "s"} hired into this role`}
-            >
-              <CheckCircle2 className="h-2.5 w-2.5" aria-hidden="true" />
+            <span className="jr-badge jr-badge--hired" title={`${hired} candidate${hired === 1 ? "" : "s"} hired into this role`}>
+              <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
               {hired === 1 ? "Hired" : `${hired} hired`}
             </span>
           )}
           {attention === "starving" && (
             <span
-              className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${TONE_SOFT.warning}`}
+              className="jr-badge jr-badge--warn"
               title={`Only ${applicants} application${applicants === 1 ? "" : "s"} after ${daysOpen} days open — this role needs sourcing, not screening`}
             >
               Needs sourcing
             </span>
           )}
+          {attention === "backlog" && (
+            <span className="jr-badge jr-badge--accent" title={`${row.unreviewed} applications nobody has opened yet`}>
+              Unopened backlog
+            </span>
+          )}
         </div>
-        {/* Sentence case, not five uppercase mono strings of equal weight. The
-            department leads because it is the category people group roles by;
-            location and type are plain facts; age is last. */}
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          <span className="font-medium text-foreground/70">{job.department}</span>
-          {" · "}{job.location}
-          {" · "}{job.type}
-          {isOpen && <>{" · "}open {daysOpen} day{daysOpen === 1 ? "" : "s"}</>}
+        <p className="jr-meta">
+          <span className="jr-dept">{job.department}</span>
+          <span className="jr-meta__item">
+            <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+            {job.location}
+          </span>
+          <span className="jr-meta__item">{job.type}</span>
+          {isOpen && (
+            <span className="jr-meta__item">
+              <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+              Open {daysOpen} day{daysOpen === 1 ? "" : "s"}
+            </span>
+          )}
         </p>
       </div>
 
-      <div className="flex items-center gap-3 sm:gap-5">
-        {/* Just the total. The per-row "unopened" split was noise at this level —
-            the aggregate still leads the page header, and the backlog filter is
-            where you go to act on it. */}
-        <div className="w-24 text-right sm:w-28">
-          <p className="text-sm font-semibold tabular-nums text-foreground">
-            {applicants}
-            <span className="ml-1 text-[11px] font-normal text-muted-foreground">
-              {applicants === 1 ? "applicant" : "applicants"}
+      {/* Where this role's applicants are */}
+      <div className="jr-mix" title={mixSummary || "No applicants yet"}>
+        {applicants > 0 ? (
+          <>
+            <span className="jr-mix__bar" aria-hidden="true">
+              {MIX_PARTS.map((p) =>
+                mix[p.key] > 0 ? <span key={p.key} className={p.className} style={{ flexGrow: mix[p.key] }} /> : null
+              )}
             </span>
-          </p>
-        </div>
+            <span className="jr-mix__text">
+              <b>{mix.fresh}</b> new · <b>{mix.inProcess}</b> in process
+            </span>
+          </>
+        ) : (
+          <span className="jr-mix__text">No applicants yet</span>
+        )}
+      </div>
 
-        <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label={`Actions for ${job.title}`}
-                title="Actions"
-                className="rounded-md p-1.5 text-muted-foreground/60 transition-colors hover:bg-[hsl(var(--intel-card-hover))] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <MoreVertical className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </DropdownMenuTrigger>
-            {/* Every action is a named menu item. Six identical grey icons in a row
-                gave no clue which was edit, duplicate, archive or close. */}
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuItem onClick={() => onEdit(job)}>
-                <Pencil className="mr-2 h-4 w-4" aria-hidden="true" /> Edit job
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onDuplicate(job)}>
-                <Copy className="mr-2 h-4 w-4" aria-hidden="true" /> Duplicate as draft
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onCopyLink(job.id)}>
-                <Link2 className="mr-2 h-4 w-4" aria-hidden="true" /> Copy apply link
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onShareLinkedIn(job.id)}>
-                <Linkedin className="mr-2 h-4 w-4" aria-hidden="true" /> Share to LinkedIn
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onOpenPublicPage(job.id)}>
-                <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" /> Open public page
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onToggleStatus(job)}>
-                {isOpen
-                  ? <><EyeOff className="mr-2 h-4 w-4" aria-hidden="true" /> Close to new applicants</>
-                  : <><Eye className="mr-2 h-4 w-4" aria-hidden="true" /> Reopen for applications</>}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onArchive(job)} className="text-destructive focus:text-destructive">
-                <Archive className="mr-2 h-4 w-4" aria-hidden="true" /> Archive job
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+      {/* Total */}
+      <div className="jr-count">
+        <b>{applicants}</b>
+        <span>{applicants === 1 ? "applicant" : "applicants"}</span>
+      </div>
 
-          <ChevronRight
-            className="h-4 w-4 shrink-0 text-muted-foreground/30 transition-colors group-hover:text-muted-foreground"
-            aria-hidden="true"
-          />
-        </div>
+      {/* The way in, and everything else about the role */}
+      <div className="jr-actions" onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="jr-cta" onClick={() => onOpen(job.id)} tabIndex={-1} aria-hidden="true">
+          View applicants
+          <ArrowRight className="h-4 w-4" />
+        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" aria-label={`Actions for ${job.title}`} title="Actions" className="ar-icon-btn">
+              <MoreVertical className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </DropdownMenuTrigger>
+          {/* Every action is a named menu item. Six identical grey icons in a row
+              gave no clue which was edit, duplicate, archive or close. */}
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={() => onEdit(job)}>
+              <Pencil className="mr-2 h-4 w-4" aria-hidden="true" /> Edit job
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onDuplicate(job)}>
+              <Copy className="mr-2 h-4 w-4" aria-hidden="true" /> Duplicate as draft
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onCopyLink(job.id)}>
+              <Link2 className="mr-2 h-4 w-4" aria-hidden="true" /> Copy apply link
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onShareLinkedIn(job.id)}>
+              <Linkedin className="mr-2 h-4 w-4" aria-hidden="true" /> Share to LinkedIn
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onOpenPublicPage(job.id)}>
+              <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" /> Open public page
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onToggleStatus(job)}>
+              {isOpen
+                ? <><EyeOff className="mr-2 h-4 w-4" aria-hidden="true" /> Close to new applicants</>
+                : <><Eye className="mr-2 h-4 w-4" aria-hidden="true" /> Reopen for applications</>}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onArchive(job)} className="text-destructive focus:text-destructive">
+              <Archive className="mr-2 h-4 w-4" aria-hidden="true" /> Archive job
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

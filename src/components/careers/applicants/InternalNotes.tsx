@@ -106,11 +106,11 @@ export default function InternalNotes({ notes, events, saving, onAdd }: Internal
       initial={{ opacity: 0, x: 10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3 }}
-      className="rounded-2xl border border-[hsl(var(--intel-border))] bg-[hsl(var(--intel-card))] p-4"
+      className="dx-card p-4"
     >
       <div className="mb-3 flex items-center gap-2">
         <MessageSquare className="h-4 w-4 text-primary" aria-hidden="true" />
-        <h3 className="font-semibold">Internal Notes</h3>
+        <h3 className="font-display text-[1.0625rem] font-bold tracking-tight">Internal Notes</h3>
         {items.length > 0 && (
           <span className="rounded-full bg-secondary px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums text-muted-foreground">
             {items.length}

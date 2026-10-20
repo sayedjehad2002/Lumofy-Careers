@@ -107,7 +107,7 @@ export default function TalentPoolInsights({ candidates }: Props) {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Brain className="w-5 h-5 text-primary" />
-        <h3 className="font-semibold text-lg">Talent Pool Insights</h3>
+        <h3 className="font-display text-xl font-bold tracking-tight">Talent Pool Insights</h3>
         <Badge variant="secondary" className="text-[10px]">{candidates.length} candidates</Badge>
       </div>
 
@@ -236,7 +236,7 @@ export default function TalentPoolInsights({ candidates }: Props) {
           your open roles, so it can say which pools are thin but not which ones
           you actually need. Overstating that would be the wrong kind of insight. */}
       {insights.gapDepts.length > 0 && (
-        <div className="rounded-xl bg-card border border-border p-4">
+        <div className="dx-card p-4">
           <h4 className="mb-1 flex items-center gap-2 text-sm font-semibold">
             <TrendingDown className={`h-4 w-4 ${TONE_TEXT.warning}`} aria-hidden="true" />
             Thinnest pools
@@ -307,7 +307,7 @@ function StatCard({ icon, label, value, sub }: {
   icon: React.ReactNode; label: string; value: number | string; sub?: string;
 }) {
   return (
-    <div className="rounded-xl bg-card border border-border p-4 text-center">
+    <div className="dx-card p-4 text-center">
       <div className="flex items-center justify-center text-primary mb-1">{icon}</div>
       <p className="text-2xl font-bold tabular-nums">{value}</p>
       <p className="text-[10px] text-muted-foreground">{label}</p>

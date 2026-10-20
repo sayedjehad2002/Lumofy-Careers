@@ -1,5 +1,8 @@
 import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from "react";
-import lumofyLogo from "@/assets/lumofy-mark.png";
+// The white wordmark the public nav uses: the rail is the same dark bookend.
+import lumofyWordmark from "@/assets/brand/lumofy-en-secondary.svg";
+import { SparkDefs } from "@/components/careers/cx/parts";
+import "@/components/careers/dashboard/dx.css";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ExternalLink, LogOut, Loader2, Search, UserX } from "lucide-react";
 // The sidebar runs on Lumofy's own icon set so the primary navigation — the one
@@ -375,23 +378,26 @@ const Dashboard = () => {
   return (
     <div className="h-screen bg-background flex overflow-hidden">
       <CommandPalette isDashboard onNavigateDashboard={handleTabNavigate} />
+      {/* One copy of the brand sparkle path for every tab's eyebrow and the Overview. */}
+      <SparkDefs />
 
-      {/* Sidebar */}
-      <aside className="w-64 bg-[hsl(var(--intel-card))] border-r border-[hsl(var(--intel-border))] flex-shrink-0 hidden lg:flex flex-col">
-        <div className="p-5 border-b border-border flex items-center justify-between relative z-10">
-          <Link to="/" className="group flex items-center gap-2.5" aria-label="Lumofy HR Dashboard — home">
-            <img src={lumofyLogo} alt="" aria-hidden="true" className="h-9 w-9 shrink-0 object-contain transition-transform duration-300 group-hover:scale-105" />
-            <div>
-              <span className="block text-base font-extrabold leading-none tracking-tight text-foreground">Lumofy</span>
-              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">HR Dashboard</p>
-            </div>
-          </Link>        </div>
+      {/* Sidebar: the public site's dark nav, as a rail. It carries the `dark` class
+          in both themes, so every token inside resolves to its dark value. */}
+      <aside className="dark dx-rail w-64 flex-shrink-0 hidden lg:flex flex-col">
+        <div className="px-5 h-[4.625rem] border-b border-white/[0.06] flex items-center relative z-10">
+          <Link to="/" className="flex items-center gap-3 rounded-md" aria-label="Lumofy HR Dashboard — home">
+            <img src={lumofyWordmark} alt="" aria-hidden="true" className="h-[1.375rem] w-auto" />
+            <span className="rounded-full px-2 py-1 font-display text-[11px] font-semibold uppercase leading-none tracking-[0.06em] text-[#CCCCCC] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.16)]">
+              HR
+            </span>
+          </Link>
+        </div>
 
         {/* Search shortcut hint */}
         <div className="px-3 pt-3 relative z-10">
           <button
             onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50 border border-border/50 text-xs text-muted-foreground hover:bg-secondary transition-colors"
+            className="w-full flex items-center gap-2 px-3 h-10 rounded-lg bg-white/[0.05] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] text-sm text-[#A3A3A3] hover:bg-white/[0.08] hover:text-[#EFEFEF] transition-colors"
           >
             <Search className="w-3.5 h-3.5" />
             <span className="flex-1 text-left">Search...</span>
@@ -403,7 +409,7 @@ const Dashboard = () => {
           <LayoutGroup id="sidebar-nav">
             {navGroups.map((group) => (
               <div key={group} className="space-y-0.5">
-                <p className="px-3 pb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/50">{group}</p>
+                <p className="dx-rail__group">{group}</p>
                 {mainTabs.filter((t) => t.group === group).map((tab) => (
                   // A real <a href>, not a button: only an anchor gives the
                   // browser's "Open link in new tab" on right-click, which is
@@ -415,10 +421,10 @@ const Dashboard = () => {
                     variants={sidebarItemVariants}
                     initial="initial"
                     animate="animate"
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] tracking-wide transition-colors duration-200 relative overflow-hidden group ${
+                    className={`dx-rail__link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 relative overflow-hidden group ${
                       activeTab === tab.id
-                        ? "text-primary font-semibold"
-                        : "text-muted-foreground hover:text-foreground font-medium"
+                        ? "text-white font-semibold"
+                        : "text-[#A3A3A3] hover:text-white hover:bg-white/[0.04] font-medium"
                     }`}
                     whileHover={{ x: 2 }}
                     whileTap={{ scale: 0.98 }}
@@ -426,14 +432,17 @@ const Dashboard = () => {
                     {activeTab === tab.id && (
                       <motion.div
                         layoutId="sidebar-active-bg"
-                        className="absolute inset-0 rounded-lg bg-primary/10 dark:bg-primary/15"
+                        className="absolute inset-0 rounded-lg bg-white/[0.07]"
                         transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                      />
+                      >
+                        {/* The lit edge: the public site's Sirius line, on the current tab. */}
+                        <span className="dx-rail__bar" aria-hidden="true" />
+                      </motion.div>
                     )}
                     <span className="relative z-10 flex items-center">{tab.icon}</span>
                     <span className="relative z-10">{tab.label}</span>
                     {tab.id === "applicants" && applicants.length > 0 && (
-                      <span className="relative z-10 ml-auto rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                      <span className="dx-rail__count relative z-10 ml-auto rounded-full px-1.5 py-0.5 font-display text-[11px] font-bold tabular-nums">
                         {applicants.length}
                       </span>
                     )}
@@ -447,23 +456,23 @@ const Dashboard = () => {
             the rail, which is where people reach for it, and it keeps Sign out
             grouped with the account it signs out of rather than floating among
             unrelated links. */}
-        <div className="relative z-10 space-y-0.5 border-t border-border p-3">
+        <div className="relative z-10 space-y-0.5 border-t border-white/[0.06] p-3">
           <Link
             to="/"
-            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2 font-display text-[0.9375rem] text-[#A3A3A3] transition-colors hover:bg-white/[0.04] hover:text-white"
           >
             <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
             View careers page
           </Link>
           <div className="flex items-center justify-between rounded-lg px-3 py-1.5">
-            <span className="text-sm text-muted-foreground">Theme</span>
+            <span className="font-display text-[0.9375rem] text-[#A3A3A3]">Theme</span>
             <ThemeToggle />
           </div>
 
           {/* The one branded surface in the chrome: Lumofy's grid motif, so the
               account block reads as part of the product rather than a form field. */}
           {hrEmail && (
-            <div className="lx-grid-card group/account mt-2 rounded-xl border border-border/70 bg-secondary/30 p-2.5 transition-colors duration-200 hover:border-primary/30">
+            <div className="lx-grid-card group/account mt-2 rounded-xl border border-white/10 bg-white/[0.03] p-2.5 transition-colors duration-200 hover:border-[#5C86F2]/40">
               <div className="flex items-center gap-2.5">
                 <span
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-bold text-primary ring-0 ring-primary/20 transition-all duration-200 group-hover/account:bg-primary/25 group-hover/account:ring-4"
@@ -516,12 +525,12 @@ const Dashboard = () => {
       </aside>
 
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 glass border-b border-border">
+      <div className="dark lg:hidden fixed top-0 left-0 right-0 z-50 bg-[#0C0C0C]/[0.96] backdrop-blur-md border-b border-white/[0.08]">
         <div className="flex items-center justify-between px-4 h-14">
           <Link to="/" className="flex items-center gap-2" aria-label="Lumofy HR Dashboard — home">
-            <img src={lumofyLogo} alt="" aria-hidden="true" className="h-7 w-7 shrink-0 object-contain" />
-            <span className="text-sm font-extrabold tracking-tight text-foreground">
-              Lumofy <span className="font-semibold text-muted-foreground">HR</span>
+            <img src={lumofyWordmark} alt="" aria-hidden="true" className="h-5 w-auto" />
+            <span className="rounded-full px-2 py-1 font-display text-[11px] font-semibold uppercase leading-none tracking-[0.06em] text-[#CCCCCC] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.16)]">
+              HR
             </span>
           </Link>
           <ThemeToggle />

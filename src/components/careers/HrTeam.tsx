@@ -10,7 +10,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Panel } from "./dashboard/primitives";
+import { Panel, PageHeader } from "./dashboard/primitives";
 import {
   Loader2, UserPlus, Copy, Check, Link2, ShieldCheck, Ban, RotateCcw,
   Users, UserCog,
@@ -263,12 +263,12 @@ const HrTeam = ({ sessionToken }: { sessionToken: string }) => {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">HR Team</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          Everyone who can sign in to the dashboard, and what each of them is allowed to do.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Tools"
+        title="HR Team"
+        className="!mb-0"
+        summary="Everyone who can sign in to the dashboard, and what each of them is allowed to do."
+      />
 
       {/* Two-column workspace. The roster is the work, so it takes the wide
           column; identity, invites and pending links are reference material and

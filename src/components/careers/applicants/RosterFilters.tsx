@@ -28,7 +28,7 @@ export default function RosterFilters({ value, onChange }: RosterFiltersProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-9 shrink-0 gap-1.5 rounded-xl text-xs">
+        <Button variant="outline" size="sm" className="dx-tool shrink-0 gap-1.5">
           <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
           Filters
           {active > 0 && (

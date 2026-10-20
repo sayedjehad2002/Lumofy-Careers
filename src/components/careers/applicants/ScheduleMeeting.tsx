@@ -130,9 +130,9 @@ const ScheduleMeeting = ({ applicant, job }: ScheduleMeetingProps) => {
 
   return (
     <motion.div initial={{ opacity: 0, x: 15 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3, delay: 0.07 }}>
-      <Card className="border-border/50">
+      <Card className="dx-card border-0">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2.5">
+          <CardTitle className="font-display text-[1.0625rem] font-bold tracking-tight flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <CalendarClock className="w-4 h-4 text-primary" aria-hidden="true" />
             </div>

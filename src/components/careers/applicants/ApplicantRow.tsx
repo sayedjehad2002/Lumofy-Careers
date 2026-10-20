@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Link } from "react-router-dom";
-import { Clock, MoreVertical, ChevronRight, MailWarning } from "lucide-react";
+import { MoreVertical, ChevronRight, MailWarning } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { APPLICANT_STATUSES, type Applicant } from "@/types/careers";
 import type { SlaState } from "@/lib/pipelineMetrics";
-import { STATUS_SOFT, TONE_SOFT, TONE_TEXT, scoreTone } from "../statusColors";
+import { STATUS_COLORS, fitBand } from "../statusColors";
 
 export interface ApplicantRowProps {
   applicant: Applicant;
@@ -35,19 +35,26 @@ function getInitials(name: string) {
   return name.slice(0, 2).toUpperCase() || "?";
 }
 
-const SLA_TEXT: Record<SlaState, string> = {
-  ok: "text-muted-foreground",
-  over: TONE_TEXT.warning,
-  critical: TONE_TEXT.danger,
+const SLA_LABEL: Record<SlaState, string> = {
+  ok: "Within the stage's usual time",
+  over: "Longer than this stage should take",
+  critical: "Well past this stage's usual time",
 };
 
+/**
+ * One row of the applicants table (columns are laid out in dx.css, .ar-row).
+ *
+ * Column order is the order HR reads in: who, for what, where they are, how long
+ * they have waited, how well they match. Everything left of the actions is one
+ * click target to the profile, through the name link.
+ */
 function ApplicantRowInner({
   applicant, jobTitle, profileHref, days, sla, selected, selectionActive,
   onToggleSelect, onDelete,
 }: ApplicantRowProps) {
   const score = applicant.aiAnalysis?.fitScore;
   const stage = APPLICANT_STATUSES.find((s) => s.value === applicant.status) ?? APPLICANT_STATUSES[0];
-  const noEmail = !applicant.email?.trim();
+  const email = applicant.email?.trim();
   const name = applicant.fullName?.trim();
 
   const applied = new Date(applicant.appliedDate);
@@ -56,26 +63,18 @@ function ApplicantRowInner({
     : applied.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
   return (
-    <div
-      className={`group grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2 transition-colors ${
-        selected ? "bg-[hsl(var(--intel-accent-subtle))]" : "hover:bg-[hsl(var(--intel-card-hover))]"
-      }`}
-    >
-      {/* Avatar and checkbox share one 32px slot, so selection costs no row width. */}
-      <div className="relative h-8 w-8 shrink-0">
-        <div
-          className={`absolute inset-0 flex items-center justify-center rounded-lg bg-primary/10 text-[10px] font-bold text-primary transition-opacity ${
-            selectionActive || selected ? "opacity-0" : "opacity-100 group-hover:opacity-0"
-          }`}
+    <div className={`ar-row group${selected ? " is-selected" : ""}`}>
+      {/* Avatar and checkbox share one slot, so selection costs no row width. */}
+      <div className="ar-sel">
+        <span
+          className={`ar-avatar transition-opacity ${selectionActive || selected ? "opacity-0" : "opacity-100 group-hover:opacity-0"}`}
           aria-hidden="true"
         >
           {getInitials(name || "?")}
-        </div>
-        <div
+        </span>
+        <span
           className={`absolute inset-0 flex items-center justify-center transition-opacity ${
-            selectionActive || selected
-              ? "opacity-100"
-              : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
+            selectionActive || selected ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
           }`}
         >
           <Checkbox
@@ -84,87 +83,67 @@ function ApplicantRowInner({
             aria-label={`Select ${name || "this candidate"}`}
             className="h-4 w-4"
           />
-        </div>
+        </span>
       </div>
 
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          {/* A real anchor: right-click "open in new tab" and Cmd-click work. */}
-          <Link
-            to={profileHref}
-            className="truncate text-sm font-semibold text-foreground transition-colors hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {/* fullName can legitimately be empty — a CV whose filename carried no
-                name and which the AI has not backfilled. Never invent "Unknown". */}
-            {name || <span className="italic text-muted-foreground">Name not captured</span>}
-          </Link>
-
-          {/* Read-only on purpose.
-              The stage is worth seeing at a glance in the list, but not worth
-              changing from it: a mis-click on a dense row silently moved someone
-              through the pipeline with no confirmation. Stage changes now happen
-              where there is context to justify them — inside the candidate's
-              profile — or deliberately, via multi-select and the bulk bar. */}
+      <div className="ar-cell ar-who">
+        {/* A real anchor: right-click "open in new tab" and Cmd-click work. */}
+        <Link to={profileHref} className="ar-name">
+          {/* fullName can legitimately be empty — a CV whose filename carried no
+              name and which the AI has not backfilled. Never invent "Unknown". */}
+          {name || <span className="italic text-muted-foreground">Name not captured</span>}
+        </Link>
+        {email ? (
+          <span className="ar-sub" title={email}>{email}</span>
+        ) : (
           <span
-            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_SOFT[applicant.status]}`}
-            title={`Stage: ${stage.label} — change it from the candidate's profile`}
+            className="ar-sub ar-warn"
+            title="No email address was captured from the CV, so this candidate cannot be contacted"
           >
-            {stage.label}
+            <MailWarning className="h-3 w-3" aria-hidden="true" />
+            No email on file
           </span>
-
-          {noEmail && (
-            <span
-              className={`flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${TONE_SOFT.warning}`}
-              title="No email address was captured from the CV, so this candidate cannot be contacted"
-            >
-              <MailWarning className="h-2.5 w-2.5" aria-hidden="true" />
-              No email
-            </span>
-          )}
-        </div>
-
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          <span className="text-foreground/70">{jobTitle}</span>
-          {" · applied "}
-          {appliedLabel}
-          {" · "}
-          <span className={SLA_TEXT[sla]}>
-            <Clock className="mr-0.5 inline h-3 w-3 align-[-2px]" aria-hidden="true" />
-            {days}d waiting
-          </span>
-        </p>
+        )}
       </div>
 
-      <div className="flex items-center gap-2">
-        {/* One score element. It used to appear three times — the number, a tier
-            badge, and a rank medal — all derived from fitScore by the same
-            85/70/50 cuts. The colour now carries the band. */}
+      <div className="ar-cell ar-role">
+        <span className="ar-role__title" title={jobTitle}>{jobTitle}</span>
+        <span className="ar-sub">Applied {appliedLabel}</span>
+      </div>
+
+      {/* Read-only on purpose: stage changes happen in the profile, or deliberately
+          through multi-select and the bulk bar, never by a mis-click on a dense row. */}
+      <div className="ar-cell">
+        <span className="ar-stage" title={`Stage: ${stage.label} — change it from the candidate's profile`}>
+          <i style={{ background: STATUS_COLORS[applicant.status] }} aria-hidden="true" />
+          {stage.label}
+        </span>
+      </div>
+
+      <div className="ar-cell">
+        <span className={`ar-wait ar-wait--${sla}`} title={`${days} days in this stage. ${SLA_LABEL[sla]}.`}>
+          <b>{days}</b> {days === 1 ? "day" : "days"}
+        </span>
+      </div>
+
+      <div className="ar-cell ar-fit-cell">
+        {/* One score element, its band carried by colour. Guarded on presence, not
+            truthiness: a genuine score of 0 is a score. */}
         {score != null ? (
-          <span
-            className={`rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums ${TONE_SOFT[scoreTone(score, { strongAsAccent: true })]}`}
-            title={`AI fit score ${score} of 100`}
-          >
+          <span className={`ar-fit ar-fit--${fitBand(score)}`} title={`AI fit score ${score} of 100`}>
             {score}
           </span>
         ) : (
-          // Guarded on presence, not truthiness. The old row used `score != null`
-          // for the pill and `!score` for "AI Pending", so a genuine score of 0
-          // rendered as both at once.
-          <span
-            className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
-            title="Not scored yet — run AI analysis to rank this candidate"
-          >
+          <span className="ar-fit ar-fit--none" title="Not scored yet — run AI analysis to rank this candidate">
             —
           </span>
         )}
+      </div>
 
+      <div className="ar-actions">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label={`Actions for ${name || "this candidate"}`}
-              className="rounded-md p-1.5 text-muted-foreground/60 transition-colors hover:bg-[hsl(var(--intel-card-hover))] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
+            <button type="button" aria-label={`Actions for ${name || "this candidate"}`} className="ar-icon-btn">
               <MoreVertical className="h-4 w-4" aria-hidden="true" />
             </button>
           </DropdownMenuTrigger>
@@ -182,11 +161,7 @@ function ApplicantRowInner({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Link
-          to={profileHref}
-          aria-label={`Open ${name || "this candidate"}`}
-          className="rounded-md text-muted-foreground/30 transition-colors group-hover:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
+        <Link to={profileHref} aria-label={`Open ${name || "this candidate"}`} className="ar-icon-btn ar-open">
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       </div>
@@ -195,9 +170,9 @@ function ApplicantRowInner({
 }
 
 /**
- * Memoized: the roster mounts hundreds of these, each with two Radix dropdown
- * roots. Without it, every keystroke in search re-renders all of them — which is
- * why the old list felt sluggish to type in. Every prop above is a primitive or
- * a stable hoisted callback; pass an inline closure and this does nothing.
+ * Memoized: the roster mounts hundreds of these, each with a Radix dropdown root.
+ * Without it, every keystroke in search re-renders all of them. Every prop above
+ * is a primitive or a stable hoisted callback; pass an inline closure and this
+ * does nothing.
  */
 export default memo(ApplicantRowInner);

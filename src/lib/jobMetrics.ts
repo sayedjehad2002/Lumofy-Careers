@@ -29,6 +29,13 @@ export const BACKLOG_MIN_UNREVIEWED = 20;
 
 export type JobAttention = "starving" | "backlog" | "healthy";
 
+/**
+ * Where a role's applicants are, in four buckets that always sum to the total:
+ * not yet opened, somewhere in the process (reviewing, shortlisted, interview),
+ * hired, and rejected. Drives the stage bar on each Jobs row.
+ */
+export type JobStageMix = { fresh: number; inProcess: number; hired: number; rejected: number };
+
 export type JobRow = {
   job: Job;
   applicants: number;
@@ -36,6 +43,8 @@ export type JobRow = {
   unreviewed: number;
   /** Candidates already hired into this role — the outcome no other number here shows. */
   hired: number;
+  /** Every applicant of this role, by bucket. Sums to `applicants`. */
+  mix: JobStageMix;
   daysOpen: number;
   attention: JobAttention;
 };
@@ -72,20 +81,26 @@ export function jobRows(jobs: Job[], applicants: Applicant[], now: number): JobR
   const total = new Map<string, number>();
   const fresh = new Map<string, number>();
   const hires = new Map<string, number>();
+  const rejects = new Map<string, number>();
   for (const a of applicants) {
     total.set(a.jobId, (total.get(a.jobId) ?? 0) + 1);
     if (a.status === "new") fresh.set(a.jobId, (fresh.get(a.jobId) ?? 0) + 1);
     if (a.status === "hired") hires.set(a.jobId, (hires.get(a.jobId) ?? 0) + 1);
+    if (a.status === "rejected") rejects.set(a.jobId, (rejects.get(a.jobId) ?? 0) + 1);
   }
   return jobs.map((job) => {
     const count = total.get(job.id) ?? 0;
     const unreviewed = fresh.get(job.id) ?? 0;
     const days = daysOpen(job, now);
+    const hired = hires.get(job.id) ?? 0;
+    const rejected = rejects.get(job.id) ?? 0;
     return {
       job,
       applicants: count,
       unreviewed,
-      hired: hires.get(job.id) ?? 0,
+      hired,
+      // In process is the remainder, so the four buckets can never fail to add up.
+      mix: { fresh: unreviewed, inProcess: count - unreviewed - hired - rejected, hired, rejected },
       daysOpen: days,
       attention: jobAttention(job, count, unreviewed, days),
     };

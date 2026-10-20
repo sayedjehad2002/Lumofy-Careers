@@ -94,7 +94,7 @@ function PipelineCandidateCard({
           ? "bg-[hsl(var(--intel-card))] shadow-lg ring-2 ring-primary/40 border-primary/50"
           : selected
             ? "bg-[hsl(var(--intel-accent-subtle))] border-primary/50"
-            : "bg-[hsl(var(--intel-card))] border-[hsl(var(--intel-border))] hover:border-primary/40 hover:shadow-sm"
+            : "bg-[hsl(var(--intel-card))] border-[hsl(var(--intel-border))] shadow-[0_1px_2px_rgba(11,16,32,0.04)] hover:border-primary/40 hover:shadow-[0_8px_20px_-12px_rgba(11,16,32,0.25)]"
       }`}
     >
       <div className="flex items-start gap-1.5">
@@ -149,7 +149,7 @@ function PipelineCandidateCard({
           to={profileHref}
           draggable={false}
           onClick={(e) => e.stopPropagation()}
-          className="flex-1 min-w-0 text-[13px] font-semibold leading-tight line-clamp-2 break-words rounded-sm group-hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex-1 min-w-0 font-display text-sm font-bold leading-tight line-clamp-2 break-words rounded-sm group-hover:text-[color:var(--dx-accent-text)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {applicant.fullName}
         </Link>

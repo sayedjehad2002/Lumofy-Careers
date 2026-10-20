@@ -68,7 +68,9 @@ describe("DashboardOverview", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/2 applications have never been opened/i)).toBeInTheDocument();
+    // The headline's last word is wrapped in <em> for the accent, so match the
+    // heading's full text rather than a single text node.
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/2 applications have never been opened/i);
     expect(screen.getByText(/waiting since 23 June/i)).toBeInTheDocument();
   });
 

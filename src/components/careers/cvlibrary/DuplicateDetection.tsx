@@ -187,7 +187,7 @@ export default function DuplicateDetection({ candidates, onView, onDelete }: Pro
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="flex items-center gap-2 text-lg font-semibold">
+        <h3 className="flex items-center gap-2 font-display text-xl font-bold tracking-tight">
           <AlertTriangle className={`h-4 w-4 ${TONE_TEXT.warning}`} aria-hidden="true" />
           Duplicate Detection
         </h3>

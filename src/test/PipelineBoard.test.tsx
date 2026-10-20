@@ -129,7 +129,7 @@ describe("PipelineBoard", () => {
     // The one stalled interview, and nobody else.
     expect(screen.getByText("Iman Interview")).toBeInTheDocument();
     expect(screen.queryByText("Nadia New")).not.toBeInTheDocument();
-    expect(screen.getByText("1 of 5 candidates")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 }).nextElementSibling).toHaveTextContent("1 of 5 candidates");
   });
 
   it("keeps a cleared chip cleared when a search lands in the same tick", () => {
@@ -202,6 +202,6 @@ describe("PipelineBoard", () => {
 
   it("renders an empty board without crashing", () => {
     render(<Harness applicants={[]} jobs={[]} />);
-    expect(screen.getByText("0 candidates")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 }).nextElementSibling).toHaveTextContent("0 candidates on the board");
   });
 });

@@ -93,7 +93,7 @@ export default function JobFilter({ jobs, selected, onChange, counts, className 
           size="sm"
           aria-label={`Filter by job — ${label}`}
           title={label}
-          className={`h-9 shrink-0 justify-between gap-2 rounded-xl border-border bg-card text-xs font-normal ${active ? "border-primary/40 text-foreground" : "text-muted-foreground"} ${className}`}
+          className={`dx-tool shrink-0 justify-between gap-2${active ? " is-on" : ""} ${className}`}
         >
           <span className="flex min-w-0 items-center gap-1.5">
             <Briefcase className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

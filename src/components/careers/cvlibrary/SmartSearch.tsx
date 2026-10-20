@@ -76,17 +76,18 @@ export default function SmartSearch({ onSearch, value }: Props) {
   return (
     <div className="space-y-2">
       <div className="relative flex gap-2">
-        <div className="relative flex-1">
+        <div className="dx-search relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder='Smart search: "Python AND Finance NOT Junior"'
             value={query}
             onChange={(e) => handleSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-            className="pl-9 pr-8"
+            aria-label="Smart search the CV library"
+            className="dx-search__input"
           />
           {query && (
-            <button type="button" aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2" onClick={() => handleSearch("")}>
+            <button type="button" aria-label="Clear search" className="dx-search__clear" onClick={() => handleSearch("")}>
               <X className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
             </button>
           )}

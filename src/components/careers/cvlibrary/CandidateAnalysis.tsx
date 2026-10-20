@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TONE_SOFT, TONE_TEXT, TONE_BORDER, TONE_BG, scoreTone, type Tone } from "../statusColors";
 import { brandEase, durations } from "@/lib/motion";
+import { AiStar } from "../cx/parts";
 
 /**
  * The shared AI analysis shape (applicants + CV library). Exported as the single
@@ -92,18 +93,14 @@ export interface CVAIAnalysis {
   interviewGuide?: { category?: string; question: string; whyAsk?: string }[];
 }
 
-const FIT_TEXT: Record<string, string> = {
-  "Strong Fit": TONE_TEXT.success,
-  "Moderate Fit": TONE_TEXT.warning,
-  "Low Fit": TONE_TEXT.danger,
-};
-
-const REC_SOFT: Record<string, string> = {
-  "Fast-Track to Interview": `${TONE_SOFT.success} ${TONE_BORDER.success}`,
-  "Proceed to Next Stage": "bg-[hsl(var(--chart-1)/0.15)] text-[hsl(var(--chart-1))] border-[hsl(var(--chart-1)/0.3)]",
-  "Hold for Review": `${TONE_SOFT.warning} ${TONE_BORDER.warning}`,
-  "Not Recommended": `${TONE_SOFT.danger} ${TONE_BORDER.danger}`,
-};
+/** "Strong Fit" → "strong", for the verdict's fit-band colour class. */
+function fitKey(level: string): "strong" | "moderate" | "low" | "other" {
+  const l = level.toLowerCase();
+  if (l.includes("strong")) return "strong";
+  if (l.includes("moderate")) return "moderate";
+  if (l.includes("low")) return "low";
+  return "other";
+}
 
 const GAUGE_STROKE: Record<Tone, string> = {
   success: "hsl(var(--intel-success))",
@@ -134,19 +131,6 @@ const SCORE_ROWS: {
 
 // Shared fallback when an older analysis predates per-score reasoning.
 const NO_RATIONALE = "This analysis was generated before per-score reasoning was stored. Re-run the AI analysis to get the specific CV evidence behind each number.";
-
-/** Map a qualitative level to a tone (higher-is-better unless inverted). */
-function levelTone(level: string | undefined, inverted = false): string {
-  if (!level) return "text-foreground";
-  const good = inverted ? ["low"] : ["strong", "top", "high"];
-  const mid = ["moderate", "medium"];
-  const l = level.toLowerCase();
-  if (good.some((g) => l.includes(g))) return TONE_TEXT.success;
-  if (mid.some((m) => l.includes(m))) return TONE_TEXT.warning;
-  return TONE_TEXT.danger;
-}
-
-const IMPACT_CHIP = "rounded-full border border-border/60 px-1.5 py-0 text-[10px] text-muted-foreground";
 
 /**
  * Small ⓘ affordance explaining how a metric is measured and — when the analysis
@@ -192,7 +176,7 @@ function InfoHint({ label, how, weightPct, why, whyLabel = "Why this number" }: 
 }
 
 /** Compact radial score gauge — reads the verdict in one glance. */
-function ScoreGauge({ score }: { score: number }) {
+function ScoreGauge({ score, dark }: { score: number; dark?: boolean }) {
   const tone = scoreTone(score);
   const clamped = Math.min(100, Math.max(0, score));
   const r = 34;
@@ -201,16 +185,16 @@ function ScoreGauge({ score }: { score: number }) {
   return (
     <div className="relative h-[92px] w-[92px] flex-shrink-0">
       <svg className="h-full w-full -rotate-90" viewBox="0 0 80 80" aria-hidden="true">
-        <circle cx="40" cy="40" r={r} fill="none" stroke="hsl(var(--intel-gauge-track))" strokeWidth="7" />
+        <circle className="ai-gauge__track" cx="40" cy="40" r={r} fill="none" stroke={dark ? "rgba(255,255,255,.12)" : "hsl(var(--intel-gauge-track))"} strokeWidth="7" />
         <circle
-          cx="40" cy="40" r={r} fill="none" stroke={GAUGE_STROKE[tone]} strokeWidth="7" strokeLinecap="round"
+          className="ai-gauge__fill" cx="40" cy="40" r={r} fill="none" stroke={GAUGE_STROKE[tone]} strokeWidth="7" strokeLinecap="round"
           strokeDasharray={circ} strokeDashoffset={offset}
           style={{ transition: "stroke-dashoffset 0.7s cubic-bezier(0.22,1,0.36,1)" }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-extrabold leading-none tabular-nums">{score}</span>
-        <span className="text-[10px] text-muted-foreground">/ 100</span>
+        <span className={`font-display text-[1.75rem] font-extrabold leading-none tabular-nums ${dark ? "text-white" : ""}`}>{score}</span>
+        <span className={`text-[10px] ${dark ? "text-[#A3A3A3]" : "text-muted-foreground"}`}>of 100</span>
       </div>
     </div>
   );
@@ -274,51 +258,33 @@ function SignalItem({ tone, signal, impact, source, reasoning, verify }: {
 }) {
   const filled = impact?.toLowerCase() === "high" ? 3 : impact?.toLowerCase() === "medium" ? 2 : impact ? 1 : 0;
   return (
-    <motion.li
-      variants={SIGNAL_ITEM}
-      className={`group rounded-xl px-2.5 py-2 transition-colors ${
-        tone === "success"
-          ? "bg-[hsl(var(--intel-success)/0.07)] hover:bg-[hsl(var(--intel-success)/0.12)]"
-          : "bg-[hsl(var(--intel-warning)/0.08)] hover:bg-[hsl(var(--intel-warning)/0.14)]"
-      }`}
-    >
-      <div className="flex items-start gap-2">
-        {tone === "success"
-          ? <Check className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${TONE_TEXT.success}`} aria-hidden="true" />
-          : <AlertCircle className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${TONE_TEXT.warning}`} aria-hidden="true" />}
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium leading-snug">{signal}</p>
-          {reasoning && <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{reasoning}</p>}
-          {verify && (
-            <p className="mt-1 text-xs leading-relaxed">
-              <span className={`font-semibold ${TONE_TEXT.warning}`}>Verify:</span>{" "}
-              <span className="text-foreground/90">{verify}</span>
-            </p>
-          )}
-          {(filled > 0 || source) && (
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              {filled > 0 && (
-                <span className="flex items-center gap-1" title={`${impact} impact`}>
-                  <span className="flex gap-0.5" aria-hidden="true">
-                    {[0, 1, 2].map((i) => (
-                      <span
-                        key={i}
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          i < filled
-                            ? tone === "success" ? "bg-[hsl(var(--intel-success))]" : "bg-[hsl(var(--intel-warning))]"
-                            : "bg-border"
-                        }`}
-                      />
-                    ))}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">{impact}</span>
-                </span>
-              )}
-              {source && <span className={IMPACT_CHIP}>{source}</span>}
-            </div>
-          )}
-        </div>
+    <motion.li variants={SIGNAL_ITEM} className={`ai-signal ai-signal--${tone}`}>
+      <div className="ai-signal__head">
+        <span className="ai-signal__ic" aria-hidden="true">
+          {tone === "success" ? <Check className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
+        </span>
+        <p className="ai-signal__title">{signal}</p>
       </div>
+      {reasoning && <p className="ai-signal__text">{reasoning}</p>}
+      {verify && (
+        <p className="ai-signal__verify">
+          <span className="ai-signal__verify-label">Ask in interview</span>
+          {verify}
+        </p>
+      )}
+      {(filled > 0 || source) && (
+        <div className="ai-signal__meta">
+          {filled > 0 && (
+            <span className="ai-meter" title={`${impact} impact on the score`}>
+              <span className="ai-meter__bars" aria-hidden="true">
+                {[1, 2, 3].map((n) => <i key={n} className={n <= filled ? "is-on" : undefined} />)}
+              </span>
+              {impact} impact
+            </span>
+          )}
+          {source && <span className="ai-source">From {source}</span>}
+        </div>
+      )}
     </motion.li>
   );
 }
@@ -414,7 +380,7 @@ interface Props {
 export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Props) {
   if (analyzing) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-card p-10 light-glow">
+      <div className="flex flex-col items-center justify-center gap-3 dx-card p-10">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-sm text-muted-foreground">Reading the CV and scoring against the role…</p>
       </div>
@@ -487,7 +453,7 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
 
   return (
     <motion.div
-      className="space-y-5"
+      className="ai-root space-y-5"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -500,49 +466,50 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
         </div>
       )}
 
-      {/* ===== 1 · Executive summary — the verdict, its reasoning, in one glance ===== */}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 light-glow sm:p-6">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start">
+      {/* ===== 1 · The verdict — score, recommendation, why, and the two facts
+          that decide the next step. A light card on purpose: a long paragraph
+          on a dark gradient was hard to read. ===== */}
+      <section className="ai-verdict" aria-label="AI verdict">
+        <span className="ai-verdict__glow" aria-hidden="true" />
+        {/* Panel, ring and fit pill all take the colour of the score band, so the
+            card reads as one signal instead of a blue panel with an amber ring. */}
+        <div className="ai-verdict__score" data-tone={scoreTone(ai.fitScore)}>
           <ScoreGauge score={ai.fitScore} />
-          <div className="min-w-0 flex-1 space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">AI Hiring Intelligence</span>
-              <InfoHint
-                label="Overall fit score"
-                how={overallHow}
-                /* The per-dimension arithmetic used to be repeated here; "Why this
-                   score" below renders the same six rows expandably WITH their
-                   evidence, so this tooltip stays conceptual only. */
-                why={ai.recommendationJustification || undefined}
-                whyLabel="Why this score"
-              />
+          {ai.fitLevel && <span className={`ai-verdict__fit ai-verdict__fit--${fitKey(ai.fitLevel)}`}>{ai.fitLevel}</span>}
+        </div>
+
+        <div className="ai-verdict__body">
+          <div className="ai-verdict__label">
+            <AiStar className="ai-verdict__star" />
+            Lumofy AI · Hiring intelligence
+            <InfoHint
+              label="Overall fit score"
+              how={overallHow}
+              /* The per-dimension arithmetic lives in "Why this score" below,
+                 expandably and with evidence; this stays conceptual. */
+              why={ai.recommendationJustification || undefined}
+              whyLabel="Why this score"
+            />
+          </div>
+          <h3 className="ai-verdict__title">{ai.recommendation || ai.fitLevel || "Analysis complete"}</h3>
+          {(ai.rankingTier || ai.confidence) && (
+            <div className="ai-verdict__chips">
+              {/* rankingTier is the vocabulary the Applicants list and Compare
+                  view use ("Top Match"), so the profile shows it too. */}
+              {ai.rankingTier && <span className="ai-chip">{ai.rankingTier}</span>}
+              {ai.confidence && <span className="ai-chip">AI confidence: {ai.confidence}</span>}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {ai.fitLevel && (
-                <span className={`text-sm font-bold ${FIT_TEXT[ai.fitLevel] || "text-foreground"}`}>{ai.fitLevel}</span>
-              )}
-              {ai.recommendation && (
-                <Badge className={`border text-xs ${REC_SOFT[ai.recommendation] || "bg-secondary text-foreground"}`}>
-                  {ai.recommendation}
-                </Badge>
-              )}
-              {/* rankingTier is the vocabulary the Applicants list and Compare view
-                  use ("Top Match"), and the score tooltip explains the tiers — so
-                  show it here rather than leaving the profile the only screen
-                  without it. */}
-              {ai.rankingTier && (
-                <Badge variant="outline" className="text-[10px]">{ai.rankingTier}</Badge>
-              )}
-              {ai.confidence && (
-                <Badge variant="outline" className="text-[10px]">Confidence: {ai.confidence}</Badge>
-              )}
-            </div>
-            {ai.summary && <p className="text-sm leading-relaxed text-foreground/90">{ai.summary}</p>}
+          )}
+          {ai.summary && <p className="ai-verdict__summary">{ai.summary}</p>}
+        </div>
+
+        {/* The two facts that decide the next step sit in their own column, so
+            the summary keeps a readable line length and the card has no dead right half. */}
+        {(ai.skillsCoveragePercent != null || ai.recruiterVerdict?.shortlistFor) && (
+          <div className="ai-verdict__facts">
             {ai.skillsCoveragePercent != null && (
-            <div>
-              <div className="mb-1 flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1 text-muted-foreground">
+              <div className="ai-fact">
+                <span className="ai-fact__label">
                   Skills coverage
                   <InfoHint
                     label="Skills coverage"
@@ -552,30 +519,38 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
                       : undefined}
                   />
                 </span>
-                <span className="font-semibold tabular-nums">{ai.skillsCoveragePercent}%</span>
+                <span className="ai-fact__value">{ai.skillsCoveragePercent}%</span>
+                <span className="ai-bar" aria-hidden="true">
+                  <span style={{ width: `${Math.min(100, Math.max(0, ai.skillsCoveragePercent))}%` }} />
+                </span>
+                {saTotal > 0 && (
+                  <span className="ai-fact__sub">
+                    {saYes} of {saTotal} required skills evidenced{saPartial > 0 ? `, ${saPartial} partly` : ""}
+                  </span>
+                )}
               </div>
-              <Progress value={ai.skillsCoveragePercent} className="h-2" />
-            </div>
             )}
             {ai.recruiterVerdict?.shortlistFor && (
-              <p className="flex items-start gap-1.5 text-sm">
-                <Target className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" aria-hidden="true" />
-                <span><span className="font-semibold text-primary-readable">Shortlist for:</span> {ai.recruiterVerdict.shortlistFor}</span>
-              </p>
+              <div className="ai-fact">
+                <span className="ai-fact__label">
+                  <Target className="h-3.5 w-3.5" aria-hidden="true" /> Shortlist for
+                </span>
+                <span className="ai-fact__text">{ai.recruiterVerdict.shortlistFor}</span>
+              </div>
             )}
           </div>
-        </div>
-      </div>
+        )}
+      </section>
 
       {/* ===== 2 · Why this score — expandable weighted breakdown + signals + impact ===== */}
       {(ai.scoreBreakdown || ai.evidenceQuality?.level || positives.length > 0 || risks.length > 0) && (
-        <div className="space-y-5 rounded-2xl border border-border bg-card p-5 light-glow sm:p-6">
+        <div className="space-y-5 dx-card p-5 sm:p-6">
           {ai.scoreBreakdown && (
             <div>
               {/* InfoHint lives BESIDE the h3 (not inside) so the button's aria-label
                   doesn't pollute the heading's accessible name in SR navigation. */}
               <div className="mb-2 flex items-center gap-2">
-                <h3 className="flex items-center gap-2 font-semibold">
+                <h3 className="flex items-center gap-2 font-display text-[1.0625rem] font-bold tracking-tight">
                   <BarChart3 className="h-4 w-4 text-primary" aria-hidden="true" /> Why this score
                 </h3>
                 <InfoHint
@@ -605,73 +580,78 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
               lossy restatement of a figure rendered in full elsewhere on this
               screen (gauge, coverage bar, score rows, verdict badge, Verify tab
               count). Kept as one inline line instead of a card grid. */}
-          {ai.evidenceQuality?.level && (
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-secondary/30 px-3 py-2 text-xs">
-              <span className="flex items-center gap-1.5 text-muted-foreground">
-                <FileSearch className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                Evidence quality
-                <InfoHint
-                  label="Evidence quality"
-                  how="How strong, specific, and credible the CV evidence is — verifiable achievements and dates score high; vague buzzwords or implausible claims score low."
-                  why={ai.evidenceQuality.reasoning}
-                  whyLabel="Why this signal"
-                />
-              </span>
-              {/* The reasoning lives in the InfoHint above — repeating it here as
-                  truncated inline text said nothing at narrow widths and was a
-                  duplication of its own. */}
-              <span className={`font-bold ${levelTone(ai.evidenceQuality.level)}`}>{ai.evidenceQuality.level}</span>
-            </div>
-          )}
+          {ai.evidenceQuality?.level && (() => {
+            const lvl = ai.evidenceQuality.level.toLowerCase();
+            const steps = /strong|high/.test(lvl) ? 3 : /moderate|medium/.test(lvl) ? 2 : 1;
+            return (
+              <div className="ai-evq">
+                <span className="ai-evq__label">
+                  <FileSearch className="h-4 w-4" aria-hidden="true" />
+                  Evidence quality
+                  <InfoHint
+                    label="Evidence quality"
+                    how="How strong, specific, and credible the CV evidence is — verifiable achievements and dates score high; vague buzzwords or implausible claims score low."
+                    why={ai.evidenceQuality.reasoning}
+                    whyLabel="Why this signal"
+                  />
+                </span>
+                <span className={`ai-meter ai-meter--lg ai-meter--${steps}`}>
+                  <span className="ai-meter__bars" aria-hidden="true">
+                    {[1, 2, 3].map((n) => <i key={n} className={n <= steps ? "is-on" : undefined} />)}
+                  </span>
+                  <b>{ai.evidenceQuality.level}</b>
+                </span>
+                {/* The reasoning stays in the ⓘ above: shown inline it was a
+                    truncated duplicate at narrow widths. */}
+              </div>
+            );
+          })()}
 
           {/* Score impact — what helped and hurt */}
           {(positives.length > 0 || risks.length > 0) && (
-            <div>
-              <div className="mb-2 flex items-center gap-2">
-                <h3 className="flex items-center gap-2 text-sm font-semibold">
-                  <Scale className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> Score impact
+            <div className="ai-impact">
+              <div className="ai-impact__head">
+                <h3 className="ai-impact__title">
+                  <Scale className="h-4 w-4" aria-hidden="true" /> Score impact
+                  <InfoHint
+                    label="Score impact"
+                    how="The specific findings that pushed the score up or down, each with its source (CV, application form, or screening answers) and how strongly it moved the AI's scoring."
+                  />
                 </h3>
-                <InfoHint
-                  label="Score impact"
-                  how="The specific findings that pushed the score up or down, each with its source (CV, application form, or screening answers) and how strongly it moved the AI's scoring."
-                />
+                <p className="ai-impact__tally">
+                  <span className="is-up">{positives.length} helped</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="is-down">{risks.length} hurt</span>
+                </p>
               </div>
-              {/* Each finding is a tinted block rather than a bullet: the tint
-                  carries helped/hurt at a glance, impact is a 3-dot weight so a
-                  major finding no longer looks identical to a minor one, and the
-                  columns stay legible when one side is much shorter. */}
-              <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+              <div className="ai-impact__cols">
                 <div>
-                  <p className={`mb-2 flex items-center gap-1.5 text-xs font-semibold ${TONE_TEXT.success}`}>
+                  <p className="ai-impact__col ai-impact__col--up">
                     <Check className="h-3.5 w-3.5" aria-hidden="true" />
                     Helped the score
-                    <span className="font-normal text-muted-foreground">({positives.length})</span>
+                    <span className="ai-impact__n">{positives.length}</span>
                   </p>
-                  <motion.ul className="space-y-1.5" variants={SIGNAL_LIST} initial="hidden" animate="show">
+                  <motion.ul className="ai-signals" variants={SIGNAL_LIST} initial="hidden" animate="show">
                     {positives.map((p, i) => (
                       <SignalItem key={i} tone="success" signal={p.signal} impact={p.impact} source={p.source} reasoning={p.reasoning} />
                     ))}
-                    {positives.length === 0 && <li className="text-xs text-muted-foreground">None identified</li>}
+                    {positives.length === 0 && <li className="ai-signal-empty">None identified.</li>}
                   </motion.ul>
                 </div>
                 <div>
-                  <p className={`mb-2 flex items-center gap-1.5 text-xs font-semibold ${TONE_TEXT.warning}`}>
+                  <p className="ai-impact__col ai-impact__col--down">
                     <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
                     Hurt the score
-                    <span className="font-normal text-muted-foreground">({risks.length})</span>
+                    <span className="ai-impact__n">{risks.length}</span>
                   </p>
-                  <motion.ul className="space-y-1.5" variants={SIGNAL_LIST} initial="hidden" animate="show">
+                  <motion.ul className="ai-signals" variants={SIGNAL_LIST} initial="hidden" animate="show">
                     {risks.map((r, i) => (
                       <SignalItem
                         key={i} tone="warning" signal={r.signal} impact={r.impact} source={r.source}
                         reasoning={r.reasoning} verify={r.verificationQuestion}
                       />
                     ))}
-                    {risks.length === 0 && (
-                      <li className="rounded-xl bg-[hsl(var(--intel-success)/0.07)] px-2.5 py-2 text-xs text-muted-foreground">
-                        Nothing counted against this candidate.
-                      </li>
-                    )}
+                    {risks.length === 0 && <li className="ai-signal-empty">Nothing counted against this candidate.</li>}
                   </motion.ul>
                 </div>
               </div>
@@ -681,7 +661,7 @@ export default function CandidateAnalysis({ ai, analyzing, onRun, disabled }: Pr
       )}
 
       {/* ===== 3 · Tabbed depth ===== */}
-      <div className="rounded-2xl border border-border bg-card p-5 light-glow sm:p-6">
+      <div className="dx-card p-5 sm:p-6">
         <Tabs defaultValue="overview">
           <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-secondary/50 p-1">
             <TabsTrigger value="overview" className="gap-1.5 whitespace-nowrap text-xs"><BookOpen className="h-3.5 w-3.5" aria-hidden="true" />Overview</TabsTrigger>

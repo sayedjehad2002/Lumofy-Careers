@@ -182,3 +182,12 @@ export const CHART_SERIES = [
   "hsl(var(--chart-4))",
   "hsl(var(--chart-5))",
 ];
+
+/** The four AI-fit bands (85+ / 70-84 / 50-69 / under 50), as a CSS-friendly name. */
+export type FitBand = "top" | "strong" | "moderate" | "weak";
+export function fitBand(score: number): FitBand {
+  if (score >= 85) return "top";
+  if (score >= 70) return "strong";
+  if (score >= 50) return "moderate";
+  return "weak";
+}
