@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, ArrowRight, MapPin, Clock, Calendar, CalendarClock, Share2, Copy, Mail, CheckCircle2, Download, FileText, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/careers/Navbar";
 import Footer from "@/components/careers/Footer";
 import { SITE } from "@/data/site";
+import { deadlineState, formatRoleDate, newestFirst } from "@/lib/roleFinder";
 import { toast } from "sonner";
 
 const JobDetails = () => {
@@ -20,9 +21,30 @@ const JobDetails = () => {
   // positions" returns to the same filters; direct/shared links fall back to /jobs.
   const { state } = useLocation() as { state?: { search?: string } };
   const backToJobs = `/jobs${state?.search ?? ""}`;
-  const { getJobById, loading, sessionToken } = useCareers();
+  const { getJobById, jobs, loading, sessionToken } = useCareers();
   const job = getJobById(id || "");
   const [downloading, setDownloading] = useState(false);
+
+  // The side panel's Apply button appears only once the header's own has scrolled
+  // away: at the top of the page the two sat side by side saying the same thing.
+  const headerCtaRef = useRef<HTMLDivElement>(null);
+  const [headerCtaSeen, setHeaderCtaSeen] = useState(true);
+  const jobId = job?.id;
+  useEffect(() => {
+    const el = headerCtaRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([e]) => setHeaderCtaSeen(e.isIntersecting), { rootMargin: "-80px 0px 0px 0px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [jobId, loading]);
+
+  // Up to three other open roles on the same team, newest first.
+  const moreInTeam = useMemo(
+    () => (job
+      ? jobs.filter((j) => j.id !== job.id && j.status === "open" && !j.archivedAt && j.department === job.department).sort(newestFirst).slice(0, 3)
+      : []),
+    [jobs, job],
+  );
 
   // Distinct title per job so tabs/history/screen readers can tell pages apart.
   useEffect(() => {
@@ -140,6 +162,9 @@ const JobDetails = () => {
     }
   };
 
+  const due = deadlineState(job.deadline);
+  const sections = "px-6 py-6 sm:px-8 sm:py-7";
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -175,11 +200,11 @@ const JobDetails = () => {
                     <Clock className="w-4 h-4" aria-hidden="true" /> {job.type}
                   </span>
                   <span className="lx-meta-chip">
-                    <Calendar className="w-4 h-4" aria-hidden="true" /> Posted {new Date(job.postedDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    <Calendar className="w-4 h-4" aria-hidden="true" /> Posted {formatRoleDate(job.postedDate)}
                   </span>
-                  {job.deadline && (
-                    <span className="lx-meta-chip lx-meta-chip--urgent">
-                      <CalendarClock className="w-4 h-4" aria-hidden="true" /> Apply by {new Date(job.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  {(due === "soon" || due === "open") && (
+                    <span className={"lx-meta-chip" + (due === "soon" ? " lx-meta-chip--urgent" : "")}>
+                      <CalendarClock className="w-4 h-4" aria-hidden="true" /> Apply by {formatRoleDate(job.deadline)}
                     </span>
                   )}
                 </div>
@@ -188,7 +213,7 @@ const JobDetails = () => {
                     Salary: {job.salaryRange} {job.salaryCurrency || "BHD"}
                   </p>
                 )}
-                <div className="flex flex-wrap gap-3">
+                <div ref={headerCtaRef} className="flex flex-wrap gap-3">
                   <Button
                     size="lg"
                     className="h-12 rounded-full px-8 text-base btn-sheen shadow-sirius"
@@ -215,72 +240,59 @@ const JobDetails = () => {
                 </div>
               </motion.div>
 
+              {/* The role itself: one reading surface, sections ruled apart. */}
+              <motion.div
+                className="rounded-2xl bg-card border border-border light-glow divide-y divide-border empty:hidden"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.1, ease: brandEase }}
+              >
               {/* About the Role */}
               {job.description && (
-                <motion.div
-                  className="rounded-2xl bg-card border border-border p-6 light-glow"
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.1, ease: brandEase }}
-                >
-                  <h2 className="text-lg font-semibold mb-3">About the Role</h2>
-                  <p dir="auto" className="text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>
-                </motion.div>
+                <section className={sections}>
+                  <h2 className="font-display text-xl font-bold tracking-tight mb-4">About the Role</h2>
+                  <p dir="auto" className="text-foreground/80 leading-[1.75] whitespace-pre-line">{job.description}</p>
+                </section>
               )}
 
               {/* Responsibilities */}
               {(job.responsibilities ?? []).length > 0 && (job.responsibilities ?? []).some(r => r.trim()) && (
-                <motion.div
-                  className="rounded-2xl bg-card border border-border p-6 light-glow"
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.15, ease: brandEase }}
-                >
-                  <h2 className="text-lg font-semibold mb-3">Key Responsibilities</h2>
-                  <ul className="space-y-2">
+                <section className={sections}>
+                  <h2 className="font-display text-xl font-bold tracking-tight mb-4">Key Responsibilities</h2>
+                  <ul className="space-y-3">
                     {(job.responsibilities ?? []).filter(r => r.trim()).map((r, i) => (
-                      <li key={i} dir="auto" className="flex items-start gap-2 text-muted-foreground">
-                        <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" aria-hidden="true" />
+                      <li key={i} dir="auto" className="flex items-start gap-3 text-foreground/80 leading-relaxed">
+                        <CheckCircle2 className="w-4 h-4 text-primary mt-1 flex-shrink-0" aria-hidden="true" />
                         <span className="min-w-0">{r}</span>
                       </li>
                     ))}
                   </ul>
-                </motion.div>
+                </section>
               )}
 
               {/* Requirements */}
               {(job.requirements ?? []).length > 0 && (job.requirements ?? []).some(r => r.trim()) && (
-                <motion.div
-                  className="rounded-2xl bg-card border border-border p-6 light-glow"
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.2, ease: brandEase }}
-                >
-                  <h2 className="text-lg font-semibold mb-3">Requirements</h2>
-                  <ul className="space-y-2">
+                <section className={sections}>
+                  <h2 className="font-display text-xl font-bold tracking-tight mb-4">Requirements</h2>
+                  <ul className="space-y-3">
                     {(job.requirements ?? []).filter(r => r.trim()).map((r, i) => (
-                      <li key={i} dir="auto" className="flex items-start gap-2 text-muted-foreground">
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" aria-hidden="true" />
+                      <li key={i} dir="auto" className="flex items-start gap-3 text-foreground/80 leading-relaxed">
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary mt-[0.6rem] ml-[0.3rem] mr-[0.3rem] flex-shrink-0" aria-hidden="true" />
                         <span className="min-w-0">{r}</span>
                       </li>
                     ))}
                   </ul>
-                </motion.div>
+                </section>
               )}
 
               {/* Screening Questions Preview */}
               {(job.screeningQuestions ?? []).length > 0 && (
-                <motion.div
-                  className="rounded-2xl bg-card border border-border p-6 light-glow"
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.25, ease: brandEase }}
-                >
-                  <h2 className="text-lg font-semibold mb-3">Screening Questions</h2>
+                <section className={sections}>
+                  <h2 className="font-display text-xl font-bold tracking-tight mb-4">Screening Questions</h2>
                   <p className="text-sm text-muted-foreground mb-4">
                     You'll be asked these questions when you apply:
                   </p>
-                  <ul className="space-y-2">
+                  <ul className="space-y-3">
                     {(job.screeningQuestions ?? []).map((q) => (
                       <li key={q.id} className="text-sm text-muted-foreground flex items-start gap-2">
                         <span className="text-primary" aria-hidden="true">•</span>
@@ -289,7 +301,32 @@ const JobDetails = () => {
                       </li>
                     ))}
                   </ul>
-                </motion.div>
+                </section>
+              )}
+              </motion.div>
+
+              {moreInTeam.length > 0 && (
+                <section aria-labelledby="more-roles">
+                  <h2 id="more-roles" className="font-display text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground mb-3">
+                    More in {job.department}
+                  </h2>
+                  <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {moreInTeam.map((j) => (
+                      <li key={j.id}>
+                        <Link
+                          to={`/jobs/${j.id}`}
+                          className="group flex h-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3.5 transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <span className="min-w-0">
+                            <span dir="auto" className="block truncate font-display font-bold text-foreground group-hover:text-primary">{j.title}</span>
+                            <span className="block truncate text-sm text-muted-foreground">{j.location} · {j.type}</span>
+                          </span>
+                          <ArrowRight className="h-4 w-4 flex-shrink-0 text-primary transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               )}
             </div>
 
@@ -303,13 +340,15 @@ const JobDetails = () => {
               >
                 {/* Apply persists beside the JD on desktop — the header CTA scrolls away
                     exactly when a long description has done its convincing. */}
-                <Button
-                  className="w-full h-11 rounded-full btn-sheen mb-4"
-                  onClick={() => navigate(`/jobs/${job.id}/apply`)}
-                >
-                  Apply for this position
-                  <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-                </Button>
+                {!headerCtaSeen && (
+                  <Button
+                    className="w-full h-11 rounded-full btn-sheen mb-4"
+                    onClick={() => navigate(`/jobs/${job.id}/apply`)}
+                  >
+                    Apply for this position
+                    <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                  </Button>
+                )}
 
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
                   <Share2 className="w-4 h-4 text-primary" aria-hidden="true" />
@@ -324,23 +363,6 @@ const JobDetails = () => {
                   <Copy className="w-3.5 h-3.5 mr-2" aria-hidden="true" />
                   Copy link
                 </Button>
-
-                {canDownloadJd && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full mb-4"
-                    onClick={handleDownloadJd}
-                    disabled={downloading}
-                  >
-                    {downloading ? (
-                      <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <Download className="w-3.5 h-3.5 mr-2" aria-hidden="true" />
-                    )}
-                    Download JD
-                  </Button>
-                )}
 
                 <div className="border-t border-border pt-4 mt-4">
                   <h3 className="font-semibold mb-2">Questions?</h3>

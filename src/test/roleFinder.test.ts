@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Job } from "@/types/careers";
-import { ALL_ROLES, formatRoleDate, groupRolesByTeam, isNewRole, matchesRole, pickHeroRole, regionsOf, teamCounts } from "@/lib/roleFinder";
+import { ALL_ROLES, deadlineState, formatRoleDate, groupRolesByTeam, isNewRole, matchesRole, pickHeroRole, regionsOf, teamCounts } from "@/lib/roleFinder";
 
 const job = (p: Partial<Job>): Job => ({
   id: p.id || "j", title: "Role", department: "Engineering", location: "Bahrain", type: "Full-time", status: "open",
@@ -54,5 +54,27 @@ describe("roleFinder", () => {
     expect(pickHeroRole(jobs)?.department).toBe("Engineering");
     expect(pickHeroRole([jobs[4]])?.id).toBe("e");
     expect(pickHeroRole([])).toBeUndefined();
+  });
+});
+
+describe("deadlineState", () => {
+  const today = new Date(2026, 10, 17); // 17 Nov 2026, local
+
+  it("calls a date that has gone past, so the page stops asking people to apply by it", () => {
+    expect(deadlineState("2026-10-31", today)).toBe("past");
+    expect(deadlineState("2026-11-16", today)).toBe("past");
+  });
+
+  it("counts today and the next week as closing soon", () => {
+    expect(deadlineState("2026-11-17", today)).toBe("soon");
+    expect(deadlineState("2026-11-24", today)).toBe("soon");
+    expect(deadlineState("2026-11-25", today)).toBe("open");
+    expect(deadlineState("2026-11-30", today)).toBe("open");
+  });
+
+  it("has nothing to say without a usable date", () => {
+    expect(deadlineState(undefined, today)).toBe("none");
+    expect(deadlineState("", today)).toBe("none");
+    expect(deadlineState("soon", today)).toBe("none");
   });
 });

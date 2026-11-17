@@ -56,6 +56,23 @@ export function isNewRole(postedDate: string | undefined, now: Date = new Date()
   return age >= 0 && age <= days;
 }
 
+/**
+ * Where a role's "apply by" date stands today, by calendar day.
+ *
+ * "past" exists so a role HR has left open does not tell candidates to apply by a
+ * date that has gone: the role still shows, the stale date does not. "soon" is the
+ * last week, the only time the date deserves a warning colour.
+ */
+export type DeadlineState = "none" | "past" | "soon" | "open";
+export function deadlineState(deadline: string | undefined, now: Date = new Date(), soonDays = 7): DeadlineState {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(deadline || "");
+  if (!m) return "none";
+  const due = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.round((due - today) / 864e5);
+  return days < 0 ? "past" : days <= soonDays ? "soon" : "open";
+}
+
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 /** "2026-08-02" -> "2 Aug 2026" (date part only, so no time-zone drift). */
 export function formatRoleDate(iso: string | undefined): string {

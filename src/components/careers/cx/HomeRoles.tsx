@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type Point
 import { Link } from "react-router-dom";
 import type { Job } from "@/types/careers";
 import { SITE } from "@/data/site";
-import { ALL_ROLES, formatRoleDate, groupRolesByTeam, isNewRole, matchesRole, regionsOf, teamCounts, type RoleFilter } from "@/lib/roleFinder";
+import { ALL_ROLES, deadlineState, formatRoleDate, groupRolesByTeam, isNewRole, matchesRole, regionsOf, teamCounts, type RoleFilter } from "@/lib/roleFinder";
 import { getGsap } from "./gsapLoader";
 import { CxIcon } from "./icons";
 import { Eyebrow, Spark } from "./parts";
@@ -142,9 +142,15 @@ export default function HomeRoles({ jobs, loading }: { jobs: Job[]; loading: boo
                 <ul className="cx-groups" role="list">
                   {groups.map((g) => (
                     <li className="cx-group" key={g.team}>
-                      <h3 className="cx-group__head"><span>{g.team}</span><span className="cx-group__count">{g.roles.length}</span></h3>
+                      <h3 className="cx-group__head">
+                        <span>{g.team}</span>
+                        <span className="cx-group__count">{g.roles.length}</span>
+                        <span className="cx-group__rule" aria-hidden="true" />
+                      </h3>
                       <ul className="cx-group__list" role="list">
-                        {g.roles.map((r) => (
+                        {g.roles.map((r) => {
+                          const due = deadlineState(r.deadline, now);
+                          return (
                           <li className="cx-role" data-flip-id={r.id} key={r.id}>
                             <Link className="cx-role__link" to={`/jobs/${r.id}`}>
                               <span className="cx-role__main">
@@ -153,7 +159,11 @@ export default function HomeRoles({ jobs, loading }: { jobs: Job[]; loading: boo
                                   <span><CxIcon name="map-pin" />{r.location}</span>
                                   <span><CxIcon name="clock" />{r.type}</span>
                                   {r.postedDate && <span>Posted {formatRoleDate(r.postedDate)}</span>}
-                                  {r.deadline && <span className="cx-role__due">Apply by {formatRoleDate(r.deadline)}</span>}
+                                  {/* A date that has passed is not shown: the role is still open, and
+                                      "apply by" a day that is gone only reads as a mistake. */}
+                                  {(due === "soon" || due === "open") && (
+                                    <span className={due === "soon" ? "cx-role__due" : undefined}>Apply by {formatRoleDate(r.deadline)}</span>
+                                  )}
                                 </span>
                               </span>
                               <span className="cx-role__tags">
@@ -163,7 +173,8 @@ export default function HomeRoles({ jobs, loading }: { jobs: Job[]; loading: boo
                               <span className="cx-role__cta">View role<CxIcon name="arrow-right" className="cx-nudge" /></span>
                             </Link>
                           </li>
-                        ))}
+                          );
+                        })}
                       </ul>
                     </li>
                   ))}
