@@ -27,7 +27,12 @@ const BASE_STEPS: Step[] = [
 ];
 const QUESTIONS_STEP: Step = { label: "Questions", icon: HelpCircle };
 
+const STEP_TARGETS = ["apply-cv", "apply-details", "apply-questions"];
+
 function ProgressIndicator({ current, steps }: { current: number; steps: Step[] }) {
+  // Each step jumps to its card, so the indicator is a way around the form and
+  // not only a readout.
+  const go = (i: number) => document.getElementById(STEP_TARGETS[i])?.scrollIntoView({ behavior: "smooth", block: "start" });
   return (
     <div className="mb-8 flex items-center justify-center gap-0">
       {steps.map((step, i) => {
@@ -36,9 +41,14 @@ function ProgressIndicator({ current, steps }: { current: number; steps: Step[] 
         const isDone = i < current;
         return (
           <div key={step.label} className="flex items-center">
-            <div className="flex flex-col items-center">
+            <button
+              type="button"
+              onClick={() => go(i)}
+              aria-current={isActive ? "step" : undefined}
+              className="group flex flex-col items-center rounded-lg px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               <div
-                className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-medium transition-all ${
+                className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-medium transition-all group-hover:ring-4 group-hover:ring-primary/15 ${
                   isActive
                     ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
                     : isDone
@@ -51,7 +61,7 @@ function ProgressIndicator({ current, steps }: { current: number; steps: Step[] 
               <span className={`mt-1.5 text-[11px] ${isActive ? "font-medium text-primary-readable" : "text-muted-foreground"}`}>
                 {step.label}
               </span>
-            </div>
+            </button>
             {i < steps.length - 1 && (
               <div className={`mx-2 mb-5 h-0.5 w-12 sm:w-20 ${isDone ? "bg-primary/40" : "bg-border"}`} />
             )}
@@ -205,6 +215,16 @@ const ApplyPage = () => {
   // Mirrors the submission-error toast into an aria-live region so screen-reader
   // users hear failures (toasts alone aren't reliably announced).
   const [submitError, setSubmitError] = useState("");
+  // What was typed is kept for this browser tab (sessionStorage, never sent anywhere),
+  // so a refresh or a look back at the role does not wipe the form. The CV file
+  // itself cannot be kept and has to be picked again. Cleared on submit.
+  const draftKey = `apply-draft:${id || ""}`;
+  const draft = useMemo(() => {
+    try {
+      const raw = sessionStorage.getItem(draftKey);
+      return raw ? (JSON.parse(raw) as { formData?: Record<string, string>; screeningAnswers?: Record<string, string> }) : null;
+    } catch { return null; }
+  }, [draftKey]);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -214,11 +234,16 @@ const ApplyPage = () => {
     linkedin: "",
     portfolio: "",
     coverLetter: "",
+    ...(draft?.formData ?? {}),
   });
   // The latest form values for code that runs after an await (the CV prefill).
   const formRef = useRef(formData);
   formRef.current = formData;
-  const [screeningAnswers, setScreeningAnswers] = useState<Record<string, string>>({});
+  const [screeningAnswers, setScreeningAnswers] = useState<Record<string, string>>(draft?.screeningAnswers ?? {});
+  useEffect(() => {
+    if (submitted) return;
+    try { sessionStorage.setItem(draftKey, JSON.stringify({ formData, screeningAnswers })); } catch { /* storage off: the form still works */ }
+  }, [draftKey, formData, screeningAnswers, submitted]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Distinct title per route so tabs/history/screen readers can tell pages apart.
@@ -489,6 +514,7 @@ const ApplyPage = () => {
       setSubmitPhase("submitting");
       await addApplicant(newApplicant);
       setSubmitted(true);
+      try { sessionStorage.removeItem(draftKey); } catch { /* nothing to clear */ }
       toast.success("Application submitted successfully!");
       // No AI analysis here: HR runs it manually from the dashboard when they
       // choose to (keeps Gemini spend under HR's control).
@@ -608,22 +634,15 @@ const ApplyPage = () => {
             Back to {job.title}
           </Link>
 
-          {/* Job header */}
+          {/* Page title. No card: beside the role panel a boxed header said the same thing twice. */}
           <motion.div
-            className="mb-8 rounded-2xl border border-border bg-card p-6 light-glow sm:p-8"
-            initial={{ opacity: 0, y: 24 }}
+            className="mb-8"
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease }}
+            transition={{ duration: 0.5, ease }}
           >
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                <Briefcase className="h-5 w-5 text-primary" aria-hidden="true" />
-              </div>
-              <div>
-                <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">Apply for {job.title}</h1>
-                <p className="text-sm text-muted-foreground">{job.department} · {job.location}</p>
-              </div>
-            </div>
+            <h1 dir="auto" className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Apply for {job.title}</h1>
+            <p className="mt-2 text-muted-foreground lg:hidden">{job.department} · {job.location}</p>
           </motion.div>
 
           {/* Progress */}
@@ -638,9 +657,10 @@ const ApplyPage = () => {
               animate="show"
               variants={fadeUp}
               data-field="cv"
+              id="apply-cv"
+              style={{ scrollMarginTop: "1rem" }}
             >
               <h2 className="text-lg font-bold tracking-tight">Start with your CV</h2>
-              <p className="mt-1 text-sm text-muted-foreground">PDF, DOC, DOCX · Max 10MB</p>
               {/* Honesty note: Gemini (our AI screening) can't read Word .doc/.docx,
                   so those upload but silently skip analysis. Guide toward PDF without blocking. */}
               <p className="mb-5 mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
@@ -705,6 +725,8 @@ const ApplyPage = () => {
 
             {/* ── Card 2: Personal Information ── */}
             <motion.div
+              id="apply-details"
+              style={{ scrollMarginTop: "1rem" }}
               className="rounded-2xl border border-border bg-card p-6 light-glow sm:p-8"
               initial="hidden"
               animate="show"
@@ -781,6 +803,8 @@ const ApplyPage = () => {
             {/* ── Card 3: Screening Questions ── */}
             {(job.screeningQuestions ?? []).length > 0 && (
               <motion.div
+                id="apply-questions"
+                style={{ scrollMarginTop: "1rem" }}
                 className="rounded-2xl border border-border bg-card p-6 light-glow sm:p-8"
                 initial="hidden"
                 animate="show"
@@ -938,14 +962,11 @@ const ApplyPage = () => {
             </div>
             <div className="rounded-2xl border border-border bg-card p-6">
               <p className="font-display text-[11px] font-bold uppercase tracking-[0.18em] text-primary-readable">What happens next</p>
-              <ol className="mt-4 space-y-4">
+              <ol className="mt-4 space-y-3">
                 {hiringSteps.map((st) => (
                   <li key={st.n} className="flex items-start gap-3">
                     <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 font-display text-[11px] font-bold tabular-nums text-primary-readable">{st.n}</span>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{st.title}</p>
-                      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{st.desc}</p>
-                    </div>
+                    <p className="pt-1 text-sm font-semibold text-foreground">{st.title}</p>
                   </li>
                 ))}
               </ol>
