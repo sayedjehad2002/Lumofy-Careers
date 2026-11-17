@@ -321,7 +321,11 @@ html[data-motion="full"] .cx-menu:not([hidden]) { animation: menu-in var(--lx-du
 .cx-cap > .cx-tags { order: 4; }
 .cx-cap__top { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
 .cx-cap__verb { font: 600 .75rem/1 var(--font-display); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
-.cx-cap__name { font: 700 1.3125rem/1.22 var(--font-display); letter-spacing: -.012em; color: var(--ink); text-wrap: balance; }
+/* Two lines reserved for every name, so a one-line title does not pull its card's copy up
+   out of line with its neighbours. Released where the cards stack. */
+.cx-cap__name { font: 700 1.3125rem/1.22 var(--font-display); letter-spacing: -.012em; color: var(--ink); text-wrap: balance; min-height: 2.44em; }
+.cx-cap__verb b { margin-inline-end: .5rem; font-weight: 800; color: var(--sirius); font-variant-numeric: tabular-nums; }
+.cx-ai__cta { justify-self: start; margin-top: .5rem; }
 .cx-cap__text { font-size: 1rem; line-height: 1.68; color: var(--ink-2); }
 .cx-chip-ic { display: inline-grid; place-items: center; width: 3.25rem; height: 3.25rem; flex: none; border-radius: var(--r-chip); background: var(--sirius); color: #fff; box-shadow: 0 0 0 .375rem rgba(33, 91, 234, .12), 0 .75rem 1.875rem -.5rem rgba(33, 91, 234, .55); }
 .cx-chip-ic .cx-ic { width: 1.625rem; height: 1.625rem; }
@@ -582,6 +586,7 @@ html[data-tier="lite"] .cx-tw-2, html[data-tier="lite"] .cx-tw-3, html[data-tier
   .cx-float--where { left: auto; right: -6%; bottom: 2%; }
   .cx-float__title { font-size: .875rem; }
   .cx-caps { grid-template-columns: minmax(0, 1fr); }
+  .cx-cap__name { min-height: 0; }
   .cx-steps { grid-template-columns: minmax(0, 1fr); }
   .cx-facts { grid-template-columns: minmax(0, 1fr); }
   .cx-seg { overflow-x: auto; max-width: 100%; }

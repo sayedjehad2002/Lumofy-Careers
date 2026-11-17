@@ -1,7 +1,8 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 import teamMeeting from "@/assets/brand/careers/team-meeting.webp";
 import { CxIcon, type CxIconName } from "./icons";
 import { Eyebrow, Spark } from "./parts";
+import { scrollToSection } from "./scroll";
 
 const vars = (v: Record<string, number>) => v as unknown as CSSProperties;
 
@@ -116,6 +117,11 @@ const CAPS: { icon: CxIconName; verb: string; name: string; text: string; tags: 
 ];
 
 export function HomeBuild() {
+  // Same in-page jump as the hero and closing buttons; modified clicks are left to the browser.
+  const toRoles = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+    if (scrollToSection("roles")) e.preventDefault();
+  };
   return (
     <section className="cx-band cx-band--paper cx-build" id="build" aria-labelledby="build-title">
       <div className="cx-wrap">
@@ -138,7 +144,8 @@ export function HomeBuild() {
             <li className="cx-cap" data-cap={i} key={c.name}>
               <div className="cx-cap__top">
                 <span className="cx-chip-ic"><CxIcon name={c.icon} trace /></span>
-                <span className="cx-cap__verb">{c.verb}</span>
+                {/* Numbered so the four read as the sequence the line above draws. */}
+                <span className="cx-cap__verb"><b>0{i + 1}</b>{c.verb}</span>
               </div>
               <h3 className="cx-cap__name">{c.name}</h3>
               <p className="cx-cap__text">{c.text}</p>
@@ -156,6 +163,11 @@ export function HomeBuild() {
               Four agents cover competencies, performance, assessments, and talent and potential. They read an organization's
               strategy, structure and KPIs, then draft frameworks, goals and assessments for people to review.
             </p>
+            {/* The section's next step for a candidate: from what we build to who builds it. */}
+            <a className="cx-btn cx-btn--ghost-dark cx-ai__cta" href="#roles" onClick={toRoles}>
+              See the roles building this
+              <CxIcon name="arrow-right" className="cx-nudge" />
+            </a>
           </div>
           <ol className="cx-gen" aria-label="What Lumofy AI generates">
             {["Generating skills", "Generating goals & KPIs", "Generating assessments & insights"].map((t) => (
