@@ -244,9 +244,11 @@ export function startCxMotion(root: HTMLElement): CxMotion {
     if (!stairs || !B) return;
     const nodes = $$(".cx-steps .cx-step__node");
     const rb = lines.growth;
-    const prime = (n: HTMLElement) => { primeSpark(n); gset($$(".cx-trace", n.closest(".cx-step") || root), { fillOpacity: 0, drawSVG: "0%" }); };
+    // Unlit icons stay faintly visible: at laptop height all four cards are on
+    // screen before the line reaches the last two, and an empty tile reads as broken.
+    const prime = (n: HTMLElement) => { primeSpark(n); gset($$(".cx-trace", n.closest(".cx-step") || root), { fillOpacity: 0.28 }); };
     if (rb && wide() && !lite()) {
-      const tl = scrubbedLine(stairs, rb, "top 78%", "bottom 62%");
+      const tl = scrubbedLine(stairs, rb, "top 78%", "bottom 88%");
       const passed = !below(stairs, 0.78);
       nodes.forEach((n, i) => {
         if (n.dataset.lit || passed) { igniteMile(i); return; }

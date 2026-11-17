@@ -273,9 +273,11 @@ html[data-motion="full"] .cx-menu:not([hidden]) { animation: menu-in var(--lx-du
 
 /* ---------- Mission ---------- */
 .cx-mission__in { position: relative; display: grid; gap: clamp(1.75rem, 3.4vw, 2.75rem); justify-items: start; }
-.cx-mission__body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(17.5rem, 23.75rem); gap: clamp(2.5rem, 7vw, 8rem); align-items: end; width: 100%; }
+/* The aside runs the full height of the statement: the problem at the top, the proof at the
+   bottom. Bottom-aligned and narrow, it left the top right of the band empty. */
+.cx-mission__body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(19rem, 26rem); gap: clamp(2.5rem, 5vw, 5.5rem); align-items: stretch; width: 100%; }
 .cx-statement-wrap { display: grid; grid-template-columns: .875rem minmax(0, 1fr); gap: clamp(1.125rem, 2.4vw, 1.875rem); min-width: 0; }
-.cx-mission__aside { display: grid; gap: 1.375rem; padding-top: 1.375rem; border-top: 1px solid rgba(12, 12, 12, .12); min-width: 0; }
+.cx-mission__aside { display: grid; gap: 2rem; align-content: space-between; padding-top: 1.375rem; border-top: 1px solid rgba(12, 12, 12, .12); min-width: 0; }
 .cx-statement { font: 800 clamp(2rem, 4.3vw, 3.875rem)/1.08 var(--font-display); letter-spacing: -.03em; color: var(--ink); max-width: 22ch; text-wrap: balance; }
 .cx-statement .cx-lit { display: inline; }
 /* the problem chain: a small vertical sequence (cause, then effect) with a hairline connector */
@@ -288,8 +290,13 @@ html[data-motion="full"] .cx-menu:not([hidden]) { animation: menu-in var(--lx-du
 .cx-chain__step:not(.is-primed) { color: var(--ink); }
 .cx-chain__step:not(.is-primed)::before { background: var(--sirius); box-shadow: 0 0 0 .25rem rgba(33, 91, 234, .14); }
 .cx-chain__verdict { margin-top: .5rem; font: 700 1.3125rem/1.35 var(--font-display); color: var(--ink); letter-spacing: -.01em; }
-.cx-proof { font-size: 1.0625rem; line-height: 1.7; color: var(--ink-2); max-width: 52ch; }
-.cx-proof strong { font: 800 1.2em/1 var(--font-display); color: var(--sirius); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+/* the proof: three sourced figures as a ledger (number, then what it counts), not stat cards */
+.cx-proof { display: grid; gap: .875rem; }
+.cx-proof__lead { font: 600 .9375rem/1.4 var(--font-display); color: var(--ink-3); }
+.cx-proof__list > div { display: grid; grid-template-columns: 6.75rem minmax(0, 1fr); align-items: baseline; column-gap: 1rem; padding: .8125rem 0; border-top: 1px solid rgba(12, 12, 12, .1); }
+.cx-proof__list > div:last-child { padding-bottom: 0; }
+.cx-proof__list dt { font: 800 clamp(1.625rem, 2.2vw, 2.125rem)/1 var(--font-display); color: var(--sirius); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.cx-proof__list dd { font-size: 1rem; line-height: 1.45; color: var(--ink-2); }
 .cx-mission__rail { position: relative; }
 .cx-mission__rail .cx-ribbon { inset: 0; width: 100%; height: 100%; }
 .cx-rb-head__halo { fill: rgba(33, 91, 234, .16); }

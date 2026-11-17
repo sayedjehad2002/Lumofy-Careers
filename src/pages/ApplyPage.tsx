@@ -22,8 +22,8 @@ import type { Applicant } from "@/types/careers";
 // ── Progress Steps ──
 type Step = { label: string; icon: typeof User };
 const BASE_STEPS: Step[] = [
-  { label: "Personal Info", icon: User },
   { label: "Upload CV", icon: FileText },
+  { label: "Your details", icon: User },
 ];
 const QUESTIONS_STEP: Step = { label: "Questions", icon: HelpCircle };
 
@@ -237,7 +237,7 @@ const ApplyPage = () => {
     const hasPersonal = formData.fullName && formData.email && formData.phone && formData.location && formData.nationality;
     const hasCv = !!cvFile;
     if (hasPersonal && hasCv) return Math.min(2, steps.length - 1);
-    if (hasPersonal) return 1;
+    if (hasCv) return 1;
     return 0;
   }, [formData, cvFile, steps]);
 
@@ -601,7 +601,8 @@ const ApplyPage = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main id="main" className="px-4 py-12 pt-24 sm:py-16 sm:pt-28">
-        <div className="mx-auto max-w-2xl">
+        <div className="mx-auto max-w-2xl lg:grid lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-10">
+          <div className="min-w-0">
           <Link to={`/jobs/${job.id}`} className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Back to {job.title}
@@ -629,31 +630,89 @@ const ApplyPage = () => {
           <ProgressIndicator current={activeStep} steps={steps} />
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* ── Card 1: Personal Information ── */}
+            {/* ── Card 1: CV Upload ── first, because the CV fills in the contact
+                details below and saves the candidate the typing. */}
+            <motion.div
+              className="rounded-2xl border border-border bg-card p-6 light-glow sm:p-8"
+              initial="hidden"
+              animate="show"
+              variants={fadeUp}
+              data-field="cv"
+            >
+              <h2 className="text-lg font-bold tracking-tight">Start with your CV</h2>
+              <p className="mt-1 text-sm text-muted-foreground">PDF, DOC, DOCX · Max 10MB</p>
+              {/* Honesty note: Gemini (our AI screening) can't read Word .doc/.docx,
+                  so those upload but silently skip analysis. Guide toward PDF without blocking. */}
+              <p className="mb-5 mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+                <Info className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" aria-hidden="true" />
+                <span>PDF recommended — Word files may not be readable by our AI screening.</span>
+              </p>
+
+              {cvFile ? (
+                <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <FileText className="h-8 w-8 flex-shrink-0 text-primary" aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{cvFile.name}</p>
+                    <p className="text-xs text-muted-foreground">{cvFile.size < 1024 * 1024 ? `${(cvFile.size / 1024).toFixed(1)} KB` : `${(cvFile.size / 1024 / 1024).toFixed(2)} MB`}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Remove uploaded CV"
+                    onClick={() => { setCvFile(null); setCvError(""); setCvPrefilled([]); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className={`w-full rounded-xl border-2 border-dashed p-10 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                    isDragging
+                      ? "border-primary bg-primary/5"
+                      : cvError
+                      ? "border-destructive"
+                      : errors.cv
+                      ? "border-destructive/60 hover:bg-muted/50"
+                      : "border-border hover:border-primary/40 hover:bg-muted/50"
+                  }`}
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragEnter={handleDragEnter}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  aria-label="Upload your CV. Click to browse, or drag and drop a PDF, DOC, or DOCX file."
+                  aria-invalid={!!cvError || !!errors.cv}
+                  aria-describedby={cvError ? "cv-error" : errors.cv ? "cv-error" : undefined}
+                >
+                  <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFileChange} />
+                  <Upload
+                    className={`mx-auto mb-3 h-10 w-10 transition-colors ${isDragging ? "text-primary" : "text-muted-foreground"}`}
+                    aria-hidden="true"
+                  />
+                  <p className="mb-1 text-sm font-medium">
+                    {isDragging ? "Drop your CV here" : "Click to upload or drag & drop"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">PDF, DOC, DOCX · Max 10MB</p>
+                </button>
+              )}
+              {/* Inline validation feedback — surfaced immediately on file rejection */}
+              {cvError && <p id="cv-error" className="mt-2 text-xs text-destructive-readable" role="alert">{cvError}</p>}
+              {errors.cv && !cvError && <p id="cv-error" role="alert" className="mt-2 text-xs text-destructive-readable">{errors.cv}</p>}
+            </motion.div>
+
+            {/* ── Card 2: Personal Information ── */}
             <motion.div
               className="rounded-2xl border border-border bg-card p-6 light-glow sm:p-8"
               initial="hidden"
               animate="show"
               variants={fadeUp}
             >
-              <h2 className="text-lg font-bold tracking-tight">Personal Information</h2>
-              <p className="mb-6 mt-1 text-sm text-muted-foreground">Tell us about yourself and how we can reach you.</p>
+              <h2 className="text-lg font-bold tracking-tight">Your details</h2>
+              <p className="mb-6 mt-1 text-sm text-muted-foreground">How we can reach you. Fields marked <span className="text-destructive-readable">*</span> are required.</p>
 
-              {/* Start-with-your-CV shortcut: the upload itself sits further down. */}
-              {!cvFile && (
-                <p className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-                  <FileText className="h-4 w-4 flex-shrink-0 text-primary" aria-hidden="true" />
-                  Have a PDF CV?
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="font-semibold text-primary-readable underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    Add it first
-                  </button>
-                  and we'll fill in the contact details it shows.
-                </p>
-              )}
               {cvPrefilled.length > 0 && (
                 <p role="status" className="mb-5 flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
                   <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" aria-hidden="true" />
@@ -717,78 +776,6 @@ const ApplyPage = () => {
                   />
                 </div>
               </div>
-            </motion.div>
-
-            {/* ── Card 2: CV Upload ── */}
-            <motion.div
-              className="rounded-2xl border border-border bg-card p-6 light-glow sm:p-8"
-              initial="hidden"
-              animate="show"
-              variants={fadeUp}
-              data-field="cv"
-            >
-              <h2 className="text-lg font-bold tracking-tight">Upload CV / Resume</h2>
-              <p className="mt-1 text-sm text-muted-foreground">PDF, DOC, DOCX · Max 10MB</p>
-              {/* Honesty note: Gemini (our AI screening) can't read Word .doc/.docx,
-                  so those upload but silently skip analysis. Guide toward PDF without blocking. */}
-              <p className="mb-5 mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
-                <Info className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" aria-hidden="true" />
-                <span>PDF recommended — Word files may not be readable by our AI screening.</span>
-              </p>
-
-              {cvFile ? (
-                <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
-                  <FileText className="h-8 w-8 flex-shrink-0 text-primary" aria-hidden="true" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{cvFile.name}</p>
-                    <p className="text-xs text-muted-foreground">{cvFile.size < 1024 * 1024 ? `${(cvFile.size / 1024).toFixed(1)} KB` : `${(cvFile.size / 1024 / 1024).toFixed(2)} MB`}</p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Remove uploaded CV"
-                    onClick={() => { setCvFile(null); setCvError(""); setCvPrefilled([]); if (fileInputRef.current) fileInputRef.current.value = ""; }}
-                    className="text-muted-foreground hover:text-destructive"
-                  >
-                    <X className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className={`w-full rounded-xl border-2 border-dashed p-10 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                    isDragging
-                      ? "border-primary bg-primary/5"
-                      : cvError
-                      ? "border-destructive"
-                      : errors.cv
-                      ? "border-destructive/60 hover:bg-muted/50"
-                      : "border-border hover:border-primary/40 hover:bg-muted/50"
-                  }`}
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragEnter={handleDragEnter}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  aria-label="Upload your CV. Click to browse, or drag and drop a PDF, DOC, or DOCX file."
-                  aria-invalid={!!cvError || !!errors.cv}
-                  aria-describedby={cvError ? "cv-error" : errors.cv ? "cv-error" : undefined}
-                >
-                  <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFileChange} />
-                  <Upload
-                    className={`mx-auto mb-3 h-10 w-10 transition-colors ${isDragging ? "text-primary" : "text-muted-foreground"}`}
-                    aria-hidden="true"
-                  />
-                  <p className="mb-1 text-sm font-medium">
-                    {isDragging ? "Drop your CV here" : "Click to upload or drag & drop"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">PDF, DOC, DOCX · Max 10MB</p>
-                </button>
-              )}
-              {/* Inline validation feedback — surfaced immediately on file rejection */}
-              {cvError && <p id="cv-error" className="mt-2 text-xs text-destructive-readable" role="alert">{cvError}</p>}
-              {errors.cv && !cvError && <p id="cv-error" role="alert" className="mt-2 text-xs text-destructive-readable">{errors.cv}</p>}
             </motion.div>
 
             {/* ── Card 3: Screening Questions ── */}
@@ -929,6 +916,41 @@ const ApplyPage = () => {
               </p>
             </div>
           </form>
+          </div>
+
+          {/* Desktop only: on a phone the form is the page, and the same steps
+              are shown on the confirmation screen. */}
+          <aside className="sticky top-28 hidden space-y-4 lg:block" aria-label="About this application">
+            <div className="rounded-2xl border border-border bg-card p-6 light-glow">
+              <p className="font-display text-[11px] font-bold uppercase tracking-[0.18em] text-primary-readable">You're applying for</p>
+              <p dir="auto" className="mt-2 text-lg font-extrabold leading-snug tracking-tight">{job.title}</p>
+              <dl className="mt-4 space-y-2.5 text-sm">
+                {[["Team", job.department], ["Location", job.location], ["Type", job.type]].filter(([, v]) => v).map(([k, v]) => (
+                  <div key={k} className="flex items-baseline justify-between gap-4">
+                    <dt className="text-muted-foreground">{k}</dt>
+                    <dd className="text-right font-medium text-foreground">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+              <Link to={`/jobs/${job.id}`} className="mt-4 inline-flex text-sm font-semibold text-primary-readable underline-offset-4 hover:underline">
+                Read the role again
+              </Link>
+            </div>
+            <div className="rounded-2xl border border-border bg-card p-6">
+              <p className="font-display text-[11px] font-bold uppercase tracking-[0.18em] text-primary-readable">What happens next</p>
+              <ol className="mt-4 space-y-4">
+                {hiringSteps.map((st) => (
+                  <li key={st.n} className="flex items-start gap-3">
+                    <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 font-display text-[11px] font-bold tabular-nums text-primary-readable">{st.n}</span>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{st.title}</p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{st.desc}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </aside>
         </div>
       </main>
       <Footer />

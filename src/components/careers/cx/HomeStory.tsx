@@ -7,6 +7,13 @@ const vars = (v: Record<string, number>) => v as unknown as CSSProperties;
 
 // ---------- Why Lumofy exists (Halo band) ----------
 // The statement is proposed wording: Lumofy has no official mission statement yet (needs sign-off).
+// Sourced: Lumofy company profile p19 and lumofy.ai "Proven Impact". Do not round or restate.
+const PROOF = [
+  { value: "100k+", label: "performance reviews completed" },
+  { value: "50k+", label: "performance goals managed" },
+  { value: "113k+", label: "courses completed" },
+];
+
 export function HomeMission() {
   return (
     <section className="cx-band cx-band--halo cx-mission" id="mission" aria-labelledby="mission-title">
@@ -35,10 +42,17 @@ export function HomeMission() {
               <p className="cx-chain__verdict">The problem isn't resources. It's visibility.</p>
             </div>
             {/* Sourced: Lumofy company profile p19 and lumofy.ai "Proven Impact". */}
-            <p className="cx-proof">
-              Organizations across the region rely on Lumofy: <strong>100k+</strong> performance reviews completed,{" "}
-              <strong>50k+</strong> performance goals managed and <strong>113k+</strong> courses completed.
-            </p>
+            <div className="cx-proof">
+              <p className="cx-proof__lead">Organizations across the region rely on Lumofy</p>
+              <dl className="cx-proof__list">
+                {PROOF.map((f) => (
+                  <div key={f.label}>
+                    <dt>{f.value}</dt>
+                    <dd>{f.label}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
           </div>
         </div>
       </div>
