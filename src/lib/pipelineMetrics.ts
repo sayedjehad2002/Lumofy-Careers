@@ -113,8 +113,17 @@ export function groupByStage(applicants: Applicant[]): Record<ApplicantStatus, A
  * "user chose this" from "defaulted to this".
  */
 export function defaultCollapsedStages(counts: Record<ApplicantStatus, number>): ApplicantStatus[] {
-  return APPLICANT_STATUSES.map((s) => s.value).filter((v) => TERMINAL_STAGES.has(v) || (counts[v] ?? 0) === 0);
+  return APPLICANT_STATUSES.map((s) => s.value).filter((v) =>
+    TERMINAL_STAGES.has(v) || (counts[v] ?? 0) === 0 || (v === "new" && (counts.new ?? 0) > NEW_BACKLOG_RAIL));
 }
+
+/**
+ * Past this many, New is a backlog rather than a column anyone drags from: it
+ * starts as a rail so the stages people are working in get the width. Reviewing
+ * a backlog is the Applicants list's job ("Review N new"). One click expands it,
+ * and that choice is remembered like any other. Decided with HR 2026-11-17.
+ */
+export const NEW_BACKLOG_RAIL = 100;
 
 export type TriageFactId = "fastTrack" | "stalledInterviews" | "unscoredNew" | "arrivedThisWeek";
 

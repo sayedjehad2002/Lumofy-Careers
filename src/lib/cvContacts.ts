@@ -250,8 +250,16 @@ async function readCvBytes(buf: Uint8Array): Promise<CvReading> {
 
   const unpdfUrl = "https://esm.sh/unpdf@0.12.1";
   const { extractText, getDocumentProxy } = await import(/* @vite-ignore */ unpdfUrl);
-  const doc = await getDocumentProxy(buf);
-  const { text } = await extractText(doc, { mergePages: true });
+  // A PDF the reader cannot open (password-protected, damaged) will never open
+  // on a retry either, so it is "unreadable", not a failure to run again.
+  let doc: Awaited<ReturnType<typeof getDocumentProxy>>;
+  let text: unknown;
+  try {
+    doc = await getDocumentProxy(buf);
+    ({ text } = await extractText(doc, { mergePages: true }));
+  } catch {
+    return { readable: false, reason: "no_text" };
+  }
 
   const links: string[] = [];
   for (let i = 1; i <= Math.min(doc.numPages ?? 0, 10); i++) {

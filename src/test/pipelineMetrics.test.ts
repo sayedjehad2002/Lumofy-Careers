@@ -152,8 +152,16 @@ describe("defaultCollapsedStages", () => {
     expect(collapsed).toContain("hired");
   });
 
+  it("rails a New backlog past the threshold, and only New", () => {
+    const counts = { ...zeroCounts(), new: 300, reviewing: 300 };
+    const collapsed = defaultCollapsedStages(counts);
+    expect(collapsed).toContain("new");
+    expect(collapsed).not.toContain("reviewing");
+    expect(defaultCollapsedStages({ ...zeroCounts(), new: 100 })).not.toContain("new");
+  });
+
   it("rails empty working stages but never busy ones", () => {
-    const counts = { ...zeroCounts(), new: 300, reviewing: 8 };
+    const counts = { ...zeroCounts(), new: 80, reviewing: 8 };
     const collapsed = defaultCollapsedStages(counts);
     expect(collapsed).toContain("shortlisted");
     expect(collapsed).not.toContain("new");

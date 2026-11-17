@@ -17,6 +17,11 @@ export type ContactSweepResult = {
   /** Scans, photos, Word files or missing files: nothing to read without OCR. */
   unreadable: number;
   failed: number;
+  /**
+   * The CV's email is already on another application for the same role (the
+   * database allows one application per email per role), so this is a duplicate.
+   */
+  duplicates: number;
   cancelled: boolean;
   /** Applicants whose CV was actually read (or found unreadable), so a rerun can skip them. */
   checkedIds: string[];
@@ -47,7 +52,7 @@ export function useContactSweep(
   const run = useCallback(async (items: Applicant[]): Promise<ContactSweepResult> => {
     cancelRef.current = false;
     const r: ContactSweepResult = {
-      emails: 0, phones: 0, linkedins: 0, names: 0, noEmailOnCv: 0, unreadable: 0, failed: 0, cancelled: false,
+      emails: 0, phones: 0, linkedins: 0, names: 0, noEmailOnCv: 0, unreadable: 0, failed: 0, duplicates: 0, cancelled: false,
       checkedIds: [],
     };
     const queue = [...items];
@@ -68,7 +73,16 @@ export function useContactSweep(
           const fixedName = repairGluedName(a.fullName ?? "", reading.text);
           if (fixedName) patch.fullName = fixedName;
           if (Object.keys(patch).length > 0) {
-            await saveFields(a.id, patch);
+            try {
+              await saveFields(a.id, patch);
+            } catch (e) {
+              // An email that will not save is one another application for this
+              // role already has. Keep the rest of what the CV gave us.
+              if (!patch.email) throw e;
+              delete patch.email;
+              r.duplicates++;
+              if (Object.keys(patch).length > 0) await saveFields(a.id, patch);
+            }
             if (patch.fullName) r.names++;
             if (patch.email) r.emails++;
             if (patch.phone) r.phones++;

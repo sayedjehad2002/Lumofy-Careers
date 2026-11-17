@@ -757,3 +757,30 @@
 .pk { overflow-x: hidden; }
 .pk__foot .dx-btn { min-width: 0; gap: .375rem; }
 @media (max-width: 420px) { .pk__foot { padding-inline: 1rem; } .pk__foot .dx-btn { padding: 0 .375rem; font-size: .875rem; } .pk__head, .pk__body { padding-inline: 1rem; } }
+
+/* ---------- Rail: folds to icons so the work gets the width ---------- */
+.dx-rail { transition: width 220ms var(--dx-ease); }
+.dx-rail__toggle { display: grid; place-items: center; flex: none; width: 2rem; height: 2rem; border-radius: .5rem; color: #A3A3A3; transition: background-color 150ms ease, color 150ms ease; }
+.dx-rail__toggle:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+.dx-rail.is-collapsed .dx-rail__hide { display: none; }
+.dx-rail.is-collapsed .dx-rail__top { justify-content: center; padding-inline: 0; }
+.dx-rail.is-collapsed .dx-rail__search,
+.dx-rail.is-collapsed .dx-rail__link,
+.dx-rail.is-collapsed .dx-rail__foot-link { justify-content: center; padding-inline: 0; }
+.dx-rail.is-collapsed .dx-rail__link { height: 2.75rem; }
+.dx-rail.is-collapsed .dx-rail__group { height: 1px; margin: .5rem .75rem; padding: 0; overflow: hidden; background: rgba(255, 255, 255, .08); color: transparent; }
+.dx-rail.is-collapsed .dx-rail__account { padding: .375rem; border-color: transparent; background: none; background-image: none; }
+.dx-rail.is-collapsed .dx-rail__account > div { justify-content: center; }
+.dx-rail.is-collapsed .dx-rail__account button { justify-content: center; padding-inline: 0; }
+@media (prefers-reduced-motion: reduce) { .dx-rail { transition: none; } }
+
+/* ---------- Laptop density ----------
+   Everything in the dashboard is sized in rem, so the root size is the one dial
+   that tightens type and spacing together. Scoped to the dashboard (the class is
+   set while it is mounted), and only below a wide monitor. */
+@media (min-width: 1024px) and (max-width: 1679px) { html.dx-density { font-size: 15px; } }
+@media (min-width: 1024px) and (max-width: 1439px) { html.dx-density { font-size: 14px; } }
+@media (min-width: 1024px) and (max-width: 1679px) {
+  .dx-main { padding: 1.5rem 1.75rem; }
+  .ar-row { min-height: 3.5rem; padding-block: .5rem; }
+}

@@ -780,6 +780,7 @@ function ContactSweepStrip({
           <p className="ar-sweep__muted">
             {result.noEmailOnCv > 0 && `${plural(result.noEmailOnCv, "CV")} print no email. Most are LinkedIn PDF exports, which leave it out, so ask the candidate or check their LinkedIn. `}
             {result.unreadable > 0 && `${plural(result.unreadable, "CV")} couldn't be read (a scan, a Word file or a missing file). `}
+            {result.duplicates > 0 && `${plural(result.duplicates, "CV")} print${result.duplicates === 1 ? "s" : ""} an email that another application for the same role already uses, so ${result.duplicates === 1 ? "it looks like a duplicate" : "they look like duplicates"}. `}
             {result.failed > 0 && `${plural(result.failed, "CV")} failed to load; you can run those again.`}
           </p>
         </div>

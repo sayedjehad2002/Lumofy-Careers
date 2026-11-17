@@ -90,7 +90,17 @@ const CandidateProfile = ({
         const patch = contactPatch(applicant, reading.contacts);
         const labels = Object.keys(patch).map((k) => (k === "linkedin" ? "LinkedIn" : k));
         if (labels.length > 0) {
-          await updateApplicantFields(applicant.id, patch);
+          try {
+            await updateApplicantFields(applicant.id, patch);
+          } catch (e) {
+            // One application per email per role: the CV's address is already on
+            // another application for this role, so this one is a duplicate.
+            if (!patch.email) throw e;
+            const { email: _taken, ...rest } = patch;
+            if (Object.keys(rest).length > 0) await updateApplicantFields(applicant.id, rest);
+            toast.warning("The email on this CV is already on another application for this role, so this looks like a duplicate.");
+            return;
+          }
           toast.success(`Found ${labels.join(" + ")} in the CV`);
         } else if (!reading.contacts.email) {
           toast.info("This CV doesn't print an email. LinkedIn PDF exports usually leave it out.");
