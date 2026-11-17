@@ -1,4 +1,5 @@
 import { useMemo, useCallback, useState, useEffect, forwardRef } from "react";
+import { locationFacets } from "@/lib/jobLocations";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -240,7 +241,9 @@ const JobsPage = () => {
   const openJobs = useMemo(() => jobs.filter(j => j.status === "open"), [jobs]);
 
   const departments = useMemo(() => Array.from(new Set(openJobs.map(j => j.department))).sort(), [openJobs]);
-  const locations = useMemo(() => Array.from(new Set(openJobs.map(j => j.location))).sort(), [openJobs]);
+  // Locations are grouped by place, not by spelling, and a "Bahrain & Remote"
+  // role is listed under both rather than as a third place.
+  const locations = useMemo(() => Array.from(new Set(openJobs.flatMap(j => locationFacets(j.location)))).sort(), [openJobs]);
   const jobTypes = useMemo(() => Array.from(new Set(openJobs.map(j => j.type))).sort(), [openJobs]);
 
   // Counts (based on all open jobs, not filtered)
@@ -252,7 +255,7 @@ const JobsPage = () => {
 
   const locCounts = useMemo(() => {
     const c: Record<string, number> = {};
-    openJobs.forEach(j => { c[j.location] = (c[j.location] || 0) + 1; });
+    openJobs.forEach(j => locationFacets(j.location).forEach(l => { c[l] = (c[l] || 0) + 1; }));
     return c;
   }, [openJobs]);
 
@@ -272,7 +275,7 @@ const JobsPage = () => {
         if (!haystack.includes(q)) return false;
       }
       if (selectedDepartments.length > 0 && !selectedDepartments.includes(job.department)) return false;
-      if (selectedLocations.length > 0 && !selectedLocations.includes(job.location)) return false;
+      if (selectedLocations.length > 0 && !locationFacets(job.location).some(l => selectedLocations.includes(l))) return false;
       if (selectedTypes.length > 0 && !selectedTypes.includes(job.type)) return false;
       return true;
     });

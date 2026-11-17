@@ -198,6 +198,8 @@ const ApplyPage = () => {
   const [submitPhase, setSubmitPhase] = useState<"uploading" | "submitting" | null>(null);
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [cvError, setCvError] = useState("");
+  // Which fields were filled in from the CV, so we can say so and ask for a check.
+  const [cvPrefilled, setCvPrefilled] = useState<string[]>([]);
   // Drag-and-drop visual state for the CV dropzone.
   const [isDragging, setIsDragging] = useState(false);
   // Mirrors the submission-error toast into an aria-live region so screen-reader
@@ -213,6 +215,9 @@ const ApplyPage = () => {
     portfolio: "",
     coverLetter: "",
   });
+  // The latest form values for code that runs after an await (the CV prefill).
+  const formRef = useRef(formData);
+  formRef.current = formData;
   const [screeningAnswers, setScreeningAnswers] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -296,6 +301,30 @@ const ApplyPage = () => {
   // NOTE: a plain function (not useCallback) — it lives after the early-return
   // guards above, so it must not be a hook, or React throws "rendered more
   // hooks than during the previous render" (#310) once the job loads.
+  // Save the candidate some typing: read the email, phone and LinkedIn their own
+  // CV prints and fill the fields they have left empty. It runs in their browser
+  // on the file they just picked (plain pattern matching, no AI, nothing sent),
+  // and it is best-effort: a scan or a Word file simply fills nothing.
+  const prefillFromCv = async (file: File) => {
+    setCvPrefilled([]);
+    try {
+      const { readCvFile } = await import("@/lib/cvContacts");
+      const reading = await readCvFile(file);
+      if (!reading.readable) return;
+      // Decided against what is on screen right now, so nothing typed is replaced.
+      const now = formRef.current;
+      const patch: Partial<typeof now> = {};
+      const filled: string[] = [];
+      const { email, phone, linkedin } = reading.contacts;
+      if (email && !now.email.trim()) { patch.email = email; filled.push("email"); }
+      if (phone && !now.phone.trim()) { patch.phone = phone; filled.push("phone"); }
+      if (linkedin && !now.linkedin.trim()) { patch.linkedin = linkedin; filled.push("LinkedIn"); }
+      if (filled.length === 0) return;
+      setFormData((prev) => ({ ...prev, ...patch }));
+      setCvPrefilled(filled);
+    } catch { /* never block an application on a convenience */ }
+  };
+
   const acceptFile = (file: File | null | undefined) => {
     setCvError("");
     if (!file) return;
@@ -313,6 +342,7 @@ const ApplyPage = () => {
       return;
     }
     setCvFile(file);
+    void prefillFromCv(file);
     // Clear any prior submit-time CV requirement error once a valid file is chosen.
     setErrors((prev) => {
       if (!prev.cv) return prev;
@@ -609,6 +639,30 @@ const ApplyPage = () => {
               <h2 className="text-lg font-bold tracking-tight">Personal Information</h2>
               <p className="mb-6 mt-1 text-sm text-muted-foreground">Tell us about yourself and how we can reach you.</p>
 
+              {/* Start-with-your-CV shortcut: the upload itself sits further down. */}
+              {!cvFile && (
+                <p className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                  <FileText className="h-4 w-4 flex-shrink-0 text-primary" aria-hidden="true" />
+                  Have a PDF CV?
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="font-semibold text-primary-readable underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Add it first
+                  </button>
+                  and we'll fill in the contact details it shows.
+                </p>
+              )}
+              {cvPrefilled.length > 0 && (
+                <p role="status" className="mb-5 flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
+                  <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" aria-hidden="true" />
+                  <span>
+                    We filled in your {cvPrefilled.length > 1 ? `${cvPrefilled.slice(0, -1).join(", ")} and ${cvPrefilled[cvPrefilled.length - 1]}` : cvPrefilled[0]} from your CV. Please check {cvPrefilled.length === 1 ? "it is" : "they are"} right.
+                  </span>
+                </p>
+              )}
+
               <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
                 <div data-field="fullName">
                   <Label htmlFor="fullName" className="text-sm">Full Name <span className="text-destructive-readable">*</span></Label>
@@ -694,7 +748,7 @@ const ApplyPage = () => {
                     variant="ghost"
                     size="icon"
                     aria-label="Remove uploaded CV"
-                    onClick={() => { setCvFile(null); setCvError(""); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                    onClick={() => { setCvFile(null); setCvError(""); setCvPrefilled([]); if (fileInputRef.current) fileInputRef.current.value = ""; }}
                     className="text-muted-foreground hover:text-destructive"
                   >
                     <X className="h-4 w-4" aria-hidden="true" />

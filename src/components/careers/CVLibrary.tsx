@@ -957,7 +957,7 @@ export default function CVLibrary({ sessionToken, jobs = [], onSessionExpired, s
         eyebrow="Talent"
         title="CV Library"
         summary={
-          <>
+          loading ? <>Loading the library…</> : <>
             <b>{candidates.length}</b> CVs across <b>{fullTree.tree.size}</b> departments
             {candidates.some((c) => c.status === "shortlisted") && (
               <> · <b>{candidates.filter((c) => c.status === "shortlisted").length}</b> shortlisted</>

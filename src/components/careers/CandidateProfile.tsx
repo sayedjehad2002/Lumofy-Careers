@@ -31,6 +31,9 @@ import EditableText from "@/components/careers/applicants/EditableText";
 import CandidateTimeline from "@/components/careers/applicants/CandidateTimeline";
 import InternalNotes from "@/components/careers/applicants/InternalNotes";
 import { useApplicantEvents } from "@/hooks/use-applicant-events";
+import { readApplicantCv } from "@/components/careers/applicants/useContactSweep";
+import { contactPatch, repairGluedName } from "@/lib/cvContacts";
+import { isLibraryCandidate } from "@/lib/candidateTimeline";
 import { useCareers } from "@/contexts/CareersContext";
 import { toTitleCase } from "@/lib/utils";
 import { APPLICANT_STATUSES, type ApplicantStatus, type Applicant, type Job, type AIAnalysis } from "@/types/careers";
@@ -75,11 +78,31 @@ const CandidateProfile = ({
   const { events, reload: reloadHistory } =
     useApplicantEvents(applicant.id, sessionToken);
 
-  // Ask the AI to transcribe the contact block off the CV. Only ever fills fields
-  // that are empty (server-enforced), so it can't overwrite anything HR typed.
+  // Read the contact block off the CV. First without AI: the CV's own text and
+  // links, pattern-matched in the browser (instant, free, cannot invent an
+  // address). Only a CV with no text layer at all (a scan) goes to the AI, which
+  // can read images. Either way only EMPTY fields are filled.
   const recoverContacts = useCallback(async () => {
     setRecovering(true);
     try {
+      const reading = await readApplicantCv(applicant, sessionToken).catch(() => null);
+      if (reading?.readable) {
+        const patch = contactPatch(applicant, reading.contacts);
+        const labels = Object.keys(patch).map((k) => (k === "linkedin" ? "LinkedIn" : k));
+        if (labels.length > 0) {
+          await updateApplicantFields(applicant.id, patch);
+          toast.success(`Found ${labels.join(" + ")} in the CV`);
+        } else if (!reading.contacts.email) {
+          toast.info("This CV doesn't print an email. LinkedIn PDF exports usually leave it out.");
+        } else {
+          toast.info("Nothing new on the CV: what it prints is already on file");
+        }
+        return;
+      }
+      if (reading && reading.reason === "not_pdf") {
+        toast.error("This CV isn't a PDF, so it can't be read here");
+        return;
+      }
       const { data, error } = await supabase.functions.invoke("analyze-cv", {
         body: { action: "extract-contacts", applicantId: applicant.id, sessionToken },
       });
@@ -98,7 +121,29 @@ const CandidateProfile = ({
     } finally {
       setRecovering(false);
     }
-  }, [applicant.id, sessionToken, refreshData]);
+  }, [applicant, sessionToken, refreshData, updateApplicantFields]);
+  // A name stored as one run ("Sarahshaikh"): offer to split it, but only using
+  // words the CV itself prints, so a genuine single name is never rewritten.
+  const looksGlued = /^\p{L}{8,}$/u.test(applicant.fullName.trim()) && !!applicant.cvStoragePath;
+  const [fixingName, setFixingName] = useState(false);
+  const fixNameFromCv = useCallback(async () => {
+    setFixingName(true);
+    try {
+      const reading = await readApplicantCv(applicant, sessionToken);
+      const fixed = reading.readable ? repairGluedName(applicant.fullName, reading.text) : null;
+      if (fixed) {
+        await updateApplicantFields(applicant.id, { fullName: fixed });
+        toast.success(`Name corrected to ${fixed}`);
+      } else {
+        toast.info("The CV doesn't print this name as separate words, so it was left as it is");
+      }
+    } catch {
+      toast.error("Couldn't read the CV. Please try again");
+    } finally {
+      setFixingName(false);
+    }
+  }, [applicant, sessionToken, updateApplicantFields]);
+
   // "Change job": reassign this applicant to a different job's pipeline.
   const [moveJobOpen, setMoveJobOpen] = useState(false);
   const [targetJobId, setTargetJobId] = useState("");
@@ -286,7 +331,7 @@ const CandidateProfile = ({
                 <Briefcase className="h-3.5 w-3.5" aria-hidden="true" />
                 <span className="truncate">{currentJobTitle}</span>
                 <span className="pp-dot" aria-hidden="true" />
-                Applied {new Date(applicant.appliedDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                {isLibraryCandidate(applicant) ? "Added from CV Library" : "Applied"} {new Date(applicant.appliedDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
               </p>
               {/* Contact line: how to reach them is the first thing HR needs after
                   knowing who they are. When it's missing, say so plainly and offer
@@ -317,6 +362,16 @@ const CandidateProfile = ({
                   </span>
                 )}
               </div>
+              {looksGlued && (
+                <p className="pp-contact__item mt-1">
+                  This name may be two words run together.
+                  <button type="button" onClick={fixNameFromCv} disabled={fixingName} className="dx-link inline-flex items-center gap-1 disabled:opacity-60">
+                    {fixingName
+                      ? <><Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> Reading the CV…</>
+                      : "Check it against the CV"}
+                  </button>
+                </p>
+              )}
               {!applicant.fullName && (
                 <p className="pp-contact__warn mt-1">
                   <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
@@ -523,7 +578,9 @@ const CandidateProfile = ({
           </motion.div>
 
           {/* Screening answers — what the candidate actually said */}
-          {job && job.screeningQuestions.length > 0 && (
+          {/* A library candidate was never asked the questions: an empty "0 of 4
+              answered" panel reads as if they skipped them. */}
+          {job && job.screeningQuestions.length > 0 && !(isLibraryCandidate(applicant) && answeredScreening.length === 0) && (
             <motion.section
               className="dx-card cv-panel"
               initial={{ opacity: 0, y: 12 }}
@@ -560,9 +617,13 @@ const CandidateProfile = ({
           )}
 
           {/* Interview prep kit — judgment support for the next stage */}
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.15 }}>
-            <InterviewPrep applicant={applicant} job={job} />
-          </motion.div>
+          {/* The kit is assembled from the stored AI analysis, so there is nothing
+              to build it from until one exists. */}
+          {applicant.aiAnalysis && (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.15 }}>
+              <InterviewPrep applicant={applicant} job={job} />
+            </motion.div>
+          )}
         </div>
 
         {/* ===== Rail — action ===== */}

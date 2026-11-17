@@ -1,4 +1,5 @@
 import { clsx, type ClassValue } from "clsx";
+import { stripNameTail } from "@/lib/cvContacts";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -114,6 +115,8 @@ export function isJunkName(name?: string | null): boolean {
  * the DB→app mapping boundary so every render site is fixed at the source.
  */
 export function applicantDisplayName(fullName?: string | null, cvFileName?: string | null): string {
-  if (!isJunkName(fullName)) return toTitleCase(fullName);
-  return deriveNameFromFilename(cvFileName);
+  // Either source can carry debris on the end: a LinkedIn profile id
+  // ("Hossam Farag 65b3818a") or our own name from "Name_Lumofy_CV.pdf".
+  if (!isJunkName(fullName)) return stripNameTail(toTitleCase(fullName));
+  return stripNameTail(deriveNameFromFilename(cvFileName));
 }

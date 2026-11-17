@@ -145,7 +145,7 @@ describe("candidate URLs", () => {
     // the list was still empty and a valid link read "Candidate not found".
     dataState.ready = false;
     renderAt("/dashboard/applicants/cand-1");
-    expect(await screen.findByText(/Loading dashboard/i)).toBeInTheDocument();
+    expect(await screen.findByRole("status", { name: /Loading dashboard/i })).toBeInTheDocument();
     expect(screen.queryByText(/Candidate not found/i)).not.toBeInTheDocument();
   });
 

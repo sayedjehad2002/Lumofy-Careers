@@ -13,7 +13,11 @@ import type { ApplicantEvent } from "@/hooks/use-applicant-events";
  * applied date invented a history that looked authoritative and was wrong.
  */
 
-export type TimelineKind = "applied" | "stage" | "note" | "ai";
+export type TimelineKind = "applied" | "added" | "stage" | "note" | "ai";
+
+/** Promoted from the CV Library by HR, rather than applying through the public form. */
+export const isLibraryCandidate = (a: Pick<Applicant, "cvStoragePath">) =>
+  !!a.cvStoragePath?.startsWith("library/");
 
 export interface TimelineEntry {
   id: string;
@@ -39,10 +43,13 @@ const statusLabel = (s: string) =>
 export function buildTimeline(applicant: Applicant, events: ApplicantEvent[]): TimelineEntry[] {
   const list: TimelineEntry[] = [];
 
+  // A candidate HR added from the CV Library never submitted anything, and the
+  // create path records no actor — so say what happened and credit nobody.
+  const fromLibrary = isLibraryCandidate(applicant);
   list.push({
     id: "applied",
-    kind: "applied",
-    label: "Application submitted",
+    kind: fromLibrary ? "added" : "applied",
+    label: fromLibrary ? "Added from CV Library" : "Application submitted",
     detail: applicant.cvFileName,
     at: new Date(applicant.appliedDate),
   });

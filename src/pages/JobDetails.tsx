@@ -166,7 +166,7 @@ const JobDetails = () => {
                 <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-0 mb-3">
                   {job.department}
                 </Badge>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-4">{job.title}</h1>
+                <h1 dir="auto" className="text-2xl sm:text-3xl font-bold mb-4">{job.title}</h1>
                 <div className="flex flex-wrap items-center gap-2 mb-4">
                   <span className="lx-meta-chip">
                     <MapPin className="w-4 h-4" aria-hidden="true" /> {job.location}
@@ -224,7 +224,7 @@ const JobDetails = () => {
                   transition={{ duration: 0.4, delay: 0.1, ease: brandEase }}
                 >
                   <h2 className="text-lg font-semibold mb-3">About the Role</h2>
-                  <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>
+                  <p dir="auto" className="text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>
                 </motion.div>
               )}
 
@@ -239,9 +239,9 @@ const JobDetails = () => {
                   <h2 className="text-lg font-semibold mb-3">Key Responsibilities</h2>
                   <ul className="space-y-2">
                     {(job.responsibilities ?? []).filter(r => r.trim()).map((r, i) => (
-                      <li key={i} className="flex items-start gap-2 text-muted-foreground">
+                      <li key={i} dir="auto" className="flex items-start gap-2 text-muted-foreground">
                         <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" aria-hidden="true" />
-                        {r}
+                        <span className="min-w-0">{r}</span>
                       </li>
                     ))}
                   </ul>
@@ -259,9 +259,9 @@ const JobDetails = () => {
                   <h2 className="text-lg font-semibold mb-3">Requirements</h2>
                   <ul className="space-y-2">
                     {(job.requirements ?? []).filter(r => r.trim()).map((r, i) => (
-                      <li key={i} className="flex items-start gap-2 text-muted-foreground">
+                      <li key={i} dir="auto" className="flex items-start gap-2 text-muted-foreground">
                         <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" aria-hidden="true" />
-                        {r}
+                        <span className="min-w-0">{r}</span>
                       </li>
                     ))}
                   </ul>

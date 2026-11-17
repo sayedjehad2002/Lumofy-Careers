@@ -40,7 +40,7 @@ const STAGE_ICON: Record<ApplicantStatus, LxIcon> = {
 };
 
 function iconFor(e: TimelineEntry): LxIcon {
-  if (e.kind === "applied") return LxDocument;
+  if (e.kind === "applied" || e.kind === "added") return LxDocument;
   if (e.kind === "ai") return LxAnalysis;
   if (e.kind === "note") return LxNote;
   return e.to ? STAGE_ICON[e.to] : LxCandidate;
@@ -64,6 +64,8 @@ const initials = (email: string) => {
 function Attribution({ e }: { e: TimelineEntry }) {
   if (e.kind === "applied") return <span className="text-muted-foreground/60">by the candidate</span>;
   if (e.kind === "ai") return <span className="text-muted-foreground/60">by Lumofy AI</span>;
+  // Who added them was never recorded, so name the team rather than guess a person.
+  if (e.kind === "added") return <span className="text-muted-foreground/60">by the HR team</span>;
   if (e.actor) {
     return (
       <span className="flex min-w-0 items-center gap-1.5" title={e.actor}>

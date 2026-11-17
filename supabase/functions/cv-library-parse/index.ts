@@ -27,6 +27,8 @@ function deriveNameFromFilename(fileName?: string | null): string | null {
     "doc", "docs", "scan", "scanned", "screenshot", "image", "img", "photo", "picture",
     "attachment", "application", "applicant", "candidate", "passport", "id", "certificate",
     "template", "sample", "portfolio", "lebenslauf", "confidential", "interview", "new", "untitled1",
+    // Our own name, from files saved as "Name_Lumofy_CV.pdf".
+    "lumofy",
   ]);
   // Allow single-letter initials ("Leena A") — don't require every part to be 2+ chars.
   const words = base
@@ -299,6 +301,7 @@ You MUST respond with a valid JSON object (no markdown, no code blocks):
       if (!parsed && rawText.length >= 200) {
         const slug = rawText.match(/linkedin\.com\/in\/([A-Za-z0-9-]+)/i)?.[1] || "";
         const slugName = slug
+          .replace(/-(?=[0-9a-f]*\d)[0-9a-f]{5,}$/i, "") // trailing profile id ("-65b3818a")
           .replace(/-?\d+$/, "")                     // trailing profile digits
           .split("-")
           .filter(Boolean)

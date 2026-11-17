@@ -188,11 +188,12 @@ export interface AIAnalysis {
   alternativesConsidered?: { role: string; confidence: number }[];
 }
 
-export const APPLICANT_STATUSES: { value: ApplicantStatus; label: string; color: string }[] = [
-  { value: "new", label: "New", color: "bg-blue-500/20 text-blue-400" },
-  { value: "reviewing", label: "Reviewing", color: "bg-yellow-500/20 text-yellow-400" },
-  { value: "shortlisted", label: "Shortlisted", color: "bg-emerald-500/20 text-emerald-400" },
-  { value: "interview", label: "Interview", color: "bg-purple-500/20 text-purple-400" },
-  { value: "rejected", label: "Rejected", color: "bg-red-500/20 text-red-400" },
-  { value: "hired", label: "Hired", color: "bg-green-500/20 text-green-400" },
+// Colours live in statusColors.ts (STATUS_SOFT / STATUS_COLORS), on theme tokens.
+export const APPLICANT_STATUSES: { value: ApplicantStatus; label: string }[] = [
+  { value: "new", label: "New" },
+  { value: "reviewing", label: "Reviewing" },
+  { value: "shortlisted", label: "Shortlisted" },
+  { value: "interview", label: "Interview" },
+  { value: "rejected", label: "Rejected" },
+  { value: "hired", label: "Hired" },
 ];

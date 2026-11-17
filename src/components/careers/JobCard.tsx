@@ -59,7 +59,7 @@ const JobCard = ({ job, index }: JobCardProps) => {
                   )}
                 </div>
 
-                <h3 className="mb-2 truncate text-lg font-bold tracking-tight text-foreground transition-colors duration-200 group-hover:text-primary">
+                <h3 dir="auto" className="mb-2 truncate text-lg font-bold tracking-tight text-foreground transition-colors duration-200 group-hover:text-primary">
                   {job.title}
                 </h3>
 

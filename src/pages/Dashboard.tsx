@@ -361,19 +361,6 @@ const Dashboard = () => {
     );
   }
 
-  // Same reason: without the applicants in, every screen behind this gate would
-  // briefly read "0 applications" and an empty board.
-  if (!dataReady) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
   const handleTabNavigate = (tab: string) => {
     setActiveTab(tab as Tab);
   };
@@ -575,6 +562,12 @@ const Dashboard = () => {
           the page exactly as before. */}
       <main id="main" className={`flex-1 min-h-0 ${boardLayout ? "flex flex-col overflow-hidden" : "overflow-y-auto"}`}>
         <div className={`p-6 lg:p-8 pt-28 lg:pt-8 ${boardLayout ? "flex min-h-0 flex-1 flex-col overflow-hidden" : ""}`}>
+          {/* The shell paints at once; only the content waits for the data. Without
+              the applicants in, every screen would briefly read "0 applications"
+              and an empty board, so the frame holds a skeleton instead. */}
+          {!dataReady ? (
+            <DashboardSkeleton />
+          ) : (
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab + (selectedApplicant ? '-profile' : '')}
@@ -653,6 +646,7 @@ const Dashboard = () => {
                   toast.error("Analysis finished but could not be saved — please re-run it.");
                 });
               }}
+              onAddNote={addApplicantNote}
               getJobTitle={getJobTitle}
               sessionToken={sessionToken}
             />
@@ -770,6 +764,7 @@ const Dashboard = () => {
 
             </motion.div>
           </AnimatePresence>
+          )}
         </div>
       </main>
 
@@ -821,5 +816,22 @@ const Dashboard = () => {
     </div>
   );
 };
+
+/** Placeholder for any tab while the applicants load: a heading, a toolbar, rows. */
+function DashboardSkeleton() {
+  return (
+    <div role="status" aria-label="Loading dashboard" className="dx-skel">
+      <div className="dx-skel__bar" style={{ width: "5rem", height: ".75rem" }} />
+      <div className="dx-skel__bar" style={{ width: "14rem", height: "2rem", marginTop: ".75rem" }} />
+      <div className="dx-skel__bar" style={{ width: "22rem", maxWidth: "100%", height: ".875rem", marginTop: ".75rem" }} />
+      <div className="dx-skel__tiles">
+        {[0, 1, 2, 3].map((i) => <div key={i} className="dx-skel__bar" />)}
+      </div>
+      <div className="dx-skel__rows">
+        {[0, 1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="dx-skel__bar" />)}
+      </div>
+    </div>
+  );
+}
 
 export default Dashboard;

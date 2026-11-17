@@ -87,20 +87,20 @@ interface AIAnalysisResultsProps {
 
 const severityColors = {
   high: "bg-destructive/10 text-destructive border-destructive/20",
-  medium: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20",
-  low: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+  medium: "bg-[hsl(var(--intel-warning)/0.1)] text-[hsl(var(--intel-warning))] border-[hsl(var(--intel-warning)/0.2)]",
+  low: "bg-[hsl(var(--intel-success)/0.1)] text-[hsl(var(--intel-success))] border-[hsl(var(--intel-success)/0.2)]",
 };
 
 const urgencyColors = {
   Critical: "bg-destructive text-destructive-foreground",
-  High: "bg-orange-500 text-white",
-  Moderate: "bg-yellow-500 text-black",
+  High: "bg-[hsl(var(--chart-5))] text-white",
+  Moderate: "bg-[hsl(var(--intel-warning))] text-black",
 };
 
 const healthColors = (score: number) => {
-  if (score >= 8) return "text-emerald-500";
+  if (score >= 8) return "text-[hsl(var(--intel-success))]";
   if (score >= 6) return "text-primary";
-  if (score >= 4) return "text-yellow-500";
+  if (score >= 4) return "text-[hsl(var(--intel-warning))]";
   return "text-destructive";
 };
 
@@ -129,7 +129,7 @@ const AIAnalysisResults = ({ analysis, analyzedAt, narrativeMode = false }: AIAn
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-purple-500/5">
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-[hsl(var(--chart-3)/0.05)]">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -139,9 +139,9 @@ const AIAnalysisResults = ({ analysis, analyzedAt, narrativeMode = false }: AIAn
               <Badge
                 variant="secondary"
                 className={`${
-                  analysis.executiveSummary.overallHealth === "Strong" ? "bg-emerald-500/15 text-emerald-500" :
+                  analysis.executiveSummary.overallHealth === "Strong" ? "bg-[hsl(var(--intel-success)/0.15)] text-[hsl(var(--intel-success))]" :
                   analysis.executiveSummary.overallHealth === "Moderate" ? "bg-primary/15 text-primary" :
-                  analysis.executiveSummary.overallHealth === "Needs Attention" ? "bg-yellow-500/15 text-yellow-500" :
+                  analysis.executiveSummary.overallHealth === "Needs Attention" ? "bg-[hsl(var(--intel-warning)/0.15)] text-[hsl(var(--intel-warning))]" :
                   "bg-destructive/15 text-destructive"
                 } border-0`}
               >
@@ -264,13 +264,13 @@ const AIAnalysisResults = ({ analysis, analyzedAt, narrativeMode = false }: AIAn
                 <CollapsibleContent>
                   <div className="mt-2 p-4 rounded-lg bg-muted/30 border border-border/50 grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <p className="text-[10px] text-emerald-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <p className="text-[10px] text-[hsl(var(--intel-success))] uppercase tracking-wider mb-2 flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" />Strengths
                       </p>
                       <ul className="space-y-1">
                         {dept.strengths.map((s, j) => (
                           <li key={j} className="text-xs flex items-start gap-1.5">
-                            <span className="text-emerald-500 mt-0.5">•</span>{s}
+                            <span className="text-[hsl(var(--intel-success))] mt-0.5">•</span>{s}
                           </li>
                         ))}
                       </ul>
@@ -365,12 +365,12 @@ const AIAnalysisResults = ({ analysis, analyzedAt, narrativeMode = false }: AIAn
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.25 }}
         >
-          <Card className="border-purple-500/20 h-full">
+          <Card className="border-[hsl(var(--chart-3)/0.2)] h-full">
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base text-purple-500">
+              <CardTitle className="flex items-center gap-2 text-base text-[hsl(var(--chart-3))]">
                 <Sparkles className="w-4 h-4" />
                 High-Potential Talent
-                <Badge variant="secondary" className="ml-auto bg-purple-500/10 text-purple-500 border-0 text-[10px]">
+                <Badge variant="secondary" className="ml-auto bg-[hsl(var(--chart-3)/0.1)] text-[hsl(var(--chart-3))] border-0 text-[10px]">
                   {analysis.highPotentials.length}
                 </Badge>
               </CardTitle>
@@ -385,14 +385,14 @@ const AIAnalysisResults = ({ analysis, analyzedAt, narrativeMode = false }: AIAn
                     initial={{ opacity: 0, x: 12 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.2 + i * 0.05 }}
-                    className="p-3 rounded-lg bg-purple-500/5 border border-purple-500/10"
+                    className="p-3 rounded-lg bg-[hsl(var(--chart-3)/0.05)] border border-[hsl(var(--chart-3)/0.1)]"
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
                         <p className="font-semibold text-sm">{hp.employeeName}</p>
                         <p className="text-[10px] text-muted-foreground">{hp.department}</p>
                       </div>
-                      <Badge variant="secondary" className="bg-purple-500/15 text-purple-500 border-0 text-[9px]">
+                      <Badge variant="secondary" className="bg-[hsl(var(--chart-3)/0.15)] text-[hsl(var(--chart-3))] border-0 text-[9px]">
                         {hp.readinessTag}
                       </Badge>
                     </div>
@@ -418,12 +418,12 @@ const AIAnalysisResults = ({ analysis, analyzedAt, narrativeMode = false }: AIAn
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.3 }}
         >
-          <Card className="border-emerald-500/20 h-full">
+          <Card className="border-[hsl(var(--intel-success)/0.2)] h-full">
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base text-emerald-500">
+              <CardTitle className="flex items-center gap-2 text-base text-[hsl(var(--intel-success))]">
                 <Star className="w-4 h-4" />
                 Top Performers
-                <Badge variant="secondary" className="ml-auto bg-emerald-500/10 text-emerald-500 border-0 text-[10px]">
+                <Badge variant="secondary" className="ml-auto bg-[hsl(var(--intel-success)/0.1)] text-[hsl(var(--intel-success))] border-0 text-[10px]">
                   {(analysis.topPerformers || []).length}
                 </Badge>
               </CardTitle>
@@ -438,14 +438,14 @@ const AIAnalysisResults = ({ analysis, analyzedAt, narrativeMode = false }: AIAn
                     initial={{ opacity: 0, x: 12 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.2 + i * 0.05 }}
-                    className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10"
+                    className="p-3 rounded-lg bg-[hsl(var(--intel-success)/0.05)] border border-[hsl(var(--intel-success)/0.1)]"
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
                         <p className="font-semibold text-sm">{tp.employeeName}</p>
                         <p className="text-[10px] text-muted-foreground">{tp.department}</p>
                       </div>
-                      <Badge variant="secondary" className="bg-emerald-500/15 text-emerald-500 border-0 text-[9px]">
+                      <Badge variant="secondary" className="bg-[hsl(var(--intel-success)/0.15)] text-[hsl(var(--intel-success))] border-0 text-[9px]">
                         {tp.consistencyTag}
                       </Badge>
                     </div>
@@ -504,8 +504,8 @@ const AIAnalysisResults = ({ analysis, analyzedAt, narrativeMode = false }: AIAn
               {/* Medium Term */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 rounded-full bg-yellow-500/15 flex items-center justify-center">
-                    <Clock className="w-3 h-3 text-yellow-500" />
+                  <div className="w-6 h-6 rounded-full bg-[hsl(var(--intel-warning)/0.15)] flex items-center justify-center">
+                    <Clock className="w-3 h-3 text-[hsl(var(--intel-warning))]" />
                   </div>
                   <div>
                     <p className="font-semibold text-sm">Medium Term</p>
@@ -513,7 +513,7 @@ const AIAnalysisResults = ({ analysis, analyzedAt, narrativeMode = false }: AIAn
                   </div>
                 </div>
                 {analysis.strategicRecommendations.mediumTerm.map((rec, i) => (
-                  <div key={i} className="p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
+                  <div key={i} className="p-3 rounded-lg bg-[hsl(var(--intel-warning)/0.05)] border border-[hsl(var(--intel-warning)/0.1)]">
                     <p className="text-xs font-medium mb-1">{rec.action}</p>
                     <p className="text-[10px] text-muted-foreground">{rec.rationale}</p>
                     {rec.timeline && <Badge variant="outline" className="mt-2 text-[9px]">{rec.timeline}</Badge>}
@@ -524,8 +524,8 @@ const AIAnalysisResults = ({ analysis, analyzedAt, narrativeMode = false }: AIAn
               {/* Long Term */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500/15 flex items-center justify-center">
-                    <TrendingUp className="w-3 h-3 text-emerald-500" />
+                  <div className="w-6 h-6 rounded-full bg-[hsl(var(--intel-success)/0.15)] flex items-center justify-center">
+                    <TrendingUp className="w-3 h-3 text-[hsl(var(--intel-success))]" />
                   </div>
                   <div>
                     <p className="font-semibold text-sm">Long Term</p>
@@ -533,7 +533,7 @@ const AIAnalysisResults = ({ analysis, analyzedAt, narrativeMode = false }: AIAn
                   </div>
                 </div>
                 {analysis.strategicRecommendations.longTerm.map((rec, i) => (
-                  <div key={i} className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                  <div key={i} className="p-3 rounded-lg bg-[hsl(var(--intel-success)/0.05)] border border-[hsl(var(--intel-success)/0.1)]">
                     <p className="text-xs font-medium mb-1">{rec.action}</p>
                     <p className="text-[10px] text-muted-foreground">{rec.rationale}</p>
                     {rec.impact && <Badge variant="outline" className="mt-2 text-[9px]">{rec.impact}</Badge>}

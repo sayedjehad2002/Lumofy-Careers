@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
+import { normalizeLocation } from "@/lib/jobLocations";
 import { supabase } from "@/integrations/supabase/client";
 import { adminQuery } from "@/lib/adminQuery";
 import { getAttribution } from "@/lib/attribution";
@@ -60,7 +61,8 @@ function dbRowToJob(row: any): Job {
     id: row.id,
     title: row.title,
     department: row.department,
-    location: row.location,
+    // One spelling per place everywhere a job is shown (see jobLocations.ts).
+    location: normalizeLocation(row.location),
     type: row.type,
     status: row.status as "open" | "closed",
     summary: row.summary,

@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Link } from "react-router-dom";
-import { MoreVertical, ChevronRight, MailWarning } from "lucide-react";
+import { MoreVertical, ChevronRight, MailWarning, PanelRightOpen } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -25,8 +25,12 @@ export interface ApplicantRowProps {
   selected: boolean;
   /** True once anything is selected — pins every checkbox visible. */
   selectionActive: boolean;
+  /** True for the row the keyboard is on (J / K). */
+  cursor: boolean;
   onToggleSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  /** Open the quick preview panel without leaving the list. */
+  onPeek: (id: string) => void;
 }
 
 function getInitials(name: string) {
@@ -49,8 +53,8 @@ const SLA_LABEL: Record<SlaState, string> = {
  * click target to the profile, through the name link.
  */
 function ApplicantRowInner({
-  applicant, jobTitle, profileHref, days, sla, selected, selectionActive,
-  onToggleSelect, onDelete,
+  applicant, jobTitle, profileHref, days, sla, selected, selectionActive, cursor,
+  onToggleSelect, onDelete, onPeek,
 }: ApplicantRowProps) {
   const score = applicant.aiAnalysis?.fitScore;
   const stage = APPLICANT_STATUSES.find((s) => s.value === applicant.status) ?? APPLICANT_STATUSES[0];
@@ -63,7 +67,7 @@ function ApplicantRowInner({
     : applied.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
   return (
-    <div className={`ar-row group${selected ? " is-selected" : ""}`}>
+    <div id={`ar-row-${applicant.id}`} className={`ar-row group${selected ? " is-selected" : ""}${cursor ? " is-cursor" : ""}`}>
       {/* Avatar and checkbox share one slot, so selection costs no row width. */}
       <div className="ar-sel">
         <span
@@ -88,7 +92,7 @@ function ApplicantRowInner({
 
       <div className="ar-cell ar-who">
         {/* A real anchor: right-click "open in new tab" and Cmd-click work. */}
-        <Link to={profileHref} className="ar-name">
+        <Link to={profileHref} className="ar-name" dir="auto">
           {/* fullName can legitimately be empty — a CV whose filename carried no
               name and which the AI has not backfilled. Never invent "Unknown". */}
           {name || <span className="italic text-muted-foreground">Name not captured</span>}
@@ -141,6 +145,15 @@ function ApplicantRowInner({
       </div>
 
       <div className="ar-actions">
+        <button
+          type="button"
+          onClick={() => onPeek(applicant.id)}
+          aria-label={`Quick preview of ${name || "this candidate"}`}
+          title="Quick preview (Enter)"
+          className="ar-icon-btn ar-peek"
+        >
+          <PanelRightOpen className="h-4 w-4" aria-hidden="true" />
+        </button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button type="button" aria-label={`Actions for ${name || "this candidate"}`} className="ar-icon-btn">
@@ -148,6 +161,7 @@ function ApplicantRowInner({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onClick={() => onPeek(applicant.id)}>Quick preview</DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to={profileHref}>Open profile</Link>
             </DropdownMenuItem>

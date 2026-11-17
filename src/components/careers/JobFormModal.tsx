@@ -19,6 +19,8 @@ import type { Job, ScreeningQuestion } from "@/types/careers";
 import { toast } from "sonner";
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { TONE_TEXT } from "./statusColors";
+import { useCareers } from "@/contexts/CareersContext";
+import { JOB_LOCATIONS, findDuplicateTitle, normalizeLocation } from "@/lib/jobLocations";
 import lumofyLogo from "@/assets/lumofy-mark.png";
 
 const WEIGHT_KEYS = ["skills", "tools", "experience", "industry", "education", "stability"] as const;
@@ -222,7 +224,7 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
       if (match) { setField("department", match); n++; }
     }
 
-    if (r.location && (!fillEmptyOnly || blankStr(form.location))) { setField("location", String(r.location)); n++; }
+    if (r.location && (!fillEmptyOnly || blankStr(form.location))) { setField("location", normalizeLocation(String(r.location))); n++; }
 
     const empTypes = ["Full-time", "Part-time", "Contract", "Internship"];
     if (r.employmentType && empTypes.includes(r.employmentType) && (!fillEmptyOnly || blankStr(form.type))) { setField("type", r.employmentType); n++; }
@@ -507,6 +509,11 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
 
   const summaryLen = (form.summary || "").length;
   const canGenerate = !!form.title.trim() && !!form.department;
+  const { jobs: allJobs } = useCareers();
+  const duplicate = findDuplicateTitle(form.title, allJobs, job?.id);
+  const locationOptions = (JOB_LOCATIONS as readonly string[]).includes(form.location) || !form.location
+    ? [...JOB_LOCATIONS]
+    : [form.location, ...JOB_LOCATIONS];
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -547,6 +554,11 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
                 <div>
                   <Label className="text-xs text-muted-foreground">Job title <span className="text-destructive">*</span></Label>
                   <Input value={form.title} onChange={(e) => setField("title", e.target.value)} placeholder="e.g. Growth Marketing Manager" className="mt-1 bg-secondary border-border" />
+                  {duplicate && (
+                    <p className={`mt-1.5 text-xs font-medium ${TONE_TEXT.warning}`} role="status">
+                      “{duplicate.title}” is already open in {duplicate.department}. A second listing splits its applicants across two roles.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Department <span className="text-destructive">*</span></Label>
@@ -608,7 +620,14 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label>Location</Label>
-                <Input value={form.location} onChange={(e) => setField("location", e.target.value)} className="mt-1 bg-secondary border-border" />
+                {/* A fixed list, so the public filter never shows one place under
+                    three spellings. A legacy value stays selectable until changed. */}
+                <Select value={form.location} onValueChange={(v) => setField("location", v)}>
+                  <SelectTrigger className="mt-1 bg-secondary border-border" aria-label="Location"><SelectValue placeholder="Choose a location" /></SelectTrigger>
+                  <SelectContent>
+                    {locationOptions.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Employment type</Label>
@@ -778,6 +797,7 @@ const JobFormModal = ({ job, onSave, onClose, sessionToken }: JobFormModalProps)
                     <span className="w-36 text-xs text-muted-foreground">{label}</span>
                     <input
                       type="range" min={0} max={100} value={aiWeights[key]}
+                      aria-label={`${label} weight, percent`}
                       onChange={(e) => {
                         const newVal = Number(e.target.value);
                         const otherKeys = WEIGHT_KEYS.filter((k) => k !== key);
