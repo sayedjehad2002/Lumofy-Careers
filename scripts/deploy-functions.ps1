@@ -117,7 +117,10 @@ Write-Host "Deploying $($targets.Count) function(s) to project $ProjectRef ...`n
 $failed = @()
 foreach ($fn in $targets) {
   Write-Host "=== $fn ==="
-  npx supabase functions deploy $fn --project-ref $ProjectRef
+  # Supabase CLI 3.x refuses a production deploy from a non-interactive run
+  # unless it is confirmed. Running this script IS the confirmation: it is only
+  # ever started on purpose, for the functions named on its command line.
+  npx supabase functions deploy $fn --project-ref $ProjectRef --yes
   if ($LASTEXITCODE -ne 0) { $failed += $fn }
   Write-Host ""
 }
